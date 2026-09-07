@@ -4,7 +4,7 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
@@ -13,24 +13,39 @@ datasource db {
 }
 
 model Source {
-  id         String   @id @default(cuid())
-  name       String
-  url        String
-  rawHash    String?
-  fetchedAt  DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  name                   String
+  url                    String
+  rawHash                String?
+  fetchedAt              DateTime @updatedAt
+  // Age relaxation in years per category, e.g. { "SC": 5, "OBC": 3 }.
+  // Shared across all posts in this notification.
+  categoryRelaxationRules Json?
 
   posts Post[]
 }
 
+enum EducationLevel {
+  TENTH
+  TWELFTH
+  DIPLOMA
+  BACHELORS
+  MASTERS
+  PHD
+}
+
 model Post {
-  id                         String   @id @default(cuid())
+  id                         String          @id @default(cuid())
   sourceId                   String
-  source                     Source   @relation(fields: [sourceId], references: [id])
+  source                     Source          @relation(fields: [sourceId], references: [id])
   postName                   String
   payLevel                   String?
   minAge                     Int?
   maxAge                     Int?
+  // Raw text kept for display + manual verification when the level below
+  // can't be classified confidently (e.g. subject-specific requirements).
   educationRequired          String?
+  minEducationLevel          EducationLevel?
   minMarksPercent            Float?
   categoryRelaxationApplies  Boolean?
 }

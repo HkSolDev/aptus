@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { PDFParse } from 'pdf-parse';
-
+import { prisma } from '../src/index.js';
+import crypto from 'node:crypto';
 // Official notification PDF for SSC CGL 2026 from ssc.gov.in
 const SSC_CGL_2026_PDF_URL =
   'https://ssc.gov.in/api/attachment/uploads/masterData/NoticeBoards/Notice_of_adv_cgl_2026.pdf';
@@ -9,7 +10,8 @@ const SSC_CGL_2026_PDF_URL =
 const DOWNLOAD_DIR = path.resolve('downloads');
 const LOCAL_PDF_PATH = path.join(DOWNLOAD_DIR, 'ssc-cgl-2026.pdf');
 
-async function main() {
+
+export async function pdfWordExtractor() {
   // 1. Ensure download directory exists
   await fs.mkdir(DOWNLOAD_DIR, { recursive: true });
 
@@ -45,28 +47,37 @@ async function main() {
   console.log('--- END OF TEXT ---');
 
 
-  const fullText = result.text.toLowerCase();
+// Keep original case for the LLM — lowercasing destroyed signal like
+// category codes (SC/ST) that only make sense in their original casing.
+const fullText = result.text;
+const rawHash = crypto.createHash('sha256').update(fullText).digest('hex');
 
-  let impText = '';
+const earlierSource = await prisma.source.findFirst({
+  where: { url: SSC_CGL_2026_PDF_URL },
+});
 
-  const textToCompare = ['eligibility', 'date', 'vacancy', 'job', 'job name', 'age', 'education', 'salary', 'apply', 'exam date', 'result date', 'Name of Post', 'Post',
-    'Ministry', 'department', 'Classification of Post', 'Age Limit', 'pay level'
-  ]
-  
-  for (const word of textToCompare) {
-    if (fullText.includes(word)) {
-      
-        const startIndex = fullText.indexOf(word);
-        const endIndex = fullText.indexOf(word, startIndex + 1000);
-        impText = fullText.slice(startIndex, endIndex);
-      };
-    }
-  
-
-  console.log('------------- IMP TEXT ----------', impText);
+// Compare hash-to-hash, not hash-to-raw-text, so this actually detects
+// "nothing changed" and skips a paid LLM call.
+if (earlierSource && earlierSource.rawHash === rawHash) {
+  console.log(`[Skip] Unchanged, already extracted as Source ID: ${earlierSource.id}`);
+  return { fullText, sourceId: earlierSource.id, unchanged: true };
 }
 
-main().catch((err) => {
-  console.error('[Error]', err);
-  process.exit(1);
-});
+const source = earlierSource
+  ? await prisma.source.update({
+      where: { id: earlierSource.id },
+      data: { rawHash },
+    })
+  : await prisma.source.create({
+      data: {
+        name: 'SSC CGL 2026',
+        url: SSC_CGL_2026_PDF_URL,
+        rawHash,
+      },
+    });
+
+console.log(`Saved Source ID: ${source.id}`);
+
+return { fullText, sourceId: source.id, unchanged: false };
+}
+

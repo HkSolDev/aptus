@@ -16,5 +16,7 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm tsc --noEmit       # Type check
-      - run: pnpm test               # Run unit tests
+      - run: pnpm lint                      # 1. Lint check (ESLint)
+      - run: pnpm exec prettier --check .   # 2. Formatting check (Prettier)
+      - run: pnpm tsc --noEmit       # 3. Type check
+      - run: pnpm test                      # 4. Unit tests

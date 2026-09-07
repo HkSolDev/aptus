@@ -5,7 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "start": "tsx src/index.ts",
     "day1": "tsx scripts/day1-fetch-ssc-pdf.ts",
+    "extract": "tsx scripts/extract.ts",
     "lint": "eslint .",
     "test": "node --import tsx --test scripts/**/*.test.ts"
   },
@@ -14,15 +16,20 @@
   "license": "ISC",
   "packageManager": "pnpm@10.28.2",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@types/node": "^26.4.1",
     "@types/pdf-parse": "^1.1.5",
     "cheerio": "^1.2.0",
+    "dotenv": "^17.4.2",
+    "openai": "^7.10.0",
     "pdf-parse": "^2.4.5",
+    "pg": "^8.23.0",
     "playwright": "^1.63.0",
     "tsx": "^4.23.13"
   },
   "devDependencies": {
+    "@types/pg": "^8.23.1",
     "eslint": "^10.10.0",
     "prettier": "^3.9.6",
     "prisma": "7.10.0",
