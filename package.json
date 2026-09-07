@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "postinstall": "prisma generate",
     "start": "tsx src/index.ts",
     "day1": "tsx scripts/day1-fetch-ssc-pdf.ts",
     "extract": "tsx scripts/extract.ts",
