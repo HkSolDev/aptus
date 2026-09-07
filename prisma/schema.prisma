@@ -11,3 +11,26 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Source {
+  id         String   @id @default(cuid())
+  name       String
+  url        String
+  rawHash    String?
+  fetchedAt  DateTime @updatedAt
+
+  posts Post[]
+}
+
+model Post {
+  id                         String   @id @default(cuid())
+  sourceId                   String
+  source                     Source   @relation(fields: [sourceId], references: [id])
+  postName                   String
+  payLevel                   String?
+  minAge                     Int?
+  maxAge                     Int?
+  educationRequired          String?
+  minMarksPercent            Float?
+  categoryRelaxationApplies  Boolean?
+}
