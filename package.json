@@ -1,0 +1,32 @@
+{
+  "name": "aptus",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "day1": "tsx scripts/day1-fetch-ssc-pdf.ts",
+    "lint": "eslint .",
+    "test": "node --import tsx --test scripts/**/*.test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.28.2",
+  "dependencies": {
+    "@prisma/client": "^7.10.0",
+    "@types/node": "^26.4.1",
+    "@types/pdf-parse": "^1.1.5",
+    "cheerio": "^1.2.0",
+    "pdf-parse": "^2.4.5",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.13"
+  },
+  "devDependencies": {
+    "eslint": "^10.10.0",
+    "prettier": "^3.9.6",
+    "prisma": "7.10.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.69.0"
+  }
+}
