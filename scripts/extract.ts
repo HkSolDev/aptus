@@ -19,6 +19,12 @@ export async function extractNotification(rawText: string, sourceId: string) {
           'For minEducationLevel, classify the stated requirement into the closest bucket ' +
           '(e.g. "Bachelor\'s Degree" -> BACHELORS); use null if the requirement is too specific ' +
           'or unusual to classify confidently — do not guess. ' +
+          'For postGroup, use the post\'s stated classification (e.g. "Group \'B\' Gazetted" -> B). ' +
+          'For categoryRelaxationApplies and categoryRelaxationRules: find the notification\'s general ' +
+          'age relaxation section (it usually lists years granted per category like SC/ST/OBC/EWS/PwBD) ' +
+          'and apply those same values to every post as the default — do not leave them null just because ' +
+          'a specific post\'s own paragraph does not restate the table. Only deviate from that default for ' +
+          'a post if the text explicitly grants it different or additional relaxation than the general rule. ' +
           'Use null for anything else not explicitly stated in the text — never guess or infer a default.',
       },
       { role: 'user', content: rawText },
@@ -28,45 +34,37 @@ export async function extractNotification(rawText: string, sourceId: string) {
 
 interface ExtractedPost {
   postName: string;
+  postGroup: 'A' | 'B' | 'C' | 'D' | null;
   payLevel: string | null;
   minAge: number | null;
   maxAge: number | null;
   educationRequired: string | null;
   minEducationLevel: 'TENTH' | 'TWELFTH' | 'DIPLOMA' | 'BACHELORS' | 'MASTERS' | 'PHD' | null;
   minMarksPercent: number | null;
+  categoryRelaxationApplies: boolean | null;
+  categoryRelaxationRules: Record<string, number | null>;
 }
 
 interface ExtractedNotification {
   jobName: string;
   applyStartDate: string | null;
   applyEndDate: string | null;
-  categoryRelaxationApplies: boolean | null;
-  categoryRelaxationRules: Record<string, number | null>;
   posts: ExtractedPost[];
 }
 
 const jobData: ExtractedNotification = JSON.parse(response.choices[0].message.content!);
-
-// Relaxation rules apply to the whole notification, so they live on Source.
-await prisma.source.update({
-  where: { id: sourceId },
-  data: { categoryRelaxationRules: jobData.categoryRelaxationRules },
-});
 
 await prisma.post.createMany({
   data: jobData.posts.map((post: ExtractedPost) => {
     return {
       ...post,
       sourceId: sourceId,
-      // categoryRelaxationApplies is notification-level too — carry it onto
-      // every row so matching queries can filter on it directly.
-      categoryRelaxationApplies: jobData.categoryRelaxationApplies,
     }
   })
 })
 
 console.log(`------------JOBS--------------`)
-console.log(jobData.jobName, jobData.applyStartDate, jobData.applyEndDate, jobData.categoryRelaxationApplies)
+console.log(jobData.jobName, jobData.applyStartDate, jobData.applyEndDate)
 console.log('------------JOBS--------------')
 
   
