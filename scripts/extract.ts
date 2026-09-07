@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import OpenAI from 'openai';
 import { SCHEMA } from '../src/schemas/notification.schema.js';
-import { prisma } from '../src/index.js';
+import { prisma } from '../src/db.js';
 
 const openai = new OpenAI();
 

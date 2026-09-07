@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { PDFParse } from 'pdf-parse';
-import { prisma } from '../src/index.js';
+import { prisma } from '../src/db.js';
 import crypto from 'node:crypto';
 // Official notification PDF for SSC CGL 2026 from ssc.gov.in
 const SSC_CGL_2026_PDF_URL =

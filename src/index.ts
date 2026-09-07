@@ -1,47 +1,35 @@
-import { PrismaClient } from '../generated/prisma/index.js';
-import { PrismaPg } from '@prisma/adapter-pg'
-
+import { prisma } from './db.js';
 import { extractNotification } from '../scripts/extract.js';
 import { pdfWordExtractor } from '../scripts/day1-fetch-ssc-pdf.js';
 
-
- const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
-export const prisma = new PrismaClient({adapter});
 async function main() {
-try {
+  try {
+    const { fullText, sourceId, unchanged } = await pdfWordExtractor();
 
-const {fullText, sourceId, unchanged} = await pdfWordExtractor()
+    // Source hasn't changed since last run — skip the paid LLM call entirely.
+    if (unchanged) {
+      console.log(`[Skip] Source ${sourceId} unchanged, nothing to extract.`);
+      return;
+    }
 
-// Source hasn't changed since last run — skip the paid LLM call entirely.
-if (unchanged) {
-  console.log(`[Skip] Source ${sourceId} unchanged, nothing to extract.`);
-  return;
-}
+    const resultData = await extractNotification(fullText, sourceId);
 
-const resultData = await extractNotification(fullText, sourceId)
-
-console.log('-------DATA------')
-console.log(resultData)
-
-
-
-
-
-
-
-
-
-} catch (error) {
-  console.error(error);
-}
-}
-
-
-main()
-  .catch((error) => {
+    console.log('-------DATA------');
+    console.log(resultData);
+  } catch (error) {
     console.error(error);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  }
+}
+
+// Only run the pipeline when this file is executed directly, not when
+// another script imports from it (e.g. for the prisma client).
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main()
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

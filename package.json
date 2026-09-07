@@ -8,6 +8,7 @@
     "start": "tsx src/index.ts",
     "day1": "tsx scripts/day1-fetch-ssc-pdf.ts",
     "extract": "tsx scripts/extract.ts",
+    "match": "tsx scripts/match.ts",
     "lint": "eslint .",
     "test": "node --import tsx --test scripts/**/*.test.ts"
   },
