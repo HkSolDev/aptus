@@ -1,7 +1,14 @@
 import 'dotenv/config';
 import { prisma } from '../src/db.js';
 
-const EDUCATION_ORDER = ['TENTH', 'TWELFTH', 'DIPLOMA', 'BACHELORS', 'MASTERS', 'PHD'];
+const EDUCATION_ORDER = [
+  'TENTH',
+  'TWELFTH',
+  'DIPLOMA',
+  'BACHELORS',
+  'MASTERS',
+  'PHD',
+];
 
 // Dummy user for now — this will become the web form input later.
 const user = {
@@ -27,8 +34,11 @@ async function main() {
 
   const matches = posts.filter((post) => {
     const relaxation =
-      (post.categoryRelaxationRules as Record<string, number | null> | null)?.[user.category] ?? 0;
-    const effectiveMaxAge = post.maxAge !== null ? post.maxAge + relaxation : null;
+      (post.categoryRelaxationRules as Record<string, number | null> | null)?.[
+        user.category
+      ] ?? 0;
+    const effectiveMaxAge =
+      post.maxAge !== null ? post.maxAge + relaxation : null;
 
     const ageOk =
       (post.minAge === null || userAge >= post.minAge) &&
@@ -41,11 +51,15 @@ async function main() {
     return ageOk && educationOk;
   });
 
-  console.log(`User: age ${userAge}, ${user.educationLevel}, category ${user.category}`);
+  console.log(
+    `User: age ${userAge}, ${user.educationLevel}, category ${user.category}`,
+  );
   console.log(`Eligible for ${matches.length} of ${posts.length} posts:\n`);
 
   for (const post of matches) {
-    console.log(`- ${post.postName} (${post.source.name}) -> ${post.source.url}`);
+    console.log(
+      `- ${post.postName} (${post.source.name}) -> ${post.source.url}`,
+    );
   }
 }
 

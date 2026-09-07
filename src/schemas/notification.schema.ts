@@ -1,4 +1,3 @@
-
 export const SCHEMA = {
   name: 'notification_extraction',
   strict: true,
@@ -16,7 +15,10 @@ export const SCHEMA = {
             postName: { type: 'string' },
             // From the post's "Classification of Post" (e.g. "Group 'B'
             // Gazetted") — extract just the letter.
-            postGroup: { type: ['string', 'null'], enum: ['A', 'B', 'C', 'D', null] },
+            postGroup: {
+              type: ['string', 'null'],
+              enum: ['A', 'B', 'C', 'D', null],
+            },
             payLevel: { type: ['string', 'null'] },
             minAge: { type: ['integer', 'null'] },
             maxAge: { type: ['integer', 'null'] },
@@ -25,7 +27,15 @@ export const SCHEMA = {
             // is too specific/unclear to classify confidently.
             minEducationLevel: {
               type: ['string', 'null'],
-              enum: ['TENTH', 'TWELFTH', 'DIPLOMA', 'BACHELORS', 'MASTERS', 'PHD', null],
+              enum: [
+                'TENTH',
+                'TWELFTH',
+                'DIPLOMA',
+                'BACHELORS',
+                'MASTERS',
+                'PHD',
+                null,
+              ],
             },
             minMarksPercent: { type: ['number', 'null'] },
             categoryRelaxationApplies: { type: ['boolean', 'null'] },

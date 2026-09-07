@@ -1,12 +1,14 @@
 # aptus — project rules for AI coding assistants
 
 ## What this is
+
 An eligibility-matching tool for Indian government job notifications (SSC, PSU,
 state PSC, banking, defence). NOT a resume-builder. A user enters education +
 category + DOB, and the app tells them which live notifications they're
 eligible for. Real first user: the developer's brother.
 
 ## Stack (locked — do not suggest alternatives without being asked)
+
 - Language: Node.js + TypeScript end-to-end (no Python, no Bun runtime)
 - Package manager: pnpm
 - Scraping: Cheerio (static HTML) + Playwright (JS-heavy pages)
@@ -19,6 +21,7 @@ eligible for. Real first user: the developer's brother.
 - Hosting: existing Oracle Cloud Always Free VM, Docker Compose
 
 ## Hard rules for extraction schema
+
 - Every eligibility field that's a number (marks %, age, years) must be its
   own numeric field — never buried inside a text sentence — so matching code
   can do direct comparisons.
@@ -30,12 +33,14 @@ eligible for. Real first user: the developer's brother.
   applies across all notification types.
 
 ## Division of labor: LLM vs code
+
 - LLM extracts structured facts from messy text ONCE per notification.
 - Code (plain deterministic comparisons) decides eligibility EVERY time a
   user checks. Never have the LLM compute eligibility itself — that's
   arithmetic/logic, not language understanding, and must be exact.
 
 ## Scope discipline
+
 - v1 = 1-2 real sources only. Do not scrape "all of India" — expand one
   source at a time, only after the current one works end-to-end.
 - One small site-specific "fetch" script per source (HTML scrape or PDF
@@ -43,6 +48,7 @@ eligible for. Real first user: the developer's brother.
   function. Adding a source later = one small fetch script, not a rebuild.
 
 ## v1 architecture (decided)
+
 ```
 cron → fetch script per source → hash check → changed?
                                     no  → skip
@@ -50,6 +56,7 @@ cron → fetch script per source → hash check → changed?
                                           → Postgres: notifications table
 Postgres: notifications → web form (edu/category/DOB) → SQL filter → matches + URLs
 ```
+
 - Scraping/extraction runs on a schedule (cron), never on a user request —
   N users just read the same pre-populated Postgres table.
 - Change detection: hash the raw fetched content per source; skip LLM
@@ -64,6 +71,7 @@ Postgres: notifications → web form (edu/category/DOB) → SQL filter → match
   autonomous tool loop. It's a script pipeline + a plain matching query.
 
 ## How to work with this developer
+
 - He is a 2.5-year fullstack/backend dev (Solana/Rust background) learning
   AI/ML just-in-time, only as the project needs it — do not front-load theory
   he hasn't asked for.
@@ -76,4 +84,5 @@ Postgres: notifications → web form (edu/category/DOB) → SQL filter → match
   never trade working functionality for demo polish.
 - Keep responses concise; he is time-constrained (active job search alongside
   this build).
+
 </content>
