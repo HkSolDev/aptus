@@ -13,7 +13,14 @@ async function main() {
       return;
     }
 
-    const resultData = await extractNotification(fullText, sourceId);
+    const resultData = await extractNotification(fullText);
+
+    await prisma.post.createMany({
+      data: resultData.posts.map((post) => ({
+        ...post,
+        sourceId,
+      })),
+    });
 
     console.log('-------DATA------');
     console.log(resultData);

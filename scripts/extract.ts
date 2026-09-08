@@ -1,10 +1,13 @@
 import 'dotenv/config';
 import { SCHEMA, RECONCILE_SCHEMA } from '../src/schemas/notification.schema.js';
-import { prisma } from '../src/db.js';
 import { openai } from '../src/lib/ai.js';
 import { extractTextWindow } from '../src/lib/text-window.js';
+import {
+  splitIntoChunks,
+  normalizeName,
+  hasSimilarNamePair,
+} from './post-dedup.js';
 
-//TODO SPLIT PROMPT and the chunking to differerctn so the file be more clear ad all
 const SYSTEM_PROMPT =
   'This is one section of a long Indian government job notification with a lot of ' +
   'boilerplate mixed in. Find and extract only the details that determine whether a ' +
@@ -20,84 +23,6 @@ const SYSTEM_PROMPT =
   'the default, unless a post\'s own paragraph explicitly grants different or additional ' +
   'relaxation. ' +
   'Use null for anything else not explicitly stated in the text — never guess or infer a default.';
-
-// Character size per chunk, with overlap so a post description split across
-// a chunk boundary still appears whole in at least one chunk.
-const CHUNK_SIZE = 50_000;
-const CHUNK_OVERLAP = 3_000;
-
-function splitIntoChunks(text: string): string[] {
-  if (text.length <= CHUNK_SIZE) return [text];
-  const chunks: string[] = [];
-  let start = 0;
-  while (start < text.length) {
-    chunks.push(text.slice(start, start + CHUNK_SIZE));
-    start += CHUNK_SIZE - CHUNK_OVERLAP;
-  }
-  return chunks;
-}
-
-// Strips punctuation/casing so cosmetic differences (hyphens, extra spaces,
-// case) don't count as a real difference — e.g. "Sub Inspector" vs
-// "Sub-Inspector" normalize to the same string.
-function normalizeName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-// Generic words that appear across many DIFFERENT Indian government post
-// titles (e.g. "Assistant Audit Officer" and "Assistant Section Officer"
-// both contain "Assistant" and "Officer") — counting these toward
-// similarity causes false positives, since sharing a generic word says
-// nothing about whether two posts are actually the same one.
-const GENERIC_TITLE_WORDS = new Set([
-  'assistant',
-  'officer',
-  'inspector',
-  'sub',
-  'senior',
-  'junior',
-  'section',
-  'grade',
-  'department',
-  'ministry',
-  'central',
-  'state',
-  'of',
-  'the',
-  'and',
-  'for',
-]);
-
-// Cheap, deterministic pre-filter: only worth spending an LLM call on
-// duplicate-checking if at least one pair of (already normalize-deduped)
-// names shares most of their DISTINCTIVE words — e.g. "Auditor" and
-// "Auditor Offices under C&AG" share the word "auditor". Generic filler
-// words are excluded so "Assistant Audit Officer" vs "Assistant Section
-// Officer" doesn't falsely count as similar just because both contain
-// "Assistant" and "Officer".
-function hasSimilarNamePair(posts: ExtractedPost[]): boolean {
-  const wordSets = posts.map(
-    (p) =>
-      new Set(
-        normalizeName(p.postName)
-          .split(' ')
-          .filter((word) => word && !GENERIC_TITLE_WORDS.has(word)),
-      ),
-  );
-
-  for (let i = 0; i < wordSets.length; i++) {
-    for (let j = i + 1; j < wordSets.length; j++) {
-      const [a, b] = [wordSets[i], wordSets[j]];
-      const shared = [...a].filter((word) => b.has(word)).length;
-      const overlapRatio = shared / Math.min(a.size, b.size);
-      if (overlapRatio >= 0.5) return true;
-    }
-  }
-  return false;
-}
 
 interface ExtractedPost {
   postName: string;
@@ -174,7 +99,7 @@ interface ExtractedNotification {
   posts: ExtractedPost[];
 }
 
-export async function extractNotification(rawText: string, sourceId: string) {
+export async function extractNotification(rawText: string) {
   const chunks = splitIntoChunks(rawText);
   // The general relaxation table is usually stated once, early in the document.
   // Chunks that don't include it would otherwise extract categoryRelaxationRules
@@ -252,13 +177,6 @@ export async function extractNotification(rawText: string, sourceId: string) {
       `[Warning] LLM reported seeing ${totalPostsSeen} post(s) total, but only ${dedupedPosts.length} unique post(s) survived extraction. Some posts may be missing — verify manually against the source.`,
     );
   }
-
-  await prisma.post.createMany({
-    data: dedupedPosts.map((post) => ({
-      ...post,
-      sourceId,
-    })),
-  });
 
   const jobData: ExtractedNotification = {
     jobName,
