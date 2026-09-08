@@ -3,13 +3,12 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import OpenAI from 'openai';
+import { openai } from './lib/ai.js';
 import { PDFParse } from 'pdf-parse';
 import { prisma } from './db.js';
 import { getMatchesForUser, ageOn } from '../scripts/match.js';
 import { EducationLevel } from '../generated/prisma/index.js';
 
-const openai = new OpenAI();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

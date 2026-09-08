@@ -1,9 +1,8 @@
 import 'dotenv/config';
-import OpenAI from 'openai';
 import { SCHEMA, RECONCILE_SCHEMA } from '../src/schemas/notification.schema.js';
 import { prisma } from '../src/db.js';
+import { openai } from '../src/lib/ai.js';
 
-const openai = new OpenAI();
 //TODO SPLIT PROMPT and the chunking to differerctn so the file be more clear ad all
 const SYSTEM_PROMPT =
   'This is one section of a long Indian government job notification with a lot of ' +
