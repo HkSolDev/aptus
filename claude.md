@@ -70,6 +70,46 @@ Postgres: notifications → web form (edu/category/DOB) → SQL filter → match
 - This is not an "agent" product — no MCP, no LangChain/LangGraph, no
   autonomous tool loop. It's a script pipeline + a plain matching query.
 
+## File organization
+
+Applies everywhere in this repo — backend scripts, server routes, and any
+future frontend code alike. Not a backend-only rule.
+
+- One file = one responsibility. Split when a file mixes 2+ unrelated jobs
+  (HTTP plumbing, business logic, external API calls, bootstrap).
+- Pure/deterministic logic (no DB, no network) goes in its own file so it's
+  testable without mocks.
+- Don't split a single-purpose file just because it's long.
+- Deletion test: before extracting something into its own file, check that
+  doing so actually reduces complexity somewhere — not just relocates it.
+- Only pull shared logic into its own file once it's duplicated in 2+ real
+  call sites. One caller isn't a reason to pre-split.
+- No duplicate logic — once the same calculation exists in 2+ files, it
+  belongs in one shared function, imported by both.
+
+## Comments
+
+- Default to no comments. Well-named functions/variables should explain
+  themselves.
+- Only comment the WHY when it's non-obvious: a hidden constraint, a
+  workaround for a specific bug, a subtle invariant a reader would get wrong
+  otherwise. (Example already in this repo: the dotenv-import-order note.)
+- Never comment WHAT the code does — that's what reading the code is for.
+- Never write comments referencing the current task/PR/issue ("added for X
+  feature", "fix for #123") — these rot as the code evolves.
+- No multi-paragraph doc comments unless explicitly asked.
+
+## No new tools/dependencies until a real need forces it
+
+- Don't introduce a new AI technique, library, or dependency speculatively —
+  wait until the project actually hits a wall that the current stack can't
+  solve, then add exactly what's needed for that.
+- This includes AI-specific additions (RAG, embeddings, agents, new
+  frameworks) as much as ordinary packages — see "Stack (locked)" above.
+- Reason: the developer is learning AI/ML just-in-time, from real problems he
+  hits — not by pre-loading tools/theory he hasn't needed yet. Let him ask
+  for something new once he feels the gap himself.
+
 ## How to work with this developer
 
 - He is a 2.5-year fullstack/backend dev (Solana/Rust background) learning

@@ -3,7 +3,6 @@ import path from 'node:path';
 import { PDFParse } from 'pdf-parse';
 import { prisma } from '../src/db.js';
 import crypto from 'node:crypto';
-// Official notification PDF for SSC CGL 2026 from ssc.gov.in
 const SSC_CGL_2026_PDF_URL =
   'https://ssc.gov.in/api/attachment/uploads/masterData/NoticeBoards/Notice_of_adv_cgl_2026.pdf';
 
@@ -11,10 +10,8 @@ const DOWNLOAD_DIR = path.resolve('downloads');
 const LOCAL_PDF_PATH = path.join(DOWNLOAD_DIR, 'ssc-cgl-2026.pdf');
 
 export async function pdfWordExtractor() {
-  // 1. Ensure download directory exists
   await fs.mkdir(DOWNLOAD_DIR, { recursive: true });
 
-  // 2. Download PDF if not already cached locally
   let pdfBuffer: Buffer;
   try {
     pdfBuffer = await fs.readFile(LOCAL_PDF_PATH);
@@ -37,7 +34,6 @@ export async function pdfWordExtractor() {
     );
   }
 
-  // 3. Extract text from PDF
   console.log('[Parse] Extracting text with pdf-parse...');
   const parser = new PDFParse({ data: pdfBuffer });
   const result = await parser.getText();
@@ -46,7 +42,6 @@ export async function pdfWordExtractor() {
     `[Done] Extracted ${result.text.length} characters across ${result.total} pages.\n`,
   );
 
-  // 4. Print full extracted text to console
   console.log('--- FULL TEXT ---');
   console.log(result.text);
   console.log('--- END OF TEXT ---');

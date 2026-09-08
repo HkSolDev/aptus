@@ -79,7 +79,6 @@ export async function getMatchesForUser(userId: string) {
 }
 
 async function main() {
-  // Dummy user id for now — replace with a real one once the form exists.
   const userId = process.argv[2];
   if (!userId) {
     console.error('Usage: tsx scripts/match.ts <userId>');

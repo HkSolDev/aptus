@@ -71,7 +71,6 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 export const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host || 'localhost'}`);
 
-  // Route 1: GET / (and HEAD /) -> serve static public/index.html
   if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/') {
     try {
       const filePath = path.join(PUBLIC_DIR, 'index.html');
@@ -84,7 +83,6 @@ export const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Route 2: POST /api/match
   if (req.method === 'POST' && url.pathname === '/api/match') {
     try {
       const rawBody = await readBody(req);
@@ -116,7 +114,6 @@ export const server = http.createServer(async (req, res) => {
         eduMap.set(edu.level, Number.isFinite(marks) ? marks : null);
       }
 
-      // Update existing user or create a new user with nested education records
       const existingUser = body.userId
         ? await prisma.user.findUnique({
             where: { id: body.userId },
@@ -167,10 +164,8 @@ export const server = http.createServer(async (req, res) => {
         });
       }
 
-      // Run existing matching logic from scripts/match.ts
       const matchedPosts = await getMatchesForUser(user.id);
 
-      // Query checked sources
       const sources = await prisma.source.findMany({
         select: { name: true },
       });
@@ -260,7 +255,6 @@ export const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Route 3: POST /api/explain
   if (req.method === 'POST' && url.pathname === '/api/explain') {
     try {
       const rawBody = await readBody(req);

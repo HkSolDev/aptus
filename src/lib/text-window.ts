@@ -5,10 +5,6 @@ export interface TextWindowOptions {
   fallbackToStart?: boolean;
 }
 
-/**
- * Extracts a window of text centered around a target keyword or pattern,
- * with optional fallback targets and start-of-document fallback.
- */
 export function extractTextWindow(
   text: string,
   target: string | RegExp,
