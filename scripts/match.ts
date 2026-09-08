@@ -10,14 +10,7 @@ const EDUCATION_ORDER = [
   'PHD',
 ];
 
-// Dummy user for now — this will become the web form input later.
-const user = {
-  dob: new Date('2000-05-15'),
-  educationLevel: 'BACHELORS',
-  category: 'OBC', // one of: SC, ST, OBC, EWS, PwBD, or null for General
-};
-
-function ageOn(dob: Date, asOf = new Date()): number {
+export function ageOn(dob: Date, asOf = new Date()): number {
   let age = asOf.getFullYear() - dob.getFullYear();
   const hadBirthdayThisYear =
     asOf.getMonth() > dob.getMonth() ||
@@ -26,13 +19,23 @@ function ageOn(dob: Date, asOf = new Date()): number {
   return age;
 }
 
-async function main() {
+export async function getMatchesForUser(userId: string) {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    include: { educations: true },
+  });
+
   const userAge = ageOn(user.dob);
-  const userEducationRank = EDUCATION_ORDER.indexOf(user.educationLevel);
+  const highestLevelRank = Math.max(
+    ...user.educations.map((e) => EDUCATION_ORDER.indexOf(e.level)),
+  );
+  const marksByLevel = new Map(
+    user.educations.map((e) => [e.level, e.marksPercent]),
+  );
 
   const posts = await prisma.post.findMany({ include: { source: true } });
 
-  const matches = posts.filter((post) => {
+  return posts.filter((post) => {
     const relaxation =
       (post.categoryRelaxationRules as Record<string, number | null> | null)?.[
         user.category
@@ -46,16 +49,37 @@ async function main() {
 
     const educationOk =
       post.minEducationLevel === null ||
-      userEducationRank >= EDUCATION_ORDER.indexOf(post.minEducationLevel);
+      highestLevelRank >= EDUCATION_ORDER.indexOf(post.minEducationLevel);
 
-    return ageOk && educationOk;
+    // Marks are checked at the SPECIFIC level the post requires, not the
+    // user's highest level — a post asking for "60% in 10th" cares about
+    // the 10th-grade percentage even if the user went on to a Master's.
+    // Missing data (post's requirement unknown, or user never entered that
+    // level's marks) is NOT a hard fail — it's a "verify manually" case,
+    // so the post stays in the results rather than being silently hidden.
+    const requiredMarks = post.minMarksPercent;
+    const marksAtRequiredLevel = post.minEducationLevel
+      ? marksByLevel.get(post.minEducationLevel)
+      : undefined;
+    const marksOk =
+      requiredMarks == null ||
+      marksAtRequiredLevel == null ||
+      marksAtRequiredLevel >= requiredMarks;
+
+    return ageOk && educationOk && marksOk;
   });
+}
 
-  console.log(
-    `User: age ${userAge}, ${user.educationLevel}, category ${user.category}`,
-  );
-  console.log(`Eligible for ${matches.length} of ${posts.length} posts:\n`);
+async function main() {
+  // Dummy user id for now — replace with a real one once the form exists.
+  const userId = process.argv[2];
+  if (!userId) {
+    console.error('Usage: tsx scripts/match.ts <userId>');
+    process.exit(1);
+  }
 
+  const matches = await getMatchesForUser(userId);
+  console.log(`Eligible for ${matches.length} posts:\n`);
   for (const post of matches) {
     console.log(
       `- ${post.postName} (${post.source.name}) -> ${post.source.url}`,
@@ -63,11 +87,14 @@ async function main() {
   }
 }
 
-main()
-  .catch((err) => {
-    console.error('[Error]', err);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main()
+    .catch((err) => {
+      console.error('[Error]', err);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
+

@@ -1,3 +1,33 @@
+// Used for a second, cheap pass over just the extracted post NAMES (not the
+// raw document) to merge near-duplicate wording of the same post while
+// keeping genuinely distinct department/office variants separate — the
+// exact-string dedup after chunking can't tell "Sub Inspector" apart from
+// "Sub-Inspector" (same post) vs "Auditor (Offices under C&AG)" apart from
+// "Auditor (Offices under CGDA)" (different posts).
+export const RECONCILE_SCHEMA = {
+  name: 'post_deduplication',
+  strict: true,
+  schema: {
+    type: 'object',
+    properties: {
+      duplicateGroups: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            keepIndex: { type: 'integer' },
+            duplicateIndices: { type: 'array', items: { type: 'integer' } },
+          },
+          required: ['keepIndex', 'duplicateIndices'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['duplicateGroups'],
+    additionalProperties: false,
+  },
+};
+
 export const SCHEMA = {
   name: 'notification_extraction',
   strict: true,
@@ -70,8 +100,9 @@ export const SCHEMA = {
           additionalProperties: false,
         },
       },
+      postsSeenInThisSection: { type: ['integer', 'null'] },
     },
-    required: ['jobName', 'applyStartDate', 'applyEndDate', 'posts'],
+    required: ['jobName', 'applyStartDate', 'applyEndDate', 'posts', 'postsSeenInThisSection'],
     additionalProperties: false,
   },
 };

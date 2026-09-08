@@ -12,6 +12,28 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id         String      @id @default(cuid())
+  name       String?
+  dob        DateTime
+  category   String
+  createdAt  DateTime    @default(now())
+  educations Education[]
+}
+
+// One row per level completed, since job posts require marks at a
+// SPECIFIC level (e.g. "60% in 10th" vs "55% in Bachelor's") — a single
+// "highest level" field on User would lose the percentage at lower levels.
+model Education {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  level          EducationLevel
+  marksPercent   Float?
+
+  @@unique([userId, level])
+}
+
 model Source {
   id         String   @id @default(cuid())
   name       String

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { prisma } from './db.js';
 import { extractNotification } from '../scripts/extract.js';
 import { pdfWordExtractor } from '../scripts/day1-fetch-ssc-pdf.js';
