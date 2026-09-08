@@ -29,14 +29,7 @@ async function getCachedPdfText(): Promise<string> {
 }
 
 
-const VALID_LEVELS = new Set<string>([
-  'TENTH',
-  'TWELFTH',
-  'DIPLOMA',
-  'BACHELORS',
-  'MASTERS',
-  'PHD',
-]);
+const VALID_LEVELS = new Set<string>(Object.values(EducationLevel));
 
 interface MatchRequestBody {
   userId?: string;
