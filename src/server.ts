@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openai } from './lib/ai.js';
+import { extractTextWindow } from './lib/text-window.js';
 import { PDFParse } from 'pdf-parse';
 import { prisma } from './db.js';
 import { getMatchesForUser, ageOn, getEffectiveMaxAge } from '../scripts/match.js';
@@ -27,24 +28,6 @@ async function getCachedPdfText(): Promise<string> {
   return cachedPdfText;
 }
 
-function sliceRelevantText(fullText: string, postName: string): string {
-  const lowerText = fullText.toLowerCase();
-  const lowerName = postName.toLowerCase();
-  const index = lowerText.indexOf(lowerName);
-
-  if (index !== -1) {
-    const start = Math.max(0, index - 300);
-    const end = Math.min(fullText.length, index + 2700);
-    return fullText.slice(start, end);
-  }
-
-  const qualIndex = lowerText.indexOf('essential educational qualifications');
-  if (qualIndex !== -1) {
-    return fullText.slice(qualIndex, qualIndex + 3000);
-  }
-
-  return fullText.slice(0, 3000);
-}
 
 const VALID_LEVELS = new Set<string>([
   'TENTH',
@@ -316,7 +299,12 @@ export const server = http.createServer(async (req, res) => {
           : null;
 
       const fullText = await getCachedPdfText();
-      const textSlice = sliceRelevantText(fullText, post.postName);
+      const textSlice = extractTextWindow(fullText, post.postName, {
+        charsBefore: 300,
+        charsAfter: 2700,
+        fallbacks: ['essential educational qualifications'],
+        fallbackToStart: true,
+      });
 
       const candidateSection = user
         ? `Candidate Details:

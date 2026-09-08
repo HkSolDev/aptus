@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { SCHEMA, RECONCILE_SCHEMA } from '../src/schemas/notification.schema.js';
 import { prisma } from '../src/db.js';
 import { openai } from '../src/lib/ai.js';
+import { extractTextWindow } from '../src/lib/text-window.js';
 
 //TODO SPLIT PROMPT and the chunking to differerctn so the file be more clear ad all
 const SYSTEM_PROMPT =
@@ -34,15 +35,6 @@ function splitIntoChunks(text: string): string[] {
     start += CHUNK_SIZE - CHUNK_OVERLAP;
   }
   return chunks;
-}
-
-// The general relaxation table is usually stated once, early in the document.
-// Chunks that don't include it would otherwise extract categoryRelaxationRules
-// as null for every post, so we find it once and repeat it in every chunk's
-// prompt.
-function findRelaxationSection(text: string): string {
-  const match = text.match(/relaxation[\s\S]{0,2500}/i);
-  return match ? match[0] : '';
 }
 
 // Strips punctuation/casing so cosmetic differences (hyphens, extra spaces,
@@ -184,7 +176,13 @@ interface ExtractedNotification {
 
 export async function extractNotification(rawText: string, sourceId: string) {
   const chunks = splitIntoChunks(rawText);
-  const relaxationSection = findRelaxationSection(rawText);
+  // The general relaxation table is usually stated once, early in the document.
+  // Chunks that don't include it would otherwise extract categoryRelaxationRules
+  // as null for every post, so we find it once and repeat it in every chunk's prompt.
+  const relaxationSection = extractTextWindow(rawText, /relaxation/i, {
+    charsBefore: 0,
+    charsAfter: 2500,
+  });
 
   let jobName = '';
   let applyStartDate: string | null = null;
