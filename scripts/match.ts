@@ -19,6 +19,19 @@ export function ageOn(dob: Date, asOf = new Date()): number {
   return age;
 }
 
+export function getEffectiveMaxAge(
+  post: { maxAge: number | null; categoryRelaxationRules: unknown },
+  userCategory: string,
+): { effectiveMaxAge: number | null; relaxation: number } {
+  const relaxation =
+    (post.categoryRelaxationRules as Record<string, number | null> | null)?.[
+      userCategory
+    ] ?? 0;
+  const effectiveMaxAge =
+    post.maxAge !== null ? post.maxAge + relaxation : null;
+  return { effectiveMaxAge, relaxation };
+}
+
 export async function getMatchesForUser(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -36,12 +49,7 @@ export async function getMatchesForUser(userId: string) {
   const posts = await prisma.post.findMany({ include: { source: true } });
 
   return posts.filter((post) => {
-    const relaxation =
-      (post.categoryRelaxationRules as Record<string, number | null> | null)?.[
-        user.category
-      ] ?? 0;
-    const effectiveMaxAge =
-      post.maxAge !== null ? post.maxAge + relaxation : null;
+    const { effectiveMaxAge } = getEffectiveMaxAge(post, user.category);
 
     const ageOk =
       (post.minAge === null || userAge >= post.minAge) &&

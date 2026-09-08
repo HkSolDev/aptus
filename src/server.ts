@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { openai } from './lib/ai.js';
 import { PDFParse } from 'pdf-parse';
 import { prisma } from './db.js';
-import { getMatchesForUser, ageOn } from '../scripts/match.js';
+import { getMatchesForUser, ageOn, getEffectiveMaxAge } from '../scripts/match.js';
 import { EducationLevel } from '../generated/prisma/index.js';
 
 
@@ -209,15 +209,10 @@ export const server = http.createServer(async (req, res) => {
       const needsManualCheck = [];
 
       for (const post of matchedPosts) {
-        const relaxation =
-          (
-            post.categoryRelaxationRules as Record<
-              string,
-              number | null
-            > | null
-          )?.[user.category] ?? 0;
-        const effectiveMaxAge =
-          post.maxAge !== null ? post.maxAge + relaxation : null;
+        const { effectiveMaxAge, relaxation } = getEffectiveMaxAge(
+          post,
+          user.category,
+        );
 
         const userMarksAtLevel = post.minEducationLevel
           ? marksByLevel.get(post.minEducationLevel)
