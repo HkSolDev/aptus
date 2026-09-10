@@ -1,5 +1,11 @@
 import tseslint from 'typescript-eslint';
 
-export default tseslint.config(tseslint.configs.recommended, {
-  ignores: ['generated/**', 'node_modules/**', 'downloads/**'],
-});
+export default tseslint.config(
+  { ignores: ['generated/**', 'node_modules/**', 'downloads/**'] },
+  tseslint.configs.recommended,
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
+    },
+  },
+);

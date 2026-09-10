@@ -7,6 +7,7 @@ import {
   normalizeName,
   hasSimilarNamePair,
 } from './post-dedup.js';
+import { validatePost } from './validate-post.js';
 
 const SYSTEM_PROMPT =
   'This is one section of a long Indian government job notification with a lot of ' +
@@ -99,6 +100,13 @@ interface ExtractedNotification {
   posts: ExtractedPost[];
 }
 
+// Tags each post with the index of the chunk it was extracted from, so
+// validation can check the value against the specific text the LLM actually
+// saw — checking against the whole document would let a fabricated value
+// for one post pass just because the same digits appear elsewhere, attached
+// to a different post entirely.
+type PostWithChunk = ExtractedPost & { chunkIndex: number };
+
 export async function extractNotification(rawText: string) {
   const chunks = splitIntoChunks(rawText);
   // The general relaxation table is usually stated once, early in the document.
@@ -113,7 +121,7 @@ export async function extractNotification(rawText: string) {
   let applyStartDate: string | null = null;
   let applyEndDate: string | null = null;
   let totalPostsSeen = 0;
-  const allPosts: ExtractedPost[] = [];
+  const allPosts: PostWithChunk[] = [];
 
   // Sequential, not parallel: keeps memory/rate-limit usage low and matches
   // a single append-only pass over the document.
@@ -141,7 +149,7 @@ export async function extractNotification(rawText: string) {
     if (!jobName && chunkData.jobName) jobName = chunkData.jobName;
     if (!applyStartDate) applyStartDate = chunkData.applyStartDate;
     if (!applyEndDate) applyEndDate = chunkData.applyEndDate;
-    allPosts.push(...chunkData.posts);
+    allPosts.push(...chunkData.posts.map((post) => ({ ...post, chunkIndex: i })));
     totalPostsSeen += chunkData.postsSeenInThisSection || 0;
     console.log(
       `[Chunk ${i + 1}/${chunks.length}] LLM saw ${chunkData.postsSeenInThisSection} post(s), extracted ${chunkData.posts.length} — running total seen: ${totalPostsSeen}`,
@@ -178,11 +186,23 @@ export async function extractNotification(rawText: string) {
     );
   }
 
+  const validatedPosts: ExtractedPost[] = dedupedPosts.map((post) => {
+    const { chunkIndex, ...validated } = validatePost(post, chunks[post.chunkIndex]);
+    for (const field of ['minAge', 'maxAge', 'minMarksPercent'] as const) {
+      if (post[field] !== null && validated[field] === null) {
+        console.warn(
+          `[Validation] Dropped ${field}=${post[field]} for "${post.postName}" — out of range or not found in the source chunk.`,
+        );
+      }
+    }
+    return validated;
+  });
+
   const jobData: ExtractedNotification = {
     jobName,
     applyStartDate,
     applyEndDate,
-    posts: dedupedPosts,
+    posts: validatedPosts,
     postsSeenInThisSection: totalPostsSeen,
   };
 
