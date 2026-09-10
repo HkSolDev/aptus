@@ -7,11 +7,21 @@ state PSC, banking, defence). NOT a resume-builder. A user enters education +
 category + DOB, and the app tells them which live notifications they're
 eligible for. Real first user: the developer's brother.
 
-## Stack (locked — do not suggest alternatives without being asked)
+## Stack — best tool for the job, not locked to one language
 
-- Language: Node.js + TypeScript end-to-end (no Python, no Bun runtime)
-- Package manager: pnpm
-- Scraping: Cheerio (static HTML) + Playwright (JS-heavy pages)
+- Default/core: Node.js + TypeScript (server, matching logic, web form,
+  Prisma). Stay here unless there's a concrete reason to leave.
+- Use Python for a specific piece ONLY when Python is genuinely the better
+  tool for that piece — not out of preference, not "just in case." Examples
+  where Python would actually win: heavy data-science/numeric work, OCR,
+  PDF-heavy parsing where Python's libraries are meaningfully stronger,
+  one-off data wrangling. If TS/Node handles it fine, use TS.
+- Any non-TS piece must be isolated (its own script/service with a clear
+  I/O boundary — e.g. a Python fetch/parse script that outputs plain text
+  or JSON) — never mixed into the TS codebase or sharing runtime state.
+  Justify the choice in one line when introducing it.
+- Package manager (TS side): pnpm
+- Scraping: Cheerio (static HTML) + Playwright (JS-heavy pages) by default
 - Database: PostgreSQL + Prisma ORM
 - AI: direct LLM API calls (Gemini Flash-Lite / GPT-4o-mini class), structured
   output / function-calling mode — NOT free-text parsing
@@ -105,7 +115,10 @@ future frontend code alike. Not a backend-only rule.
   wait until the project actually hits a wall that the current stack can't
   solve, then add exactly what's needed for that.
 - This includes AI-specific additions (RAG, embeddings, agents, new
-  frameworks) as much as ordinary packages — see "Stack (locked)" above.
+  frameworks) as much as ordinary packages — see "Stack" above. A different
+  language for one isolated piece (e.g. Python for OCR) is fine when it's
+  genuinely the best tool for that piece; it's not an excuse to pull in
+  extra frameworks/libraries within it speculatively.
 - Reason: the developer is learning AI/ML just-in-time, from real problems he
   hits — not by pre-loading tools/theory he hasn't needed yet. Let him ask
   for something new once he feels the gap himself.
