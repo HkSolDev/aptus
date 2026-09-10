@@ -6,11 +6,11 @@
   "type": "module",
   "scripts": {
     "postinstall": "prisma generate",
-    "start": "tsx src/index.ts",
-    "serve": "tsx src/server.ts",
-    "day1": "tsx scripts/day1-fetch-ssc-pdf.ts",
-    "extract": "tsx scripts/extract.ts",
-    "match": "tsx scripts/match.ts",
+    "start": "tsx --env-file=.env src/index.ts",
+    "serve": "tsx --env-file=.env src/server.ts",
+    "day1": "tsx --env-file=.env scripts/day1-fetch-ssc-pdf.ts",
+    "extract": "tsx --env-file=.env scripts/extract.ts",
+    "match": "tsx --env-file=.env scripts/match.ts",
     "lint": "eslint .",
     "test": "node --import tsx --test scripts/**/*.test.ts"
   },
