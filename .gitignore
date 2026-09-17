@@ -4,3 +4,6 @@ downloads
 
 /generated/prisma
 .env
+
+.venv
+__pycache__
