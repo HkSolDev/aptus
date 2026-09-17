@@ -5,30 +5,49 @@
 An eligibility-matching tool for Indian government job notifications (SSC, PSU,
 state PSC, banking, defence). NOT a resume-builder. A user enters education +
 category + DOB, and the app tells them which live notifications they're
-eligible for. Real first user: the developer's brother.
+eligible for. Real first user: the developer's brother — but built for any
+number of real users, not scoped to a single person.
+
+Secondary goal: this project is also how the developer demonstrates
+production-level AI engineering skill to employers (job-ready target:
+Diwali 2026). That means architecture decisions should match how real
+companies structure this kind of system — but "production-grade" means
+solving problems you've actually hit (measured, not guessed), never adding
+infra speculatively because a company "might" use it. See
+"No new tools/dependencies" below — that rule still applies at this goal too.
 
 ## Stack — best tool for the job, not locked to one language
 
-- Default/core: Node.js + TypeScript (server, matching logic, web form,
-  Prisma). Stay here unless there's a concrete reason to leave.
-- Use Python for a specific piece ONLY when Python is genuinely the better
-  tool for that piece — not out of preference, not "just in case." Examples
-  where Python would actually win: heavy data-science/numeric work, OCR,
-  PDF-heavy parsing where Python's libraries are meaningfully stronger,
-  one-off data wrangling. If TS/Node handles it fine, use TS.
-- Any non-TS piece must be isolated (its own script/service with a clear
-  I/O boundary — e.g. a Python fetch/parse script that outputs plain text
-  or JSON) — never mixed into the TS codebase or sharing runtime state.
-  Justify the choice in one line when introducing it.
+- App backend: Node.js + TypeScript (server, matching logic, web form,
+  Prisma, Postgres). Owns storage and the eligibility query — always
+  deterministic, never touched by the AI service.
+- AI + scraping: separate Python/FastAPI service (`services/ai/`). Owns
+  fetching source sites and LLM structured extraction. Talks to the TS
+  backend over internal HTTP only — no shared runtime, no shared imports.
+  Reason: this is the standard industry split (app backend calling an
+  internal AI/inference service) and keeps the AI/ML surface in the
+  language with the stronger ecosystem for it.
+  - One fetch adapter per source (`services/ai/sources/<name>.py`), same
+    tiny contract: `fetch() -> str`. Two shared helpers for the common
+    cases (`pdf_to_text()`, `fetch_json()`) so a new source is usually
+    10-15 lines of site-specific config, not a scraper written from
+    scratch. Hash-check, LLM extraction, and validation are shared code,
+    used by every source — never duplicated per source.
+  - Scheduled fetches run concurrently (`asyncio.gather` across active
+    sources), not sequentially — no task-queue framework (Celery/RQ) until
+    the number of sources actually makes that necessary.
 - Package manager (TS side): pnpm
-- Scraping: Cheerio (static HTML) + Playwright (JS-heavy pages) by default
 - Database: PostgreSQL + Prisma ORM
 - AI: direct LLM API calls (Gemini Flash-Lite / GPT-4o-mini class), structured
   output / function-calling mode — NOT free-text parsing
-- Matching: plain SQL / rule-based filtering. No vector DB, no embeddings,
-  no LangChain/LangGraph until a real multi-step flow demands it — do not add
-  these speculatively.
-- Hosting: existing Oracle Cloud Always Free VM, Docker Compose
+- Matching: plain SQL / rule-based filtering on indexed columns
+  (`Post.minAge`, `maxAge`, `minEducationLevel`, etc.). No vector DB, no
+  embeddings, no LangChain/LangGraph until a real multi-step flow demands
+  it — do not add these speculatively. Vector search is the wrong tool for
+  eligibility matching regardless of scale: eligibility is exact
+  numeric/categorical comparison, not semantic similarity.
+- Hosting: existing Oracle Cloud Always Free VM, Docker Compose (app +
+  Postgres + the Python AI service as a third container)
 
 ## Hard rules for extraction schema
 
@@ -44,18 +63,31 @@ eligible for. Real first user: the developer's brother.
 
 ## Division of labor: LLM vs code
 
-- LLM extracts structured facts from messy text ONCE per notification.
-- Code (plain deterministic comparisons) decides eligibility EVERY time a
-  user checks. Never have the LLM compute eligibility itself — that's
-  arithmetic/logic, not language understanding, and must be exact.
+- LLM extracts structured facts from messy text ONCE per notification, in
+  the Python AI service, offline (cron-triggered, nobody waiting).
+- Code (plain deterministic comparisons, in the TS backend) decides
+  eligibility EVERY time a user checks. Never have the LLM compute
+  eligibility itself — that's arithmetic/logic, not language understanding,
+  and must be exact. The AI service and the live matching query never call
+  each other — extraction and matching are separate phases that don't talk
+  at request time.
 
 ## Scope discipline
 
 - v1 = 1-2 real sources only. Do not scrape "all of India" — expand one
-  source at a time, only after the current one works end-to-end.
+  source at a time, roughly every two weeks, only after the current one
+  works end-to-end. Each new source surfaces a new failure mode; fixing it
+  is the real skill-building, not a reason to slow the expansion cadence.
 - One small site-specific "fetch" script per source (HTML scrape or PDF
   download — either way, output plain text) feeding one shared LLM "extract"
   function. Adding a source later = one small fetch script, not a rebuild.
+- "Built for any number of users" does not mean pre-building
+  caching/materialization layers, queues, or vector search now. It means:
+  indexed columns on the match query, idempotent fetch/extract (a retry or
+  re-fetch must never create duplicate Posts), and handling failure paths
+  (source down, LLM returns garbage, two runs collide) — see "No new
+  tools/dependencies" below. Add heavier infra only once a real, measured
+  bottleneck shows up.
 
 ## v1 architecture (decided)
 
@@ -133,8 +165,17 @@ future frontend code alike. Not a backend-only rule.
   blocks he'd be tempted to accept unread. If a change is genuinely large,
   split it into stages rather than one big diff.
 - Explain what changed and why in plain terms before/alongside the code.
-- Priority is real usefulness for his brother, not resume/portfolio polish —
-  never trade working functionality for demo polish.
+- Priority is real usefulness for real users, not resume/portfolio polish —
+  never trade working functionality for demo polish. At the same time, the
+  project doubles as proof of production-level AI engineering skill for
+  hiring — architecture should match real company patterns, but only when
+  driven by an actual problem in this project, never spec work. Before
+  building a new feature, name what breaks it and what happens then
+  (source down, LLM returns garbage, concurrent runs collide) — design the
+  failure path before the happy path.
+- On architecture decisions: present tradeoffs, then get his explicit call
+  before implementing — don't just implement silently. He owns the
+  architecture; the AI implements it.
 - Keep responses concise; he is time-constrained (active job search alongside
   this build).
 
