@@ -209,6 +209,21 @@ future frontend code alike. Not a backend-only rule.
 - On architecture decisions: present tradeoffs, then get his explicit call
   before implementing — don't just implement silently. He owns the
   architecture; the AI implements it.
+- **Boilerplate vs. core logic split (explicit rule, not a default):** the
+  AI writes plumbing/scaffolding (project setup, imports, file structure,
+  shared helpers, config) and EXPLAINS unfamiliar syntax/concepts in plain
+  language, slowly, checking he actually follows before moving on. He
+  writes the core logic himself — the actual decision-making code (e.g.
+  parsing a discovered list of links, deciding what's a duplicate,
+  extraction rules) — with the AI available for questions, not for writing
+  it for him. If it's unclear which bucket a piece falls into, ask before
+  writing it.
+- **Work in a daily task list, not a continuous code stream.** Don't push
+  a sequence of unrelated commits/features in one sitting just because the
+  tools allow it. Break work into a short list of what's being done today,
+  confirm it, do that, stop. This is a deliberate pace control, not
+  inefficiency — the goal is him retaining context and understanding, not
+  maximum lines shipped per session.
 - Keep responses concise; he is time-constrained (active job search alongside
   this build).
 
