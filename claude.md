@@ -123,6 +123,28 @@ Postgres: notifications → web form (edu/category/DOB) → SQL filter → match
 - This is not an "agent" product — no MCP, no LangChain/LangGraph, no
   autonomous tool loop. It's a script pipeline + a plain matching query.
 
+### Quick reference: which language does this go in?
+
+| Task | Language / file |
+| :--- | :--- |
+| New source (fetch/scrape a site) | Python, `services/ai/sources/<name>.py`, contract: `fetch() -> str` |
+| PDF parsing | Python, inline in the source adapter until a 2nd PDF source exists, then extract a shared `pdf_to_text()` helper |
+| JSON API fetch | Python, inline in the source adapter until a 2nd JSON source exists, then extract a shared `fetch_json()` helper |
+| Chunking / text-window slicing | Python, `services/ai/` — part of the same offline pipeline as fetch, not a separate HTTP hop |
+| LLM extraction (structured output) | Python, `services/ai/` — Pydantic schema, mirrors old `src/schemas/notification.schema.ts` shape |
+| Validating extracted fields against source text | Python, `services/ai/` — same process as extraction, before handoff |
+| Dedup of extracted posts | Python, `services/ai/` — last step before handoff to TS |
+| Handoff of clean pipeline output | One internal TS endpoint (e.g. `POST /api/internal/ingest`) — this is the ONLY point where Python and TS talk |
+| Prisma schema / migrations / DB writes | TypeScript, `prisma/schema.prisma`, `src/db.ts` |
+| Eligibility matching query | TypeScript, `scripts/match.ts` — plain SQL/Prisma, deterministic, never touches AI service |
+| Web server / API routes / web form | TypeScript, `src/server.ts`, `public/` |
+| Anything that's plain string/object manipulation with no AI or DB involved, but is upstream of the Python pipeline's own logic | Stays wherever it's already called from — don't create a cross-language hop just to relocate it |
+
+Rule of thumb: if it's part of turning one raw document into clean JSON,
+it's Python and it stays in that one process. If it's storage, matching,
+or serving, it's TypeScript. The two only ever talk over that single
+internal HTTP handoff — never a shared import, never a shared runtime.
+
 ## File organization
 
 Applies everywhere in this repo — backend scripts, server routes, and any
