@@ -18,21 +18,32 @@ infra speculatively because a company "might" use it. See
 
 ## Stack — best tool for the job, not locked to one language
 
-- App backend: Node.js + TypeScript (server, matching logic, web form,
-  Prisma, Postgres). Owns storage and the eligibility query — always
-  deterministic, never touched by the AI service.
-- AI + scraping: separate Python/FastAPI service (`services/ai/`). Owns
-  fetching source sites and LLM structured extraction. Talks to the TS
-  backend over internal HTTP only — no shared runtime, no shared imports.
-  Reason: this is the standard industry split (app backend calling an
-  internal AI/inference service) and keeps the AI/ML surface in the
-  language with the stronger ecosystem for it.
+- The split is "raw document vs. clean data," not "AI vs. everything else":
+  - Python (`services/ai/`) owns the ENTIRE raw-to-clean pipeline for a
+    notification: fetch/scrape → PDF/text parse → chunk & text-window
+    slice → LLM extract (Pydantic structured output) → validate against
+    source text → dedup. All of this runs as one continuous offline job
+    per source (cron-triggered) — no HTTP hop between these steps. It
+    outputs one clean, validated JSON list of posts.
+  - TS (`src/`) owns everything from that clean JSON onward: one internal
+    endpoint receives the list and does the Prisma write (hash-check,
+    upsert), plus storage, the deterministic eligibility query, and
+    serving the web form/API. Never touched by the AI service directly —
+    Python hands off finished JSON, TS decides what to persist.
+  - Reason for the boundary being "whole pipeline" not "just the LLM
+    call": chunking/dedup/validation are plain string/object logic with no
+    language ecosystem advantage either way, but splitting an offline
+    batch job across a network hop per stage (TS chunks → HTTP to Python
+    to extract → HTTP back to TS to dedup) is pure overhead for no
+    benefit. One process owns the whole transformation, hands off once at
+    the end. This also matches how ingestion/inference microservices are
+    structured at real AI companies.
   - One fetch adapter per source (`services/ai/sources/<name>.py`), same
     tiny contract: `fetch() -> str`. Two shared helpers for the common
     cases (`pdf_to_text()`, `fetch_json()`) so a new source is usually
     10-15 lines of site-specific config, not a scraper written from
-    scratch. Hash-check, LLM extraction, and validation are shared code,
-    used by every source — never duplicated per source.
+    scratch. Chunking, hash-check, LLM extraction, validation, and dedup
+    are shared code, used by every source — never duplicated per source.
   - Scheduled fetches run concurrently (`asyncio.gather` across active
     sources), not sequentially — no task-queue framework (Celery/RQ) until
     the number of sources actually makes that necessary.
