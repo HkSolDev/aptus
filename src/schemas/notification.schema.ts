@@ -102,7 +102,13 @@ export const SCHEMA = {
       },
       postsSeenInThisSection: { type: ['integer', 'null'] },
     },
-    required: ['jobName', 'applyStartDate', 'applyEndDate', 'posts', 'postsSeenInThisSection'],
+    required: [
+      'jobName',
+      'applyStartDate',
+      'applyEndDate',
+      'posts',
+      'postsSeenInThisSection',
+    ],
     additionalProperties: false,
   },
 };

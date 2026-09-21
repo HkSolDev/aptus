@@ -89,6 +89,9 @@ describe('POST /api/match validation', () => {
       educations: [{ level: 'INVALID_LEVEL' }],
     });
     assert.strictEqual(res.status, 400);
-    assert.strictEqual(res.body.error, 'Invalid education level: INVALID_LEVEL');
+    assert.strictEqual(
+      res.body.error,
+      'Invalid education level: INVALID_LEVEL',
+    );
   });
 });

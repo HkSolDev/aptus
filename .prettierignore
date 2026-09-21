@@ -3,3 +3,5 @@ pnpm-lock.yaml
 generated
 downloads
 dist
+claude.md
+public/index.html

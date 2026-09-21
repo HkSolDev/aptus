@@ -55,7 +55,9 @@ export const GENERIC_TITLE_WORDS = new Set([
 // words are excluded so "Assistant Audit Officer" vs "Assistant Section
 // Officer" doesn't falsely count as similar just because both contain
 // "Assistant" and "Officer".
-export function hasSimilarNamePair(posts: Array<{ postName: string }>): boolean {
+export function hasSimilarNamePair(
+  posts: Array<{ postName: string }>,
+): boolean {
   const wordSets = posts.map(
     (p) =>
       new Set(
