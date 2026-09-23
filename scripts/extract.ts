@@ -1,5 +1,8 @@
 import 'dotenv/config';
-import { SCHEMA, RECONCILE_SCHEMA } from '../src/schemas/notification.schema.js';
+import {
+  SCHEMA,
+  RECONCILE_SCHEMA,
+} from '../src/schemas/notification.schema.js';
 import { openai } from '../src/lib/ai.js';
 import { extractTextWindow } from '../src/lib/text-window.js';
 import {
@@ -21,7 +24,7 @@ const SYSTEM_PROMPT =
   "For postGroup, use the post's stated classification (e.g. \"Group 'B' Gazetted\" -> B). " +
   'A general age-relaxation table (years granted per category like SC/ST/OBC/EWS/PwBD) is ' +
   'included below for reference — apply those same values to every post in this section as ' +
-  'the default, unless a post\'s own paragraph explicitly grants different or additional ' +
+  "the default, unless a post's own paragraph explicitly grants different or additional " +
   'relaxation. ' +
   'Use null for anything else not explicitly stated in the text — never guess or infer a default.';
 
@@ -149,7 +152,9 @@ export async function extractNotification(rawText: string) {
     if (!jobName && chunkData.jobName) jobName = chunkData.jobName;
     if (!applyStartDate) applyStartDate = chunkData.applyStartDate;
     if (!applyEndDate) applyEndDate = chunkData.applyEndDate;
-    allPosts.push(...chunkData.posts.map((post) => ({ ...post, chunkIndex: i })));
+    allPosts.push(
+      ...chunkData.posts.map((post) => ({ ...post, chunkIndex: i })),
+    );
     totalPostsSeen += chunkData.postsSeenInThisSection || 0;
     console.log(
       `[Chunk ${i + 1}/${chunks.length}] LLM saw ${chunkData.postsSeenInThisSection} post(s), extracted ${chunkData.posts.length} — running total seen: ${totalPostsSeen}`,
@@ -187,7 +192,10 @@ export async function extractNotification(rawText: string) {
   }
 
   const validatedPosts: ExtractedPost[] = dedupedPosts.map((post) => {
-    const { chunkIndex, ...validated } = validatePost(post, chunks[post.chunkIndex]);
+    const { chunkIndex, ...validated } = validatePost(
+      post,
+      chunks[post.chunkIndex],
+    );
     for (const field of ['minAge', 'maxAge', 'minMarksPercent'] as const) {
       if (post[field] !== null && validated[field] === null) {
         console.warn(

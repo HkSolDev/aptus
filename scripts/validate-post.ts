@@ -20,7 +20,10 @@ export function validatePost<T extends ValidatablePost>(
   post: T,
   sourceText: string,
 ): T {
-  const validated = { ...post, categoryRelaxationRules: { ...post.categoryRelaxationRules } };
+  const validated = {
+    ...post,
+    categoryRelaxationRules: { ...post.categoryRelaxationRules },
+  };
 
   if (
     validated.minAge !== null &&

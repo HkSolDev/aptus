@@ -7,9 +7,12 @@ import { openai } from './lib/ai.js';
 import { extractTextWindow } from './lib/text-window.js';
 import { PDFParse } from 'pdf-parse';
 import { prisma } from './db.js';
-import { getMatchesForUser, ageOn, getEffectiveMaxAge } from '../scripts/match.js';
+import {
+  getMatchesForUser,
+  ageOn,
+  getEffectiveMaxAge,
+} from '../scripts/match.js';
 import { EducationLevel } from '../generated/prisma/index.js';
-
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,7 +30,6 @@ async function getCachedPdfText(): Promise<string> {
   cachedPdfText = result.text;
   return cachedPdfText;
 }
-
 
 const VALID_LEVELS = new Set<string>(Object.values(EducationLevel));
 
@@ -69,7 +71,10 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 }
 
 export const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host || 'localhost'}`);
+  const url = new URL(
+    req.url ?? '/',
+    `http://${req.headers.host || 'localhost'}`,
+  );
 
   if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/') {
     try {
@@ -89,7 +94,9 @@ export const server = http.createServer(async (req, res) => {
       const body: MatchRequestBody = JSON.parse(rawBody || '{}');
 
       if (!body.dob || Number.isNaN(Date.parse(body.dob))) {
-        sendJson(res, 400, { error: 'A valid Date of Birth (dob) is required' });
+        sendJson(res, 400, {
+          error: 'A valid Date of Birth (dob) is required',
+        });
         return;
       }
 
@@ -104,7 +111,9 @@ export const server = http.createServer(async (req, res) => {
       const eduMap = new Map<EducationLevel, number | null>();
       for (const edu of body.educations) {
         if (!VALID_LEVELS.has(edu.level)) {
-          sendJson(res, 400, { error: `Invalid education level: ${edu.level}` });
+          sendJson(res, 400, {
+            error: `Invalid education level: ${edu.level}`,
+          });
           return;
         }
         const marks =
@@ -154,10 +163,12 @@ export const server = http.createServer(async (req, res) => {
             dob: new Date(body.dob),
             category: body.category || 'UNSPECIFIED',
             educations: {
-              create: Array.from(eduMap.entries()).map(([level, marksPercent]) => ({
-                level,
-                marksPercent,
-              })),
+              create: Array.from(eduMap.entries()).map(
+                ([level, marksPercent]) => ({
+                  level,
+                  marksPercent,
+                }),
+              ),
             },
           },
           include: { educations: true },
@@ -201,7 +212,9 @@ export const server = http.createServer(async (req, res) => {
         if (isNullFieldPost) {
           const reasons: string[] = [];
           if (post.minEducationLevel === null) {
-            reasons.push('Education qualification requires manual verification');
+            reasons.push(
+              'Education qualification requires manual verification',
+            );
           }
           if (post.minAge === null) {
             reasons.push('Minimum age limit not specified in notification');
@@ -376,4 +389,3 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   listen(DEFAULT_PORT);
 }
-

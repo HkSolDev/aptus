@@ -14,7 +14,10 @@ function post(overrides: Partial<Parameters<typeof validatePost>[0]> = {}) {
 
 describe('validatePost', () => {
   test('keeps values that are in range and present in the source text', () => {
-    const result = validatePost(post(), 'Age limit 18 to 27 years, min 60% marks. SC relaxation 5 years.');
+    const result = validatePost(
+      post(),
+      'Age limit 18 to 27 years, min 60% marks. SC relaxation 5 years.',
+    );
     assert.strictEqual(result.minAge, 18);
     assert.strictEqual(result.maxAge, 27);
     assert.strictEqual(result.minMarksPercent, 60);
@@ -22,12 +25,18 @@ describe('validatePost', () => {
   });
 
   test('nulls a value never mentioned in the source text', () => {
-    const result = validatePost(post({ minMarksPercent: 60 }), 'No marks requirement mentioned anywhere.');
+    const result = validatePost(
+      post({ minMarksPercent: 60 }),
+      'No marks requirement mentioned anywhere.',
+    );
     assert.strictEqual(result.minMarksPercent, null);
   });
 
   test('nulls an out-of-range percentage even if the digits appear in the text', () => {
-    const result = validatePost(post({ minMarksPercent: 500 }), 'Some unrelated number 500 appears here.');
+    const result = validatePost(
+      post({ minMarksPercent: 500 }),
+      'Some unrelated number 500 appears here.',
+    );
     assert.strictEqual(result.minMarksPercent, null);
   });
 
@@ -42,7 +51,15 @@ describe('validatePost', () => {
 
   test('nulls an out-of-range relaxation value without touching others', () => {
     const result = validatePost(
-      post({ categoryRelaxationRules: { SC: 5, ST: 99, OBC: null, EWS: null, PwBD: null } }),
+      post({
+        categoryRelaxationRules: {
+          SC: 5,
+          ST: 99,
+          OBC: null,
+          EWS: null,
+          PwBD: null,
+        },
+      }),
       'SC relaxation 5 years, ST relaxation 99 years.',
     );
     assert.strictEqual(result.categoryRelaxationRules.SC, 5);

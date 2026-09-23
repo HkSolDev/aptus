@@ -69,6 +69,9 @@ model Post {
   payLevel                   String?
   minAge                     Int?
   maxAge                     Int?
+  vacancies                  Int?
+  applicationLastDate        DateTime?
+  ageAsOnDate                DateTime?
   // Raw text kept for display + manual verification when the level below
   // can't be classified confidently (e.g. subject-specific requirements).
   educationRequired          String?
