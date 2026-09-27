@@ -5,3 +5,4 @@ downloads
 dist
 claude.md
 public/index.html
+*.prisma

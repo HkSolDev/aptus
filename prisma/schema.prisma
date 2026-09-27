@@ -25,21 +25,28 @@ model User {
 // SPECIFIC level (e.g. "60% in 10th" vs "55% in Bachelor's") — a single
 // "highest level" field on User would lose the percentage at lower levels.
 model Education {
-  id             String         @id @default(cuid())
-  userId         String
-  user           User           @relation(fields: [userId], references: [id])
-  level          EducationLevel
-  marksPercent   Float?
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
+  level        EducationLevel
+  marksPercent Float?
 
   @@unique([userId, level])
 }
 
 model Source {
-  id         String   @id @default(cuid())
-  name       String
-  url        String
-  rawHash    String?
-  fetchedAt  DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String
+  url                String   @unique
+  rawHash            String?
+  fetchedAt          DateTime @updatedAt
+  // Shared by every post on this notification page (e.g. one Railway RRB
+  // NTPC page lists 4 posts, all pointing at the same PDF/apply/official
+  // links) — found by code from the page's labeled table rows, never by
+  // the LLM, since an invented URL would send a user to the wrong place.
+  notificationPdfUrl String?
+  officialSiteUrl    String?
+  applyUrl           String?
 
   posts Post[]
 }
@@ -61,27 +68,27 @@ enum PostGroup {
 }
 
 model Post {
-  id                         String          @id @default(cuid())
-  sourceId                   String
-  source                     Source          @relation(fields: [sourceId], references: [id])
-  postName                   String
-  postGroup                  PostGroup?
-  payLevel                   String?
-  minAge                     Int?
-  maxAge                     Int?
-  vacancies                  Int?
-  applicationLastDate        DateTime?
-  ageAsOnDate                DateTime?
+  id                        String          @id @default(cuid())
+  sourceId                  String
+  source                    Source          @relation(fields: [sourceId], references: [id])
+  postName                  String
+  postGroup                 PostGroup?
+  payLevel                  String?
+  minAge                    Int?
+  maxAge                    Int?
+  vacancies                 Int?
+  applicationLastDate       DateTime?
+  ageAsOnDate               DateTime?
   // Raw text kept for display + manual verification when the level below
   // can't be classified confidently (e.g. subject-specific requirements).
-  educationRequired          String?
-  minEducationLevel          EducationLevel?
-  minMarksPercent            Float?
-  categoryRelaxationApplies  Boolean?
+  educationRequired         String?
+  minEducationLevel         EducationLevel?
+  minMarksPercent           Float?
+  categoryRelaxationApplies Boolean?
   // Age relaxation in years per category for THIS post specifically,
   // e.g. { "SC": 5, "OBC": 3 }. Kept per-post, not on Source, because a
   // notification can grant different relaxation to different post groups
   // (e.g. SSC CGL gives Group 'C' posts additional relaxation beyond the
   // general table) — one shared value would be wrong for some posts.
-  categoryRelaxationRules    Json?
+  categoryRelaxationRules   Json?
 }
