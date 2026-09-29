@@ -1,7 +1,9 @@
 import os
+
 import httpx
-from sources.sarkariresult import list_jobs, fetch
+from extract import extract_posts
 from hash_cache import hash_text, is_unchanged, load_cache, save_cache
+from sources.sarkariresult import fetch, list_jobs
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 
@@ -35,7 +37,10 @@ def run_pipeline() -> None:
         if is_unchanged(url, page.text, cache):
             continue
 
-        # 3. Build payload for TS (posts will come from LLM extraction)
+        # 3. Extract structured posts from this changed notification.
+        posts = extract_posts(page.text)
+        posts_payload = [post.model_dump(mode="json") for post in posts]
+
         payload = {
             "source_url": url,
             "source_name": f"SarkariResult: {title}",
@@ -44,7 +49,7 @@ def run_pipeline() -> None:
             "official_site_url": page.links.get("official_site_url"),
             "apply_url": page.links.get("apply_url"),
             "source_text": page.text,
-            "posts": [],  # <--- LLM extracted posts will go here next
+            "posts": posts_payload,
         }
 
         # 4. Push to TS server
@@ -56,8 +61,4 @@ def run_pipeline() -> None:
 
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-
-    load_dotenv()
     run_pipeline()
-

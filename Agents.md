@@ -7,9 +7,14 @@ state PSC, banking, defence). NOT a resume-builder. A user enters education +
 category + DOB, and the app tells them which live notifications they're
 eligible for. Real first user: the developer's brother.
 
-## Stack (locked — do not suggest alternatives without being asked)
+## Stack — use the best tool for each responsibility
 
-- Language: Node.js + TypeScript end-to-end (no Python, no Bun runtime)
+- Python owns the offline raw-document pipeline when it is the better tool:
+  fetch/scrape, PDF/text parsing, text-window selection, structured LLM
+  extraction, source-grounding validation, and deduplication.
+- Node.js + TypeScript owns the application side: the internal ingestion API,
+  Prisma/PostgreSQL writes, deterministic eligibility matching, and the web
+  server. Python sends only finished, validated structured JSON to TypeScript.
 - Package manager: pnpm
 - Scraping: Cheerio (static HTML) + Playwright (JS-heavy pages)
 - Database: PostgreSQL + Prisma ORM
@@ -50,10 +55,12 @@ eligible for. Real first user: the developer's brother.
 ## v1 architecture (decided)
 
 ```
-cron → fetch script per source → hash check → changed?
-                                    no  → skip
-                                    yes → LLM: extract structured fields (AI is ONLY here)
-                                          → Postgres: notifications table
+cron → Python source adapter → fetch raw text → hash check → changed?
+                                                   no  → skip
+                                                   yes → Python LLM extraction
+                                                         → Python validation/dedup
+                                                         → TS /api/internal/ingest
+                                                         → Postgres: notifications table
 Postgres: notifications → web form (edu/category/DOB) → SQL filter → matches + URLs
 ```
 
@@ -67,6 +74,8 @@ Postgres: notifications → web form (edu/category/DOB) → SQL filter → match
   Category) and slice out just that window — don't send full 100+ page
   documents. No RAG/embeddings/vector DB for this; it's one document, not
   search across many.
+- `/api/internal/ingest` receives only clean structured posts after Python
+  extraction. It is a persistence boundary, not an extraction step.
 - This is not an "agent" product — no MCP, no LangChain/LangGraph, no
   autonomous tool loop. It's a script pipeline + a plain matching query.
 

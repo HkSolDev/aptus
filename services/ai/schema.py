@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y")
 DATE_HINT = (
@@ -23,7 +23,19 @@ def parse_date(value: object) -> date | None:
     return None
 
 
+class CategoryRelaxationRules(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    SC: int | None
+    ST: int | None
+    OBC: int | None
+    EWS: int | None
+    PwBD: int | None
+
+
 class Post(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     post_name: str | None
     vacancies: int | None
     application_last_date: date | None = Field(description=DATE_HINT)
@@ -38,12 +50,18 @@ class Post(BaseModel):
     )
     min_marks_percent: float | None
     category_relaxation_applies: bool | None
-    category_relaxation_rules: dict[str, int] | None
+    category_relaxation_rules: "CategoryRelaxationRules | None"
 
     @field_validator("application_last_date", "age_as_on_date", mode="before")
     @classmethod
     def _bad_date_becomes_none(cls, value: object) -> date | None:
         return parse_date(value)
+
+
+class PostBatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    posts: list[Post]
 
 
 
