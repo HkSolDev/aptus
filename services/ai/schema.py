@@ -1,3 +1,5 @@
+"""LLM output contract: validate structure and dates, not source-grounded accuracy."""
+
 from datetime import date, datetime
 from typing import Literal
 
@@ -24,6 +26,7 @@ def parse_date(value: object) -> date | None:
 
 
 class CategoryRelaxationRules(BaseModel):
+    # Reject invented keys. Nullable fields must still be present; null means unstated.
     model_config = ConfigDict(extra="forbid")
 
     SC: int | None
@@ -31,6 +34,46 @@ class CategoryRelaxationRules(BaseModel):
     OBC: int | None
     EWS: int | None
     PwBD: int | None
+
+
+class AgeRule(BaseModel):
+    """One exact age rule, including gender/category conditions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    category: str | None
+    gender: str | None
+    min_age: int | None
+    max_age: int | None
+    relaxation_years: int | None
+    conditions: str | None
+
+
+class EducationOption(BaseModel):
+    """One alternative route through which a candidate can qualify."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    minimum_level: (
+        Literal["TENTH", "TWELFTH", "DIPLOMA", "BACHELORS", "MASTERS", "PHD"]
+        | None
+    )
+    minimum_marks_percent: float | None
+    qualification: str | None
+    subject_requirement: str | None
+    conditions: str | None
+
+
+class EligibilityRules(BaseModel):
+    """Detailed rules kept when a flat Post field is not expressive enough."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    gender_requirement: str | None
+    category_requirement: list[str]
+    education_options: list[EducationOption]
+    age_rules: list[AgeRule]
+    relaxation_combination_rule: str | None
 
 
 class Post(BaseModel):
@@ -51,6 +94,7 @@ class Post(BaseModel):
     min_marks_percent: float | None
     category_relaxation_applies: bool | None
     category_relaxation_rules: "CategoryRelaxationRules | None"
+    eligibility_rules: EligibilityRules
 
     @field_validator("application_last_date", "age_as_on_date", mode="before")
     @classmethod
@@ -62,31 +106,3 @@ class PostBatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     posts: list[Post]
-
-
-
-
-
-
-#     # model Post {
-#   id                         String          @id @default(cuid())
-#   sourceId                   String
-#   source                     Source          @relation(fields: [sourceId], references: [id])
-#   postName                   String
-#   postGroup                  PostGroup?
-#   payLevel                   String?
-#   minAge                     Int?
-#   maxAge                     Int?
-#   // Raw text kept for display + manual verification when the level below
-#   // can't be classified confidently (e.g. subject-specific requirements).
-#   educationRequired          String?
-#   minEducationLevel          EducationLevel?
-#   minMarksPercent            Float?
-#   categoryRelaxationApplies  Boolean?
-#   // Age relaxation in years per category for THIS post specifically,
-#   // e.g. { "SC": 5, "OBC": 3 }. Kept per-post, not on Source, because a
-#   // notification can grant different relaxation to different post groups
-#   // (e.g. SSC CGL gives Group 'C' posts additional relaxation beyond the
-#   // general table) — one shared value would be wrong for some posts.
-#   categoryRelaxationRules    Json?
-# }

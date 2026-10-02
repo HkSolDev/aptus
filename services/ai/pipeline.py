@@ -9,9 +9,7 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 
 
 def push_to_ts(payload: dict) -> dict:
-    """
-    send clean data from python server to TS server
-    """
+    """Send extracted JSON to the application for persistence, not extraction."""
     res = httpx.post(f"{BASE_URL}/api/internal/ingest", json=payload)
     res.raise_for_status()
     return res.json()
@@ -27,20 +25,21 @@ def run_pipeline() -> None:
 
     for title, url in jobs:
         try:
-            # 1. Fetch raw page text & extracted links
             page = fetch(url)
         except Exception as err:
             print(f"[Warning] Failed to fetch {url}: {err}")
             continue
 
-        # 2. Skip if page content hasn't changed since last run
+        # Avoid paying for another LLM call when the stored page text is unchanged.
         if is_unchanged(url, page.text, cache):
             continue
 
-        # 3. Extract structured posts from this changed notification.
-        posts = extract_posts(page.text)
+        # The provider checks the response shape; standalone age checks are not wired here yet.
+        posts = extract_posts(page.text, sections=page.sections)
+        # JSON mode converts Python dates to strings the TypeScript API can accept.
         posts_payload = [post.model_dump(mode="json") for post in posts]
 
+        # URLs come from HTML links. Saving a PDF URL does not read the PDF itself.
         payload = {
             "source_url": url,
             "source_name": f"SarkariResult: {title}",
@@ -52,10 +51,9 @@ def run_pipeline() -> None:
             "posts": posts_payload,
         }
 
-        # 4. Push to TS server
         push_to_ts(payload)
 
-        # 5. Update local hash cache
+        # Mark success only after ingestion succeeds, so a failed write can be retried.
         cache[url] = hash_text(page.text)
         save_cache(cache)
 

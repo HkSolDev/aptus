@@ -14,6 +14,7 @@ class OpenAIProvider:
         self.base_url = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
 
     def extract_posts(self, system_prompt: str, user_prompt: str) -> PostBatch:
+        # Generate the requested JSON structure from the same models used to check it.
         payload = {
             "model": self.model,
             "messages": [
@@ -42,6 +43,7 @@ class OpenAIProvider:
                     timeout=120,
                 )
 
+                # Retry temporary API failures, not invalid credentials or bad inputs.
                 if response.status_code in {429, 500, 502, 503, 504}:
                     if attempt < 2:
                         time.sleep(2**attempt)
@@ -50,6 +52,7 @@ class OpenAIProvider:
                 response.raise_for_status()
                 data = response.json()
                 content = data["choices"][0]["message"]["content"]
+                # Valid types/fields do not prove the facts agree with the source page.
                 return PostBatch.model_validate_json(content)
 
             except httpx.TimeoutException as error:

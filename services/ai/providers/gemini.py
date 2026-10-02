@@ -34,4 +34,5 @@ class GeminiProvider:
 
         data = response.json()
         text = data["candidates"][0]["content"]["parts"][0]["text"]
+        # Return the same typed result as other providers; source accuracy is a separate check.
         return PostBatch.model_validate_json(text)

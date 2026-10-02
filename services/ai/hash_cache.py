@@ -1,3 +1,5 @@
+"""Persist page hashes locally to skip repeat extraction across pipeline runs."""
+
 import hashlib
 import json
 from pathlib import Path

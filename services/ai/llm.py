@@ -6,6 +6,7 @@ from providers.openai import OpenAIProvider
 
 
 def get_llm_provider() -> LLMProvider:
+    """Choose the API adapter without making extract.py depend on a specific API."""
     provider = os.getenv("LLM_PROVIDER", "openai").lower()
 
     if provider == "openai":
