@@ -94,4 +94,13 @@ Postgres: notifications → web form (edu/category/DOB) → SQL filter → match
 - Keep responses concise; he is time-constrained (active job search alongside
   this build).
 
+## Learning continuity
+
+- Read `docs/LEARNING_PLAN.md` for the developer/assistant ownership split and
+  task-boundary reminders. Read `docs/PROJECT_OVERVIEW.md` for the dated
+  implementation snapshot; verify code before assuming its status is current.
+- The developer practises core decisions and logic; the assistant provides
+  agreed boilerplate, hints, review, and tests. Explicit requests for full
+  implementation override that default, but still explain and verify the work.
+
 </content>
