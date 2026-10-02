@@ -18,6 +18,10 @@ import {
   Prisma,
 } from '../generated/prisma/index.js';
 import { validatePost } from '../scripts/validate-post.js';
+import {
+  isEligibilityRules,
+  type EligibilityRules,
+} from './schemas/eligibility-rules.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,6 +56,8 @@ interface IngestPost {
   min_marks_percent: number | null;
   category_relaxation_applies: boolean | null;
   category_relaxation_rules: Record<string, number | null> | null;
+  // Legacy producers can omit rules; current Python output always includes them.
+  eligibility_rules?: EligibilityRules;
 }
 
 interface IngestRequestBody {
@@ -411,6 +417,21 @@ ${textSlice}`;
         return;
       }
 
+      for (const [index, post] of body.posts.entries()) {
+        if (
+          post === null ||
+          typeof post !== 'object' ||
+          Array.isArray(post) ||
+          (post.eligibility_rules !== undefined &&
+            !isEligibilityRules(post.eligibility_rules))
+        ) {
+          sendJson(res, 400, {
+            error: `posts[${index}] must be an object with valid eligibility_rules when supplied`,
+          });
+          return;
+        }
+      }
+
       const existing = await prisma.source.findUnique({
         where: { url: body.source_url },
       });
@@ -499,6 +520,7 @@ ${textSlice}`;
           minMarksPercent: validated.minMarksPercent,
           categoryRelaxationApplies: raw.category_relaxation_applies,
           categoryRelaxationRules: validated.categoryRelaxationRules,
+          eligibilityRules: raw.eligibility_rules ?? Prisma.DbNull,
         });
       }
 

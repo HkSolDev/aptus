@@ -91,4 +91,5 @@ model Post {
   // (e.g. SSC CGL gives Group 'C' posts additional relaxation beyond the
   // general table) — one shared value would be wrong for some posts.
   categoryRelaxationRules   Json?
+  eligibilityRules          Json?
 }
