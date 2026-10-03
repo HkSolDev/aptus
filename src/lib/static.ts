@@ -7,6 +7,7 @@ export async function servePublicFile(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   pathname: string,
+  params = new URLSearchParams(),
 ): Promise<boolean> {
   if (req.method !== 'GET' && req.method !== 'HEAD') return false;
   // Only serve our HTML entry and named CSS/JS assets, never arbitrary project files.
@@ -22,7 +23,7 @@ export async function servePublicFile(
   try {
     const content =
       pathname === '/'
-        ? await renderHome()
+        ? await renderHome(params)
         : await fs.readFile(
             new URL(`../../public/${filename}`, import.meta.url),
           );

@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { test } from 'node:test';
 import { chromium, expect } from 'playwright/test';
 import { server } from '../src/server.js';
+import { prisma } from '../src/db.js';
 
 // HTTP fixtures exercise the frontend contract without writing personal data to PostgreSQL.
 const fixture = {
@@ -33,6 +34,21 @@ const fixture = {
 };
 
 test('browser flow, response safety, recovery, profile storage and responsive layout', async (t) => {
+  // This suite exercises matching; isolate the public catalogue from a live database.
+  const originalTransaction = prisma.$transaction;
+  Object.defineProperty(prisma, '$transaction', {
+    configurable: true,
+    value: async () => ({
+      data: [],
+      pagination: { page: 1, pageSize: 6, totalItems: 0, totalPages: 0 },
+    }),
+  });
+  t.after(() => {
+    Object.defineProperty(prisma, '$transaction', {
+      configurable: true,
+      value: originalTransaction,
+    });
+  });
   const bundled = chromium.executablePath();
   const localChrome =
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -295,7 +311,7 @@ test('browser flow, response safety, recovery, profile storage and responsive la
         await page.goto(origin);
         await page.keyboard.press('Tab');
         await expect(
-          page.getByRole('link', { name: 'Skip to your profile' }),
+          page.getByRole('link', { name: 'Skip to jobs' }),
         ).toBeFocused();
         assert.equal(
           await page

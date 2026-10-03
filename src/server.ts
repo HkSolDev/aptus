@@ -6,6 +6,7 @@ import { handleMatch } from './routes/match.js';
 import { handleExplain } from './routes/explain.js';
 import { handleIngest } from './routes/ingest.js';
 import { handleJobs } from './routes/jobs.js';
+import { renderJob } from './lib/render-job.js';
 
 export const server = http.createServer(async (req, res) => {
   const url = new URL(
@@ -13,7 +14,22 @@ export const server = http.createServer(async (req, res) => {
     `http://${req.headers.host || 'localhost'}`,
   );
 
-  if (await servePublicFile(req, res, url.pathname)) return;
+  const jobPage = url.pathname.match(/^\/jobs\/([a-zA-Z0-9_-]{1,128})$/);
+  if (jobPage && (req.method === 'GET' || req.method === 'HEAD')) {
+    try {
+      const { status, html } = await renderJob(jobPage[1]);
+      res.writeHead(status, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-cache',
+      });
+      res.end(req.method === 'HEAD' ? undefined : html);
+    } catch {
+      sendJson(res, 500, { error: 'Could not load the job page' });
+    }
+    return;
+  }
+  if (await servePublicFile(req, res, url.pathname, url.searchParams)) return;
 
   if (url.pathname === '/api/jobs') {
     if (req.method !== 'GET') {

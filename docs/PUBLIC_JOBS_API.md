@@ -72,10 +72,45 @@ rows. Deep offsets and exact counts become more expensive as data grows;
 measure before adding indexes, cursor pagination, or caching.
 
 Tests: `scripts/jobs.test.ts`, included in `pnpm test`. They exercise the real
-HTTP routing with a fake database transaction, not a live PostgreSQL instance.
-Docker/PostgreSQL was unavailable during this change, so live database-backed
-verification remains required before deployment. No migrations were needed.
+HTTP routing with a fake database transaction. Docker/PostgreSQL was subsequently
+started and live reads verified all 14 stored posts with no duplicate IDs across
+pages. No migrations were needed.
 
-Next slice: wire public browsing into the homepage using this endpoint. Then
-design real authentication and server-verified profile ownership before adding
-account-based recommendations. Existing profile IDs are not authentication.
+## Public browser pages (implemented)
+
+The homepage now renders six posts per page, with previous/next links using
+`/?page=2#jobs`. It is public, requires no profile, and is assembled on the server
+using the same `listPublicJobs` function as the JSON API. No extra browser
+JavaScript or client API fetch is needed for browsing.
+
+`GET /jobs/<post-id>` renders a complete HTML detail page: qualifications,
+vacancies, dates, age limits, detailed saved age/education conditions, category
+relaxation, and collected document/application links. Missing values remain
+"Not specified". Text is HTML-escaped and external links allow only HTTP(S)
+without embedded credentials. PDF links are not assumed to be official.
+Missing/replaced posts return an HTML 404; database failures return an HTML 503.
+Post IDs may change when ingestion replaces posts, so these URLs are not yet
+stable permanent notification identifiers.
+
+Files to read in order:
+
+1. `src/lib/public-jobs.ts`: shared bounded database reads and public fields.
+2. `src/lib/render-catalogue.ts`: cards, pagination, empty/error states.
+3. `src/lib/render-job.ts`: detail page fields and documents.
+4. `src/lib/render-job-rules.ts`: conditional rules, without eligibility math.
+5. `src/lib/job-html.ts`: HTML escaping, safe links, date formatting.
+
+Markup/styles: `public/parts/catalogue.html`, `public/job.html`,
+`public/css/catalogue.css`. The existing CSS tokens/cards and profile TypeScript
+are reused. Home assembly is in `src/lib/render-home.ts`; routing remains in
+`src/server.ts`. No login, matching-query rewrite, source re-extraction, or
+database writes were added.
+
+`scripts/public-pages.test.ts` covers HTML content, safe rendering, empty/error
+states and 404s. `tests/public-browsing.test.ts` covers pagination, card navigation,
+375/768/1280 widths and JavaScript-disabled access. Live browser verification
+confirmed the PostgreSQL catalogue pages (6 + 6 + 2 posts) and opening the first
+job detail with no browser errors. Preview: `http://localhost:8091/#jobs`.
+
+Next: design real authentication and server-verified profile ownership before
+adding account-based recommendations. Existing profile IDs are not authentication.
