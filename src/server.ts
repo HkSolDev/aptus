@@ -5,6 +5,7 @@ import { servePublicFile } from './lib/static.js';
 import { handleMatch } from './routes/match.js';
 import { handleExplain } from './routes/explain.js';
 import { handleIngest } from './routes/ingest.js';
+import { handleJobs } from './routes/jobs.js';
 
 export const server = http.createServer(async (req, res) => {
   const url = new URL(
@@ -13,6 +14,16 @@ export const server = http.createServer(async (req, res) => {
   );
 
   if (await servePublicFile(req, res, url.pathname)) return;
+
+  if (url.pathname === '/api/jobs') {
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', 'GET');
+      sendJson(res, 405, { error: 'Method Not Allowed' });
+    } else {
+      await handleJobs(res, url.searchParams);
+    }
+    return;
+  }
 
   if (req.method === 'POST' && url.pathname === '/api/match') {
     await handleMatch(req, res);

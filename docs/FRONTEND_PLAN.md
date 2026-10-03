@@ -25,7 +25,9 @@ browser's saved-profile checkbox or by an API-returned user ID.
 
 ### Next implementation slices
 
-1. Add a read-only, paginated public jobs endpoint backed by PostgreSQL. Return
+1. Added `GET /api/jobs` on `codex/public-jobs-auth`; see
+   [PUBLIC_JOBS_API.md](PUBLIC_JOBS_API.md) for its contract and live-test limit.
+   This read-only, paginated endpoint is backed by PostgreSQL. Return
    public notification data only; never include profiles or internal pipeline
    credentials. Display all saved notifications with clear dates/status when
    available, not an invented claim that every notice is still accepting forms.
