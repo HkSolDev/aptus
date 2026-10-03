@@ -1,0 +1,50 @@
+<!-- Repeated markup stays in HTML; TypeScript fills templates with data. -->
+<template id="education-template"
+  ><div class="education-row">
+    <label class="field"
+      >Qualification <span class="optional">Required</span
+      ><select name="eduLevel" required>
+        <option value="">Select a level</option>
+        <option value="TENTH">10th standard</option>
+        <option value="TWELFTH">12th standard</option>
+        <option value="DIPLOMA">Diploma</option>
+        <option value="BACHELORS">Bachelor’s degree</option>
+        <option value="MASTERS">Master’s degree</option>
+        <option value="PHD">Ph.D.</option>
+      </select></label
+    ><label class="field"
+      >Marks (%)<input
+        name="eduMarks"
+        type="number"
+        inputmode="decimal"
+        min="0"
+        max="100"
+        step="0.01"
+        placeholder="e.g. 72" /></label
+    ><button class="text-button remove-education" type="button">
+      Remove qualification
+    </button>
+  </div></template
+>
+<template id="job-template"
+  ><article class="job-card">
+    <div class="job-topline">
+      <p class="job-source small muted"></p>
+      <span class="job-status badge"></span>
+    </div>
+    <h4 class="job-title"></h4>
+    <dl class="job-facts"></dl>
+    <p class="job-reason notice" hidden></p>
+    <div class="job-actions">
+      <a class="source-link" target="_blank" rel="noopener noreferrer"
+        >Read source notification <span aria-hidden="true">↗</span></a
+      ><button
+        class="button button-secondary explain-button"
+        type="button"
+        aria-expanded="false"
+      >
+        Explain requirements
+      </button>
+    </div>
+    <div class="explanation small" hidden role="status"></div></article
+></template>

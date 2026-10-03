@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import http from 'node:http';
-import fs from 'node:fs/promises';
 import { sendJson } from './lib/http.js';
+import { servePublicFile } from './lib/static.js';
 import { handleMatch } from './routes/match.js';
 import { handleExplain } from './routes/explain.js';
 import { handleIngest } from './routes/ingest.js';
@@ -12,19 +12,7 @@ export const server = http.createServer(async (req, res) => {
     `http://${req.headers.host || 'localhost'}`,
   );
 
-  if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/') {
-    try {
-      const html = await fs.readFile(
-        new URL('../public/index.html', import.meta.url),
-        'utf-8',
-      );
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
-    } catch {
-      sendJson(res, 500, { error: 'Failed to read public/index.html' });
-    }
-    return;
-  }
+  if (await servePublicFile(req, res, url.pathname)) return;
 
   if (req.method === 'POST' && url.pathname === '/api/match') {
     await handleMatch(req, res);

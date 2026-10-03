@@ -1,7 +1,14 @@
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['generated/**', 'node_modules/**', 'downloads/**'] },
+  {
+    ignores: [
+      'generated/**',
+      'public/js/**',
+      'node_modules/**',
+      'downloads/**',
+    ],
+  },
   tseslint.configs.recommended,
   {
     rules: {

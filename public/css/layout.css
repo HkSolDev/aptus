@@ -1,0 +1,212 @@
+.page-width {
+  width: min(1240px, calc(100% - var(--space-6)));
+  margin-inline: auto;
+}
+.site-header {
+  padding-block: var(--space-5);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.06em;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: var(--target);
+  height: var(--target);
+  background: var(--ink);
+  color: var(--page);
+  border-radius: 50%;
+  font: italic 2rem var(--serif);
+}
+.brand-note {
+  display: none;
+  font-size: 0.75rem;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--muted);
+  border-left: 1px solid var(--line);
+  padding-left: var(--space-4);
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  font-size: 0.875rem;
+}
+nav a {
+  display: flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--ink);
+  text-decoration: none;
+}
+nav a:hover {
+  text-decoration: underline;
+}
+.intro {
+  padding-block: var(--space-7);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+h1 {
+  font: clamp(2.8rem, 6vw, 5.2rem)/1 var(--serif);
+  letter-spacing: -0.045em;
+  margin-block: var(--space-5);
+}
+h1 em {
+  color: var(--accent);
+  font-weight: 400;
+}
+.intro-copy {
+  max-width: 53ch;
+  color: var(--muted);
+}
+.intro-note {
+  display: none;
+}
+.workspace {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+}
+.section-heading {
+  margin-bottom: var(--space-5);
+}
+.section-heading h2,
+.results-heading h2 {
+  margin-block: var(--space-3);
+}
+.results-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.results-panel {
+  min-width: 0;
+  scroll-margin-top: var(--space-5);
+}
+.results-panel > p {
+  margin-block: var(--space-3);
+}
+.welcome-panel {
+  margin-top: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+  background: var(--soft);
+  position: relative;
+  overflow: hidden;
+}
+.welcome-symbol {
+  float: right;
+  font: 5rem/1 var(--serif);
+  color: var(--accent);
+}
+.welcome-panel h3 {
+  font: clamp(2.3rem, 5vw, 3.6rem)/1.12 var(--serif);
+  letter-spacing: -0.04em;
+  margin-block: var(--space-5);
+}
+.welcome-panel > p {
+  max-width: 45ch;
+}
+.welcome-steps {
+  margin-top: var(--space-6);
+}
+.welcome-steps p {
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+.welcome-steps span {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-right: var(--space-4);
+}
+.how-it-works {
+  margin-top: var(--space-8);
+  padding-block: var(--space-6);
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--space-5);
+}
+.how-it-works h2 {
+  margin-top: var(--space-3);
+}
+.how-it-works > div:last-child {
+  max-width: 65ch;
+}
+.site-footer {
+  padding-block: var(--space-6);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.site-footer a {
+  padding-block: var(--space-3);
+}
+@media (min-width: 760px) {
+  .page-width {
+    width: min(1240px, calc(100% - var(--space-8)));
+  }
+  .intro-note {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    border-left: 1px solid var(--line);
+    padding-left: var(--space-6);
+    margin-block: var(--space-5);
+    min-width: 240px;
+  }
+  .intro-note p {
+    font: 1.6rem/1.4 var(--serif);
+  }
+  .note-index {
+    color: var(--accent);
+    font-size: 0.75rem;
+  }
+  .how-it-works {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (min-width: 1050px) {
+  .workspace {
+    grid-template-columns: 400px minmax(0, 1fr);
+    gap: var(--space-7);
+  }
+  .intro {
+    padding-block: var(--space-8);
+  }
+  .brand-note {
+    display: inline;
+  }
+  .profile-panel {
+    padding: var(--space-6);
+  }
+}
