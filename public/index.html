@@ -1,789 +1,89 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>aptus — Check Government Job Eligibility</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --card-bg: #1e293b;
-      --card-border: #334155;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --primary: #38bdf8;
-      --primary-hover: #0ea5e9;
-      --accent: #22c55e;
-      --accent-bg: #14532d;
-      --warning: #f59e0b;
-      --warning-bg: #451a03;
-      --danger: #ef4444;
-      --radius: 8px;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      padding: 2rem 1rem;
-    }
-
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
-    }
-
-    header {
-      margin-bottom: 2rem;
-    }
-
-    h1 {
-      font-size: 1.875rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      margin-bottom: 0.5rem;
-      color: var(--text);
-    }
-
-    .subtitle {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-
-    .form-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-    }
-
-    .form-group {
-      margin-bottom: 1.25rem;
-    }
-
-    label {
-      display: block;
-      font-size: 0.875rem;
-      font-weight: 600;
-      margin-bottom: 0.35rem;
-      color: var(--text);
-    }
-
-    .label-hint {
-      font-weight: normal;
-      color: var(--text-muted);
-      font-size: 0.8rem;
-    }
-
-    input, select {
-      width: 100%;
-      background: #0b1329;
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      color: var(--text);
-      padding: 0.65rem 0.75rem;
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input:focus, select:focus {
-      border-color: var(--primary);
-    }
-
-    .dob-row {
-      display: grid;
-      grid-template-columns: 110px 1fr 130px;
-      gap: 0.75rem;
-    }
-
-    @media (max-width: 520px) {
-      .dob-row {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .education-row {
-      display: grid;
-      grid-template-columns: 1fr 140px auto;
-      gap: 0.75rem;
-      margin-bottom: 0.75rem;
-      align-items: center;
-    }
-
-    button {
-      cursor: pointer;
-      font-weight: 600;
-      border: none;
-      border-radius: var(--radius);
-      transition: background-color 0.2s, opacity 0.2s;
-    }
-
-    .btn-primary {
-      width: 100%;
-      background: var(--primary);
-      color: #0f172a;
-      padding: 0.75rem 1rem;
-      font-size: 1rem;
-    }
-
-    .btn-primary:hover:not(:disabled) {
-      background: var(--primary-hover);
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .btn-secondary {
-      background: #334155;
-      color: var(--text);
-      padding: 0.4rem 0.75rem;
-      font-size: 0.85rem;
-    }
-
-    .btn-secondary:hover {
-      background: #475569;
-    }
-
-    .btn-danger {
-      background: transparent;
-      color: var(--danger);
-      border: 1px solid #7f1d1d;
-      padding: 0.65rem 0.75rem;
-      font-size: 0.9rem;
-    }
-
-    .btn-danger:hover {
-      background: #450a0a;
-    }
-
-    .sources-banner {
-      background: #1e293b;
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      padding: 0.75rem 1rem;
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      margin-bottom: 1.5rem;
-    }
-
-    .sources-banner strong {
-      color: var(--text);
-    }
-
-    .results-section {
-      margin-top: 2rem;
-    }
-
-    .results-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .badge {
-      display: inline-block;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 0.15rem 0.5rem;
-      border-radius: 9999px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .badge-confirmed {
-      background: var(--accent-bg);
-      color: #86efac;
-      border: 1px solid #15803d;
-    }
-
-    .badge-warning {
-      background: var(--warning-bg);
-      color: #fde047;
-      border: 1px solid #854d0e;
-    }
-
-    .post-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      margin-bottom: 1rem;
-    }
-
-    .post-card h3 {
-      font-size: 1.1rem;
-      margin-bottom: 0.35rem;
-      color: var(--text);
-    }
-
-    .post-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin: 0.5rem 0;
-    }
-
-    .post-meta-item strong {
-      color: var(--text);
-    }
-
-    .post-link {
-      display: inline-block;
-      margin-top: 0.5rem;
-      color: var(--primary);
-      text-decoration: none;
-      font-size: 0.875rem;
-      font-weight: 600;
-    }
-
-    .post-link:hover {
-      text-decoration: underline;
-    }
-
-    .reason-box {
-      margin-top: 0.5rem;
-      background: #291800;
-      border-left: 3px solid var(--warning);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.85rem;
-      color: #fef08a;
-      border-radius: 0 var(--radius) var(--radius) 0;
-    }
-
-    .post-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-top: 0.65rem;
-      flex-wrap: wrap;
-    }
-
-    .btn-explain {
-      background: #334155;
-      color: #e2e8f0;
-      padding: 0.35rem 0.75rem;
-      font-size: 0.8rem;
-      border: 1px solid #475569;
-      border-radius: var(--radius);
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-
-    .btn-explain:hover:not(:disabled) {
-      background: #475569;
-      color: #fff;
-    }
-
-    .btn-explain:disabled {
-      opacity: 0.6;
-      cursor: wait;
-    }
-
-    .ai-explanation-box {
-      margin-top: 0.75rem;
-      background: #0b1329;
-      border: 1px solid #334155;
-      border-radius: var(--radius);
-      padding: 0.85rem 1rem;
-      font-size: 0.875rem;
-      line-height: 1.6;
-    }
-
-    .ai-badge {
-      display: inline-block;
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 4px;
-      padding: 0.15rem 0.45rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .ai-text {
-      color: #e2e8f0;
-      white-space: pre-line;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 2.5rem 1rem;
-      color: var(--text-muted);
-      background: var(--card-bg);
-      border: 1px dashed var(--card-border);
-      border-radius: var(--radius);
-      margin-top: 1.5rem;
-    }
-
-    .error-banner {
-      background: #450a0a;
-      border: 1px solid #7f1d1d;
-      color: #fecaca;
-      padding: 0.75rem 1rem;
-      border-radius: var(--radius);
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <h1>aptus</h1>
-      <p class="subtitle">Check your eligibility for live Indian government job notifications</p>
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Compare your education and age with government job notifications, understand the saved requirements, and verify the source."
+    />
+    <title>Aptus — Find your next possibility</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <script type="module" src="/js/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#profile">Skip to your profile</a>
+    <header class="site-header page-width">
+      <a class="brand" href="/" aria-label="Aptus home"
+        ><span class="brand-mark" aria-hidden="true">a</span>aptus<span
+          class="brand-note"
+          >A little clarity. A new possibility.</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="#profile">Your profile</a><a href="#results">Your results</a
+        ><a href="#how-it-works">How it works</a>
+      </nav>
     </header>
-
-    <div id="errorBox" class="error-banner" style="display: none;"></div>
-
-    <form id="matchForm" class="form-card">
-      <div class="form-group">
-        <label for="name">Candidate Name <span class="label-hint">(optional)</span></label>
-        <input type="text" id="name" name="name" placeholder="e.g. Rahul Sharma">
-      </div>
-
-      <div class="form-group">
-        <label>Date of Birth *</label>
-        <div class="dob-row">
-          <input type="number" id="dobDay" name="dobDay" placeholder="Day (DD)" min="1" max="31" required>
-          <select id="dobMonth" name="dobMonth" required>
-            <option value="">Month</option>
-            <option value="01">Jan (01)</option>
-            <option value="02">Feb (02)</option>
-            <option value="03">Mar (03)</option>
-            <option value="04">Apr (04)</option>
-            <option value="05">May (05)</option>
-            <option value="06">Jun (06)</option>
-            <option value="07">Jul (07)</option>
-            <option value="08">Aug (08)</option>
-            <option value="09">Sep (09)</option>
-            <option value="10">Oct (10)</option>
-            <option value="11">Nov (11)</option>
-            <option value="12">Dec (12)</option>
-          </select>
-          <input type="number" id="dobYear" name="dobYear" placeholder="Year (YYYY)" min="1950" max="2020" required>
+    <main class="page-width">
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">GOVERNMENT JOBS · A CLEARER START</p>
+          <h1 id="page-title">Find your next<br /><em>possibility.</em></h1>
+          <p class="intro-copy">
+            Your qualifications deserve a clear path. Compare them with the job
+            notifications we track, then check the details at the source.
+          </p>
         </div>
-      </div>
-
-      <div class="form-group">
-        <label for="category">Category *</label>
-        <select id="category" name="category">
-          <option value="General">General / Unreserved</option>
-          <option value="OBC">OBC</option>
-          <option value="SC">SC</option>
-          <option value="ST">ST</option>
-          <option value="EWS">EWS</option>
-          <option value="PwBD">PwBD</option>
-          <option value="">Prefer not to say</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Education History * <span class="label-hint">(add all completed levels)</span></label>
-        <div id="educationList">
-          <!-- Default first row -->
-          <div class="education-row">
-            <select name="eduLevel" required>
-              <option value="BACHELORS">Bachelor's Degree</option>
-              <option value="TWELFTH">12th Standard / Higher Secondary</option>
-              <option value="TENTH">10th Standard / Matriculation</option>
-              <option value="DIPLOMA">Diploma</option>
-              <option value="MASTERS">Master's Degree</option>
-              <option value="PHD">Ph.D.</option>
-            </select>
-            <input type="number" name="eduMarks" placeholder="Marks %" min="0" max="100" step="0.1">
-            <button type="button" class="btn-danger remove-edu" style="visibility: hidden;">Remove</button>
-          </div>
+        <div class="intro-note">
+          <span class="note-index" aria-hidden="true">01 — 03</span>
+          <p>
+            A profile.<br />A few useful matches.<br />A more informed next
+            step.
+          </p>
+          <span class="small muted"
+            >Built for reading, checking, and deciding.</span
+          >
         </div>
-        <button type="button" id="addEduBtn" class="btn-secondary" style="margin-top: 0.5rem;">+ Add Qualification</button>
-      </div>
-
-      <button type="submit" id="submitBtn" class="btn-primary">Check Eligibility</button>
-    </form>
-
-    <div id="resultsContainer" style="display: none;">
-      <div id="sourcesBanner" class="sources-banner"></div>
-
-      <!-- Confirmed Matches -->
-      <section id="confirmedSection" class="results-section">
-        <h2 class="results-title">
-          <span>Eligible Matches</span>
-          <span id="confirmedCount" class="badge badge-confirmed">0</span>
-        </h2>
-        <div id="confirmedList"></div>
       </section>
-
-      <!-- Manual Check Section -->
-      <section id="manualCheckSection" class="results-section" style="margin-top: 2.5rem;">
-        <h2 class="results-title">
-          <span>Couldn't confirm automatically — check the source</span>
-          <span id="manualCheckCount" class="badge badge-warning">0</span>
-        </h2>
-        <p class="subtitle" style="margin-bottom: 1rem;">
-          These positions match your overall profile, but specific requirements (like subject specialization or unstated age rules) require manual verification against the official notification.
-        </p>
-        <div id="manualCheckList"></div>
-      </section>
-
-      <!-- Empty State -->
-      <div id="emptyState" class="empty-state" style="display: none;">
-        <h3>No matching posts found</h3>
-        <p>None of the currently tracked job notifications match your age and educational profile.</p>
+      <div class="workspace">
+        <!-- profile -->
+        <!-- results -->
       </div>
-    </div>
-  </div>
-
-  <script>
-    const educationList = document.getElementById('educationList');
-    const addEduBtn = document.getElementById('addEduBtn');
-    const form = document.getElementById('matchForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const errorBox = document.getElementById('errorBox');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const sourcesBanner = document.getElementById('sourcesBanner');
-    const confirmedSection = document.getElementById('confirmedSection');
-    const confirmedList = document.getElementById('confirmedList');
-    const confirmedCount = document.getElementById('confirmedCount');
-    const manualCheckSection = document.getElementById('manualCheckSection');
-    const manualCheckList = document.getElementById('manualCheckList');
-    const manualCheckCount = document.getElementById('manualCheckCount');
-    const emptyState = document.getElementById('emptyState');
-
-    let currentUserId = null;
-
-    function getFormattedDob() {
-      const day = document.getElementById('dobDay').value.trim();
-      const month = document.getElementById('dobMonth').value.trim();
-      const year = document.getElementById('dobYear').value.trim();
-      if (!day || !month || !year) return null;
-      const padDay = day.padStart(2, '0');
-      return `${year}-${month}-${padDay}`;
-    }
-
-    function createEducationRow(level = 'BACHELORS', marks = '') {
-      const row = document.createElement('div');
-      row.className = 'education-row';
-      row.innerHTML = `
-        <select name="eduLevel" required>
-          <option value="BACHELORS"${level === 'BACHELORS' ? ' selected' : ''}>Bachelor's Degree</option>
-          <option value="TWELFTH"${level === 'TWELFTH' ? ' selected' : ''}>12th Standard / Higher Secondary</option>
-          <option value="TENTH"${level === 'TENTH' ? ' selected' : ''}>10th Standard / Matriculation</option>
-          <option value="DIPLOMA"${level === 'DIPLOMA' ? ' selected' : ''}>Diploma</option>
-          <option value="MASTERS"${level === 'MASTERS' ? ' selected' : ''}>Master's Degree</option>
-          <option value="PHD"${level === 'PHD' ? ' selected' : ''}>Ph.D.</option>
-        </select>
-        <input type="number" name="eduMarks" placeholder="Marks %" min="0" max="100" step="0.1" value="${marks != null ? marks : ''}">
-        <button type="button" class="btn-danger remove-edu">Remove</button>
-      `;
-      return row;
-    }
-
-    function updateRemoveButtons() {
-      const rows = educationList.querySelectorAll('.education-row');
-      rows.forEach((row) => {
-        const removeBtn = row.querySelector('.remove-edu');
-        if (removeBtn) {
-          removeBtn.style.visibility = rows.length > 1 ? 'visible' : 'hidden';
-        }
-      });
-    }
-
-    function saveProfileToStorage() {
-      const name = document.getElementById('name').value.trim();
-      const dobDay = document.getElementById('dobDay').value.trim();
-      const dobMonth = document.getElementById('dobMonth').value.trim();
-      const dobYear = document.getElementById('dobYear').value.trim();
-      const category = document.getElementById('category').value;
-
-      const eduRows = educationList.querySelectorAll('.education-row');
-      const educations = [];
-      eduRows.forEach((row) => {
-        const level = row.querySelector('select[name="eduLevel"]').value;
-        const marksInput = row.querySelector('input[name="eduMarks"]').value.trim();
-        const marksPercent = marksInput !== '' ? parseFloat(marksInput) : null;
-        educations.push({ level, marksPercent });
-      });
-
-      const profile = {
-        userId: currentUserId,
-        name,
-        dobDay,
-        dobMonth,
-        dobYear,
-        category,
-        educations,
-      };
-
-      try {
-        localStorage.setItem('aptus_saved_profile', JSON.stringify(profile));
-      } catch {
-        // Ignore localStorage errors
-      }
-    }
-
-    function loadProfileFromStorage() {
-      try {
-        const raw = localStorage.getItem('aptus_saved_profile');
-        if (!raw) return;
-        const profile = JSON.parse(raw);
-
-        if (profile.userId) currentUserId = profile.userId;
-        if (profile.name) document.getElementById('name').value = profile.name;
-        if (profile.dobDay) document.getElementById('dobDay').value = profile.dobDay;
-        if (profile.dobMonth) document.getElementById('dobMonth').value = profile.dobMonth;
-        if (profile.dobYear) document.getElementById('dobYear').value = profile.dobYear;
-        if (profile.category !== undefined) document.getElementById('category').value = profile.category;
-
-        if (Array.isArray(profile.educations) && profile.educations.length > 0) {
-          educationList.innerHTML = '';
-          profile.educations.forEach((edu) => {
-            educationList.appendChild(createEducationRow(edu.level, edu.marksPercent));
-          });
-          updateRemoveButtons();
-        }
-      } catch {
-        // Ignore corrupted storage
-      }
-    }
-
-    // Automatically restore previous entry on load
-    loadProfileFromStorage();
-
-    // Auto-save form changes so entries are remembered
-    form.addEventListener('input', saveProfileToStorage);
-    form.addEventListener('change', saveProfileToStorage);
-
-    addEduBtn.addEventListener('click', () => {
-      educationList.appendChild(createEducationRow());
-      updateRemoveButtons();
-      saveProfileToStorage();
-    });
-
-    educationList.addEventListener('click', (e) => {
-      if (e.target.classList.contains('remove-edu')) {
-        const rows = educationList.querySelectorAll('.education-row');
-        if (rows.length > 1) {
-          e.target.closest('.education-row').remove();
-          updateRemoveButtons();
-          saveProfileToStorage();
-        }
-      }
-    });
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      errorBox.style.display = 'none';
-      errorBox.textContent = '';
-
-      const name = document.getElementById('name').value.trim();
-      const dob = getFormattedDob();
-      if (!dob || Number.isNaN(Date.parse(dob))) {
-        errorBox.textContent = 'Please enter a valid Date of Birth (Day, Month, and Year).';
-        errorBox.style.display = 'block';
-        return;
-      }
-
-      const categoryVal = document.getElementById('category').value;
-      const category = categoryVal === '' ? null : categoryVal;
-
-      const eduRows = educationList.querySelectorAll('.education-row');
-      const educations = [];
-      eduRows.forEach((row) => {
-        const level = row.querySelector('select[name="eduLevel"]').value;
-        const marksInput = row.querySelector('input[name="eduMarks"]').value.trim();
-        const marksPercent = marksInput !== '' ? parseFloat(marksInput) : null;
-        educations.push({ level, marksPercent });
-      });
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Checking...';
-
-      try {
-        const response = await fetch('/api/match', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: currentUserId || undefined,
-            name: name || undefined,
-            dob,
-            category,
-            educations,
-          }),
-        });
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || 'Server returned an error');
-        }
-
-        const data = await response.json();
-        if (data.userId) {
-          currentUserId = data.userId;
-          saveProfileToStorage();
-        }
-        renderResults(data);
-      } catch (err) {
-        errorBox.textContent = err.message;
-        errorBox.style.display = 'block';
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Check Eligibility';
-      }
-    });
-
-    function renderResults(data) {
-      resultsContainer.style.display = 'block';
-
-      // Sources currently checked line
-      const sources = data.sourcesChecked || [];
-      sourcesBanner.innerHTML = `Sources currently checked: <strong>${sources.length > 0 ? sources.join(', ') : 'None active'}</strong>`;
-
-      const matches = data.matches || [];
-      const needsManual = data.needsManualCheck || [];
-
-      // Render Confirmed Matches
-      confirmedCount.textContent = matches.length;
-      if (matches.length > 0) {
-        confirmedSection.style.display = 'block';
-        confirmedList.innerHTML = matches
-          .map(
-            (p) => `
-          <div class="post-card">
-            <h3>${p.postName}</h3>
-            <div class="post-meta">
-              <span class="post-meta-item">Source: <strong>${p.sourceName}</strong></span>
-              <span class="post-meta-item">Pay: <strong>${p.payLevel ? 'Level ' + p.payLevel : 'Unspecified'}</strong></span>
-              <span class="post-meta-item">${p.ageComparison}</span>
-              ${p.categoryRelaxationApplied ? `<span class="post-meta-item" style="color: var(--accent);">Relaxation: <strong>${p.categoryRelaxationApplied}</strong></span>` : ''}
-            </div>
-            <div class="post-actions">
-              <a href="${p.sourceUrl}" target="_blank" rel="noopener noreferrer" class="post-link">View Official Notification PDF &rarr;</a>
-              ${p.id ? `<button type="button" class="btn-explain" data-post-id="${p.id}">Explain with AI</button>` : ''}
-            </div>
-            ${p.id ? `<div class="ai-explanation-box" id="explain-${p.id}" style="display: none;"></div>` : ''}
-          </div>
-        `,
-          )
-          .join('');
-      } else {
-        confirmedSection.style.display = 'none';
-        confirmedList.innerHTML = '';
-      }
-
-      // Render Needs Manual Check
-      manualCheckCount.textContent = needsManual.length;
-      if (needsManual.length > 0) {
-        manualCheckSection.style.display = 'block';
-        manualCheckList.innerHTML = needsManual
-          .map(
-            (p) => `
-          <div class="post-card">
-            <h3>${p.postName}</h3>
-            <div class="post-meta">
-              <span class="post-meta-item">Source: <strong>${p.sourceName}</strong></span>
-              <span class="post-meta-item">Pay: <strong>${p.payLevel ? 'Level ' + p.payLevel : 'Unspecified'}</strong></span>
-            </div>
-            ${p.educationRequired ? `<div style="font-size: 0.85rem; color: var(--text-muted); margin: 0.35rem 0;">Required: <em>${p.educationRequired}</em></div>` : ''}
-            <div class="reason-box">Manual check required: ${p.reason}</div>
-            <div class="post-actions">
-              <a href="${p.sourceUrl}" target="_blank" rel="noopener noreferrer" class="post-link">Verify in Official Notification PDF &rarr;</a>
-              ${p.id ? `<button type="button" class="btn-explain" data-post-id="${p.id}">Explain with AI</button>` : ''}
-            </div>
-            ${p.id ? `<div class="ai-explanation-box" id="explain-${p.id}" style="display: none;"></div>` : ''}
-          </div>
-        `,
-          )
-          .join('');
-      } else {
-        manualCheckSection.style.display = 'none';
-        manualCheckList.innerHTML = '';
-      }
-
-      // Empty State
-      if (matches.length === 0 && needsManual.length === 0) {
-        emptyState.style.display = 'block';
-      } else {
-        emptyState.style.display = 'none';
-      }
-
-      // Smooth scroll to results
-      resultsContainer.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-    resultsContainer.addEventListener('click', async (e) => {
-      const btn = e.target.closest('.btn-explain');
-      if (!btn) return;
-
-      const postId = btn.dataset.postId;
-      if (!postId) return;
-
-      const box = document.getElementById(`explain-${postId}`);
-      if (!box) return;
-
-      // If already loaded, toggle show/hide
-      if (box.dataset.loaded === 'true') {
-        const isHidden = box.style.display === 'none';
-        box.style.display = isHidden ? 'block' : 'none';
-        btn.textContent = isHidden ? 'Hide Explanation' : 'Explain with AI';
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = 'Explaining...';
-      box.style.display = 'block';
-      box.innerHTML = '<span style="color: var(--text-muted);">Generating summary from notification...</span>';
-
-      try {
-        const response = await fetch('/api/explain', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ postId, userId: currentUserId || undefined }),
-        });
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || 'Failed to explain requirements');
-        }
-
-        const data = await response.json();
-        box.innerHTML = `
-          <div class="ai-badge">AI-generated summary • Not a verified eligibility result</div>
-          <div class="ai-text">${escapeHtml(data.explanation)}</div>
-        `;
-        box.dataset.loaded = 'true';
-        btn.textContent = 'Hide Explanation';
-      } catch (err) {
-        box.innerHTML = `<span style="color: var(--danger);">Error: ${escapeHtml(err.message)}</span>`;
-        btn.textContent = 'Retry Explain with AI';
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  </script>
-</body>
+      <section
+        id="how-it-works"
+        class="how-it-works"
+        aria-labelledby="how-title"
+      >
+        <div>
+          <p class="eyebrow">03 / BEFORE YOU APPLY</p>
+          <h2 id="how-title">Clarity, with context.</h2>
+        </div>
+        <div>
+          <p>
+            Aptus compares your details with saved notification requirements. An
+            incomplete or conditional rule needs a closer look.
+          </p>
+          <details>
+            <summary>What should I verify?</summary>
+            <p>
+              Read the original notification for application dates, subject
+              requirements, age reference dates, category conditions, and any
+              corrections. A match here is a starting point, not an application
+              decision.
+            </p>
+          </details>
+        </div>
+      </section>
+    </main>
+    <footer class="page-width site-footer">
+      <span class="brand">aptus</span>
+      <p>A clearer way to approach your next opportunity.</p>
+      <a href="#profile">Back to your profile ↑</a>
+    </footer>
+    <!-- templates -->
+  </body>
 </html>

@@ -3,6 +3,7 @@ downloads
 .DS_Store
 
 /generated/prisma
+/public/js
 .env
 
 .venv

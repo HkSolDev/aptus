@@ -1,0 +1,93 @@
+<section
+  id="profile"
+  class="panel profile-panel"
+  aria-labelledby="profile-title"
+>
+  <div class="section-heading">
+    <p class="eyebrow">01 / YOUR STARTING POINT</p>
+    <h2 id="profile-title">A little about you</h2>
+    <p class="muted">
+      Add completed qualifications, including earlier levels when marks matter.
+    </p>
+  </div>
+  <p id="startup-status" class="notice" role="status">
+    Preparing the form… If this stays visible, refresh the page.
+  </p>
+  <noscript
+    ><p class="notice">
+      Enable JavaScript to send your profile and view matching results.
+    </p></noscript
+  >
+  <form id="match-form">
+    <fieldset id="profile-fields" disabled>
+      <legend class="sr-only">Your profile details</legend>
+      <label class="field"
+        >Name <span class="optional">Optional</span
+        ><input
+          name="name"
+          autocomplete="name"
+          maxlength="120"
+          placeholder="What should we call you?"
+      /></label>
+      <div class="field-pair">
+        <label class="field"
+          >Date of birth <span class="optional">Required</span
+          ><input name="dob" type="date" autocomplete="bday" required
+        /></label>
+        <label class="field"
+          >Category<select name="category">
+            <option value="">Not specified</option>
+            <option value="General">General / Unreserved</option>
+            <option value="OBC">OBC</option>
+            <option value="SC">SC</option>
+            <option value="ST">ST</option>
+            <option value="EWS">EWS</option>
+            <option value="PwBD">PwBD</option>
+          </select></label
+        >
+      </div>
+      <fieldset class="education-group">
+        <legend>
+          Education <span class="optional">At least one level</span>
+        </legend>
+        <p class="small muted">
+          Marks are optional. Leave them blank if unknown.
+        </p>
+        <div id="education-list"></div>
+        <button
+          id="add-education"
+          type="button"
+          class="button button-secondary"
+        >
+          + Add qualification
+        </button>
+      </fieldset>
+      <div class="storage-choice">
+        <label class="checkbox-label"
+          ><input id="remember-profile" type="checkbox" />Remember this profile
+          in this browser</label
+        >
+        <p class="small muted">
+          Checking matches sends these details to Aptus and saves them in its
+          database. Browser storage is an additional, optional copy.
+        </p>
+        <button id="clear-profile" type="button" class="text-button">
+          Clear this browser’s profile
+        </button>
+        <p id="storage-status" class="small muted" role="status"></p>
+      </div>
+      <div
+        id="form-error"
+        class="notice notice-error"
+        role="alert"
+        hidden
+      ></div>
+      <button id="submit-profile" class="button button-primary" type="submit">
+        Find my matches <span aria-hidden="true">↗</span>
+      </button>
+      <p class="small muted form-footnote">
+        A useful first check. The source notification has the final word.
+      </p>
+    </fieldset>
+  </form>
+</section>

@@ -1,0 +1,69 @@
+<section id="results" class="results-panel" aria-labelledby="results-title">
+  <div class="results-heading">
+    <div>
+      <p class="eyebrow">02 / YOUR POSSIBILITIES</p>
+      <h2 id="results-title" tabindex="-1">Your next steps, clearer.</h2>
+    </div>
+    <span id="result-count" class="count-label">Ready when you are</span>
+  </div>
+  <p id="results-status" class="small muted" role="status" aria-live="polite">
+    Complete your profile to check the saved notifications.
+  </p>
+  <p id="results-stale" class="notice" hidden>
+    Your profile has changed. Check again to update these results.
+  </p>
+  <div id="results-loading" class="loading-state" hidden aria-hidden="true">
+    <div class="skeleton-card"></div>
+    <div class="skeleton-card"></div>
+  </div>
+  <div id="results-initial" class="welcome-panel">
+    <span class="welcome-symbol" aria-hidden="true">↗</span>
+    <p class="eyebrow">A GOOD PLACE TO BEGIN</p>
+    <h3>Make room for<br />what comes next.</h3>
+    <p>
+      Start with your education and date of birth. We’ll compare the saved age,
+      qualification, and marks requirements.
+    </p>
+    <div class="welcome-steps">
+      <p><span>01</span>Build a small profile</p>
+      <p><span>02</span>Read your matching results</p>
+      <p><span>03</span>Verify the source before applying</p>
+    </div>
+  </div>
+  <div id="results-content" hidden>
+    <details class="source-summary">
+      <summary>Sources included in this check</summary>
+      <ul id="sources-list"></ul>
+    </details>
+    <p class="notice">
+      These are preliminary checks of saved fields. Subject, gender, category
+      conditions, age reference dates, and other rules may still need
+      verification.
+    </p>
+    <section id="matched-section" class="result-group" hidden>
+      <div class="group-heading">
+        <h3>Matches on saved fields</h3>
+        <span id="matched-count" class="badge">0</span>
+      </div>
+      <div id="matched-list" class="job-list"></div>
+    </section>
+    <section id="manual-section" class="result-group" hidden>
+      <div class="group-heading">
+        <h3>Worth a closer look</h3>
+        <span id="manual-count" class="badge badge-warning">0</span>
+      </div>
+      <p class="small muted">
+        Missing details need a manual check at the source.
+      </p>
+      <div id="manual-list" class="job-list"></div>
+    </section>
+    <div id="empty-results" class="empty-panel" hidden>
+      <h3>No posts returned for this profile</h3>
+      <p>
+        This only covers the notifications currently in Aptus. Review your
+        details or check back after more notices are added.
+      </p>
+      <a class="button button-secondary" href="#profile">Review my profile</a>
+    </div>
+  </div>
+</section>
