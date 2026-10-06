@@ -12,6 +12,72 @@ datasource db {
   provider = "postgresql"
 }
 
+// Login identity is separate from eligibility details.
+model AuthUser {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  profile       User?
+  sessions      AuthSession[]
+  accounts      AuthAccount[]
+}
+
+// Aptus login sessions, not Google's access tokens.
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// A verified provider identity linked to an Aptus account.
+model AuthAccount {
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId            String
+  accountId             String
+  // Library-compatible optional fields; never return or log their contents.
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+// Short-lived library verification records; expiry is checked by auth code.
+model AuthVerification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@index([expiresAt])
+}
+
+// Historical name: User is the applicant profile, not the login account.
 model User {
   id         String      @id @default(cuid())
   name       String?
@@ -19,6 +85,9 @@ model User {
   category   String
   createdAt  DateTime    @default(now())
   educations Education[]
+  // Existing profiles stay unclaimed. Never infer this link from submitted IDs.
+  authUserId String?     @unique
+  authUser   AuthUser?   @relation(fields: [authUserId], references: [id], onDelete: Restrict)
 }
 
 // One row per level completed, since job posts require marks at a
