@@ -60,8 +60,8 @@ test('browser flow, response safety, recovery, profile storage and responsive la
         ? localChrome
         : bundled);
   const browser = await chromium.launch({ executablePath, headless: true });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
+  await server.listen({ port: 0, host: '127.0.0.1' });
+  const address = server.server.address();
   assert(address && typeof address !== 'string');
   const origin = `http://127.0.0.1:${address.port}`;
   const page = await browser.newPage({
@@ -324,6 +324,6 @@ test('browser flow, response safety, recovery, profile storage and responsive la
     );
   } finally {
     await browser.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await server.close();
   }
 });

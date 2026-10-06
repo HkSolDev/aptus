@@ -62,8 +62,8 @@ test('public browsing, pagination, job navigation and no-JavaScript access', asy
         : '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
     headless: true,
   });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
+  await server.listen({ port: 0, host: '127.0.0.1' });
+  const address = server.server.address();
   assert(address && typeof address !== 'string');
   const origin = `http://127.0.0.1:${address.port}`;
   try {
@@ -117,7 +117,7 @@ test('public browsing, pagination, job navigation and no-JavaScript access', asy
     await noJs.close();
   } finally {
     await browser.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await server.close();
     Object.defineProperty(prisma, '$transaction', {
       configurable: true,
       value: originalTransaction,

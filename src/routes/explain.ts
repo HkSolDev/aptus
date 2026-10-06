@@ -1,49 +1,79 @@
-import type http from 'node:http';
+import type { FastifyRequest, FastifyReply } from 'fastify';
+import type { Post } from '../../generated/prisma/index.js';
 import { prisma } from '../db.js';
-import { readBody, sendJson } from '../lib/http.js';
-import fs from 'node:fs/promises';
-import { openai } from '../lib/ai.js';
-import { extractTextWindow } from '../lib/text-window.js';
-import { ageOn } from '../../scripts/match.js';
-import { PDFParse } from 'pdf-parse';
+import { sendJson } from '../lib/http.js';
+import { getPostChecks, type MatchCandidate } from '../../scripts/match.js';
 
-let cachedPdfText: string | null = null;
+type ExplainedPost = Pick<
+  Post,
+  | 'postName'
+  | 'minAge'
+  | 'maxAge'
+  | 'minEducationLevel'
+  | 'minMarksPercent'
+  | 'educationRequired'
+  | 'payLevel'
+  | 'categoryRelaxationRules'
+  | 'eligibilityRules'
+>;
 
-async function getCachedPdfText(): Promise<string> {
-  if (cachedPdfText) return cachedPdfText;
-  const pdfPath = new URL('../../downloads/ssc-cgl-2026.pdf', import.meta.url);
-  const pdfBuffer = await fs.readFile(pdfPath);
-  const parser = new PDFParse({ data: pdfBuffer });
-  const result = await parser.getText();
-  cachedPdfText = result.text;
-  return cachedPdfText;
+export function explainStoredPost(
+  post: ExplainedPost,
+  user: MatchCandidate | null,
+): string {
+  const lines = [
+    `${post.postName}. Education: ${post.educationRequired ?? post.minEducationLevel ?? 'not specified'}.`,
+    `Saved age limits: minimum ${post.minAge ?? 'not specified'}, maximum ${post.maxAge ?? 'not specified'}.`,
+    `Minimum marks: ${post.minMarksPercent === null ? 'not specified' : `${post.minMarksPercent}%`}.`,
+    `Pay level: ${post.payLevel ?? 'not specified'}.`,
+  ];
+  if (user) {
+    const checks = getPostChecks(post, user);
+    const status = (passes: boolean, missing: boolean) =>
+      !passes
+        ? 'fails saved requirements'
+        : missing
+          ? 'needs manual verification'
+          : 'passes saved requirements';
+    lines.push(
+      `Candidate age: ${checks.userAge}.`,
+      `Age check: ${status(checks.ageOk, post.minAge === null || checks.effectiveMaxAge === null)}.`,
+      `Education check: ${status(checks.educationOk, post.minEducationLevel === null)}.`,
+      `Marks check: ${status(checks.marksOk, post.minMarksPercent === null || checks.marksAtRequiredLevel == null)}.`,
+    );
+    if (checks.relaxation > 0) {
+      lines.push(
+        `Saved category relaxation: ${checks.relaxation} years; effective maximum age: ${checks.effectiveMaxAge ?? 'not specified'}.`,
+      );
+    }
+  }
+  if (post.eligibilityRules !== null) {
+    // The current matcher checks flat summaries, not every nested condition.
+    lines.push(
+      'Additional saved conditions require manual verification against the notification.',
+    );
+  }
+  lines.push(
+    'These checks use saved fields; verify missing or conditional requirements in the source notification.',
+  );
+  return lines.join(' ');
 }
 
 export async function handleExplain(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
+  req: FastifyRequest<{ Body: { postId?: unknown; userId?: unknown } }>,
+  res: FastifyReply,
 ): Promise<void> {
   try {
-    const rawBody = await readBody(req);
-    const body = JSON.parse(rawBody || '{}');
-
+    const body = req.body ?? {};
     if (!body.postId || typeof body.postId !== 'string') {
       sendJson(res, 400, { error: 'postId is required' });
       return;
     }
-
-    const post = await prisma.post.findUnique({
-      where: { id: body.postId },
-      include: { source: true },
-    });
-
+    const post = await prisma.post.findUnique({ where: { id: body.postId } });
     if (!post) {
       sendJson(res, 404, { error: 'Post not found' });
       return;
     }
-
-    // userId is optional — without it, the explanation just covers the
-    // post generically instead of relative to a specific candidate.
     const user =
       body.userId && typeof body.userId === 'string'
         ? await prisma.user.findUnique({
@@ -51,64 +81,8 @@ export async function handleExplain(
             include: { educations: true },
           })
         : null;
-
-    const fullText = await getCachedPdfText();
-    const textSlice = extractTextWindow(fullText, post.postName, {
-      charsBefore: 300,
-      charsAfter: 2700,
-      fallbacks: ['essential educational qualifications'],
-      fallbackToStart: true,
-    });
-
-    const candidateSection = user
-      ? `Candidate Details:
-- Age: ${ageOn(user.dob)}
-- Category: ${user.category}
-- Education history: ${user.educations
-          .map(
-            (e) =>
-              `${e.level}${e.marksPercent != null ? ` (${e.marksPercent}%)` : ''}`,
-          )
-          .join(', ')}
-
-`
-      : '';
-
-    const userContent = `${candidateSection}Post Details:
-- Name: ${post.postName}
-- Minimum Age: ${post.minAge ?? 'Not specified'}
-- Maximum Age: ${post.maxAge ?? 'Not specified'}
-- Minimum Education Level: ${post.minEducationLevel ?? 'Not specified'}
-- Minimum Marks Percent: ${post.minMarksPercent != null ? `${post.minMarksPercent}%` : 'Not specified'}
-- Education Required: ${post.educationRequired ?? 'Not specified'}
-- Pay Level: ${post.payLevel ?? 'Not specified'}
-
-Notification Excerpt:
-${textSlice}`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: user
-            ? "You are explaining a specific government job posting's requirements to a named candidate, using their own details, in plain simple language. Do not state a final yes/no eligibility verdict — that's already decided elsewhere by exact rules. Instead, point out specifically which of the post's requirements are unclear or unstated for THIS candidate (e.g. their marks weren't checked against a requirement, or a field was missing), and explain what they should manually verify against the notification excerpt. Keep it a few short sentences."
-            : "You are explaining a specific government job posting's requirements to a candidate in plain, simple language. Use only the notification text and the structured fields given. Do not state whether the candidate is or isn't eligible — that's already decided elsewhere. Just clarify what the post requires (education, age, pay, application process) in a few short sentences.",
-        },
-        {
-          role: 'user',
-          content: userContent,
-        },
-      ],
-    });
-
-    const explanation =
-      response.choices[0]?.message?.content?.trim() ||
-      'No explanation generated.';
-
-    sendJson(res, 200, { explanation });
-  } catch (err) {
-    console.error('[Error] POST /api/explain failed:', err);
-    sendJson(res, 500, { error: 'Failed to generate explanation' });
+    sendJson(res, 200, { explanation: explainStoredPost(post, user) });
+  } catch {
+    sendJson(res, 500, { error: 'Failed to explain saved requirements' });
   }
 }

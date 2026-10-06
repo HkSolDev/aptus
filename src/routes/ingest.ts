@@ -1,6 +1,6 @@
-import type http from 'node:http';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../db.js';
-import { readBody, sendJson } from '../lib/http.js';
+import { sendJson } from '../lib/http.js';
 import {
   type EducationLevel,
   type PostGroup,
@@ -42,12 +42,11 @@ interface IngestRequestBody {
 }
 
 export async function handleIngest(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
+  req: FastifyRequest<{ Body: IngestRequestBody }>,
+  res: FastifyReply,
 ): Promise<void> {
   try {
-    const rawBody = await readBody(req);
-    const body: IngestRequestBody = JSON.parse(rawBody || '{}');
+    const body = req.body ?? {};
 
     if (!body.source_url || !body.source_name) {
       sendJson(res, 400, {
@@ -181,8 +180,7 @@ export async function handleIngest(
       created: toCreate.length,
       skipped,
     });
-  } catch (err) {
-    console.error('[Error] POST /api/internal/ingest failed:', err);
+  } catch {
     sendJson(res, 500, { error: 'Internal Server Error' });
   }
 }
