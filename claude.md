@@ -1,5 +1,11 @@
 # aptus — project rules for AI coding assistants
 
+## Security and change checklist
+
+Follow the project-wide rules in `.cursor/rules/aptus-coding-safety.mdc` for
+scope, security, privacy, quality, and the required change checklist. The
+Aptus-specific architecture and learning guidance below remains in force.
+
 ## What this is
 
 An eligibility-matching tool for Indian government job notifications (SSC, PSU,
@@ -189,6 +195,13 @@ future frontend code alike. Not a backend-only rule.
   for something new once he feels the gap himself.
 
 ## How to work with this developer
+
+- Read `docs/CODING_STANDARD.md` before implementation or review. For the
+  agreed authentication work, the AI implements and the developer reviews;
+  this overrides the core-logic learning split below for that work only.
+
+- Read `docs/PRODUCT_CHECKPOINT.md` before proposing or starting product work.
+  Work on one stage at a time; park ideas that belong later.
 
 - He is a 2.5-year fullstack/backend dev (Solana/Rust background) learning
   AI/ML just-in-time, only as the project needs it — do not front-load theory

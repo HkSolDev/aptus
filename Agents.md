@@ -1,5 +1,12 @@
 # aptus — project rules for AI coding assistants
 
+## Security and change checklist
+
+Follow the project-wide, always-on rules in
+`.cursor/rules/aptus-coding-safety.mdc` for scope, security, privacy, quality,
+and the required checklist. Keep this file's Aptus-specific architecture and
+learning guidance in force as well.
+
 ## What this is
 
 An eligibility-matching tool for Indian government job notifications (SSC, PSU,
@@ -96,6 +103,12 @@ Postgres: notifications → web form (edu/category/DOB) → SQL filter → match
 
 ## Learning continuity
 
+- Always read `docs/CODING_STANDARD.md` before implementation or review. It
+  records the assistant-implements/developer-reviews agreement for auth,
+  naming, comments, skill use, verification and context-reset procedure.
+
+- Read `docs/PRODUCT_CHECKPOINT.md` before proposing or starting new product
+  features. Work on one stage at a time; park ideas that belong later.
 - Read `docs/LEARNING_PLAN.md` for the developer/assistant ownership split and
   task-boundary reminders. Read `docs/PROJECT_OVERVIEW.md` for the dated
   implementation snapshot; verify code before assuming its status is current.

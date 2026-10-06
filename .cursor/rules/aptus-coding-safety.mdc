@@ -1,0 +1,66 @@
+---
+description: Aptus-wide scope, security, privacy, and quality rules for AI coding agents
+alwaysApply: true
+---
+
+# Aptus AI Coding Rules
+
+## Scope
+- Make the smallest change that satisfies the requested task.
+- Do not rewrite unrelated files.
+- Do not add a frontend framework, ORM, or dependency without asking first.
+- Prefer semantic HTML, modern CSS, Node standard library, and small ES modules.
+
+## Security
+- Never request, print, store, or log secrets, tokens, cookies, passwords, API keys, or real user data.
+- Treat all request data as untrusted. Validate inputs server-side with allowlists and length limits.
+- Escape untrusted values when rendering HTML. Use parameterized database queries only.
+- Enforce authorization server-side for every protected resource.
+- Do not use localStorage for auth tokens.
+- Do not weaken CORS, CSP, cookie, TLS, or CSRF protections.
+- Do not invent cryptography or authentication flows.
+
+## Privacy
+- Use illustrative data only in tests and examples.
+- Do not add analytics that records education, DOB, category, gender, disability, search text, or eligibility decisions without explicit approval.
+- Do not include sensitive values in URLs, logs, client errors, or telemetry.
+
+## Quality
+- Follow `docs/CODING_STANDARD.md` for naming, focused modules, sparse comments,
+  skill/version checks, review ownership and context-reset continuity.
+- Add or update tests for behaviour changes.
+- Preserve no-JavaScript baseline flows where feasible.
+- Use accessible labels, keyboard operation, focus behaviour, and meaningful error messages.
+- Explain every new dependency and its maintenance/security rationale.
+- Return a compact plan, diff summary, test results, and remaining risks.
+
+## Aptus change checklist
+
+### Scope
+- [ ] The change is small and matches the approved task.
+- [ ] No unrelated refactor or generated files are included.
+- [ ] No new dependency was added without a documented reason.
+
+### Authentication and access
+- [ ] Protected routes require a valid server-verified session.
+- [ ] Object ownership is checked on the server.
+- [ ] Logout invalidates the server session.
+- [ ] Session cookies are Secure, HttpOnly, and appropriately SameSite.
+- [ ] State-changing cookie-authenticated requests have CSRF protection.
+
+### Input and output
+- [ ] All request values are validated server-side.
+- [ ] HTML output escapes untrusted content.
+- [ ] Database queries are parameterized.
+- [ ] Error responses do not expose stack traces, secrets, or internal paths.
+
+### Privacy
+- [ ] No real user data, credentials, tokens, or secrets were used in tests or AI prompts.
+- [ ] No sensitive applicant fields were added to URLs, logs, analytics, or browser storage.
+- [ ] Data collection has a documented product purpose.
+
+### Quality
+- [ ] Unit/integration tests pass.
+- [ ] Critical browser flow passes.
+- [ ] Keyboard and no-JavaScript baseline have been checked.
+- [ ] Performance impact has been considered.
