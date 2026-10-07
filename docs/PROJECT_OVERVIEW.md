@@ -190,19 +190,19 @@ Do not describe these results as complete verification against every rule.
 
 ## 4. Why we chose these approaches
 
-| Decision | Reason | Cost or limitation |
-|---|---|---|
-| Python for raw-to-structured processing, TS for the app/database | Keep document work together and use the existing application stack | Two runtimes and an API contract must agree |
-| Extract once per changed notification | Many users can reuse the same facts without repeated inference | Freshness depends on a reliable background run |
-| LLM for language understanding, code for eligibility | Messy text benefits from extraction; age/marks comparisons need exact logic | Complex conditions require explicit data modelling |
-| Structured output plus Pydantic | Make output machine-readable and catch malformed responses | Correct shape does not establish correct facts |
-| Null rather than guessed defaults | Avoid false confidence when a rule is unstated | UI and matching must preserve manual verification |
-| Detailed age rules and education alternatives | A single maximum age or degree cannot represent conditional eligibility | Schema, ingestion, storage, and matching must evolve together |
-| Sections plus source context | Preserve relevant rows and reduce ambiguity without a retrieval system | Duplicate context costs tokens and can still contain conflicts |
-| Small provider adapters and a Protocol | Keep extraction independent of provider-specific HTTP formats | New adapters still need implementation and testing |
-| Hash-based skipping | Reduce repeat LLM calls with little infrastructure | Current local cache does not cover all metadata changes |
-| One source at a time | Fix actual layouts and failure modes before expanding | Coverage is intentionally limited |
-| No speculative RAG, agents, vector DB, or queues | No demonstrated problem currently requires them | Reconsider only when a real requirement appears |
+| Decision                                                         | Reason                                                                      | Cost or limitation                                             |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Python for raw-to-structured processing, TS for the app/database | Keep document work together and use the existing application stack          | Two runtimes and an API contract must agree                    |
+| Extract once per changed notification                            | Many users can reuse the same facts without repeated inference              | Freshness depends on a reliable background run                 |
+| LLM for language understanding, code for eligibility             | Messy text benefits from extraction; age/marks comparisons need exact logic | Complex conditions require explicit data modelling             |
+| Structured output plus Pydantic                                  | Make output machine-readable and catch malformed responses                  | Correct shape does not establish correct facts                 |
+| Null rather than guessed defaults                                | Avoid false confidence when a rule is unstated                              | UI and matching must preserve manual verification              |
+| Detailed age rules and education alternatives                    | A single maximum age or degree cannot represent conditional eligibility     | Schema, ingestion, storage, and matching must evolve together  |
+| Sections plus source context                                     | Preserve relevant rows and reduce ambiguity without a retrieval system      | Duplicate context costs tokens and can still contain conflicts |
+| Small provider adapters and a Protocol                           | Keep extraction independent of provider-specific HTTP formats               | New adapters still need implementation and testing             |
+| Hash-based skipping                                              | Reduce repeat LLM calls with little infrastructure                          | Current local cache does not cover all metadata changes        |
+| One source at a time                                             | Fix actual layouts and failure modes before expanding                       | Coverage is intentionally limited                              |
+| No speculative RAG, agents, vector DB, or queues                 | No demonstrated problem currently requires them                             | Reconsider only when a real requirement appears                |
 
 The earlier TypeScript-only rule is superseded by the best-tool split. Some
 project instructions describe the target state rather than today's code.
@@ -212,32 +212,32 @@ This document records those differences rather than silently claiming completion
 
 Paths below are relative to the repository root.
 
-| File | Responsibility |
-|---|---|
-| `services/ai/sources/sarkariresult.py` | RSS discovery, HTML requests, links, table/section parsing |
-| `services/ai/hash_cache.py` | Text hashes and local extraction cache |
-| `services/ai/pipeline.py` | Connect fetch, skip check, extraction, JSON handoff, cache update |
-| `services/ai/extract.py` | Shared system/user prompts and extraction entry point |
-| `services/ai/llm.py` | Configured provider selection |
-| `services/ai/providers/base.py` | Shared provider method contract and error type |
-| `services/ai/providers/openai.py` | OpenAI-compatible HTTP request, schema adaptation, retries |
-| `services/ai/providers/gemini.py` | Gemini HTTP request and typed response parsing |
-| `services/ai/schema.py` | Output models, conditional eligibility data, date parsing |
-| `services/ai/age_extractor.py` | Standalone deterministic age facts and smoke assertions |
-| `services/ai/validate.py` | Standalone simple gender maximum-age comparison |
-| `services/ai/main.py` | Environment loading, trust-store setup, health and run endpoints |
-| `services/ai/tests/test_sections.py` | Section boundaries, nested tables, cell alignment fixtures |
-| `src/server.ts` | HTTP route dispatch, home page, and server startup |
-| `src/routes/match.ts` | Candidate input checks, persistence, and matching response |
-| `src/routes/explain.ts` | Post explanations and the existing PDF excerpt cache |
-| `src/routes/ingest.ts` | Python payload checks, ingestion mapping, and database writes |
-| `src/lib/http.ts` | Shared request-body reading and JSON responses |
-| `src/schemas/eligibility-rules.ts` | Nested rule types and runtime ingestion shape checks |
-| `scripts/eligibility-rules.test.ts`, `scripts/ingest.test.ts` | Rule validation and HTTP rejection regression tests |
-| `scripts/validate-post.ts` | Current basic numeric checks used during ingestion |
-| `scripts/match.ts` | Current deterministic age/education/marks filtering |
-| `prisma/schema.prisma` | User, Education, Source, and Post storage models |
-| `docker-compose.yml` | Current PostgreSQL container configuration |
+| File                                                          | Responsibility                                                    |
+| ------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `services/ai/sources/sarkariresult.py`                        | RSS discovery, HTML requests, links, table/section parsing        |
+| `services/ai/hash_cache.py`                                   | Text hashes and local extraction cache                            |
+| `services/ai/pipeline.py`                                     | Connect fetch, skip check, extraction, JSON handoff, cache update |
+| `services/ai/extract.py`                                      | Shared system/user prompts and extraction entry point             |
+| `services/ai/llm.py`                                          | Configured provider selection                                     |
+| `services/ai/providers/base.py`                               | Shared provider method contract and error type                    |
+| `services/ai/providers/openai.py`                             | OpenAI-compatible HTTP request, schema adaptation, retries        |
+| `services/ai/providers/gemini.py`                             | Gemini HTTP request and typed response parsing                    |
+| `services/ai/schema.py`                                       | Output models, conditional eligibility data, date parsing         |
+| `services/ai/age_extractor.py`                                | Standalone deterministic age facts and smoke assertions           |
+| `services/ai/validate.py`                                     | Standalone simple gender maximum-age comparison                   |
+| `services/ai/main.py`                                         | Environment loading, trust-store setup, health and run endpoints  |
+| `services/ai/tests/test_sections.py`                          | Section boundaries, nested tables, cell alignment fixtures        |
+| `src/server.ts`                                               | HTTP route dispatch, home page, and server startup                |
+| `src/routes/match.ts`                                         | Candidate input checks, persistence, and matching response        |
+| `src/routes/explain.ts`                                       | Post explanations and the existing PDF excerpt cache              |
+| `src/routes/ingest.ts`                                        | Python payload checks, ingestion mapping, and database writes     |
+| `src/lib/http.ts`                                             | Shared request-body reading and JSON responses                    |
+| `src/schemas/eligibility-rules.ts`                            | Nested rule types and runtime ingestion shape checks              |
+| `scripts/eligibility-rules.test.ts`, `scripts/ingest.test.ts` | Rule validation and HTTP rejection regression tests               |
+| `scripts/validate-post.ts`                                    | Current basic numeric checks used during ingestion                |
+| `scripts/match.ts`                                            | Current deterministic age/education/marks filtering               |
+| `prisma/schema.prisma`                                        | User, Education, Source, and Post storage models                  |
+| `docker-compose.yml`                                          | Current PostgreSQL container configuration                        |
 
 Older TypeScript extraction utilities also exist. Do not confuse their presence
 with the currently reviewed Python SarkariResult flow.

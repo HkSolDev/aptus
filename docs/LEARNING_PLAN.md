@@ -24,18 +24,18 @@ one real problem. Do not substitute collecting frameworks for solving it.
 
 ## What I own versus what the assistant handles
 
-| Area | I should own and practise | Assistant can handle |
-|---|---|---|
-| Architecture | Explain stages, boundaries, alternatives, and failure policy | Present tradeoffs, draw the flow, review my decision |
-| Schema | Decide what each field means; model alternatives and uncertainty | Pydantic/TypeScript syntax and repetitive field scaffolding |
-| Parsing | Write section boundaries and understand row alignment | Small examples, fixtures, unfamiliar syntax explanations |
-| LLM integration | Understand prompts, request/response schema, timeouts, cost | Provider HTTP plumbing and repetitive adapter setup |
-| Validation | Write the comparisons and decide null/reject/manual-check behaviour | Suggest counterexamples, review logic, build test scaffolding |
-| Persistence | Trace every field from JSON to saved row; define update behaviour | Migration boilerplate and mapping scaffolding after my decision |
-| Reliability | Decide retry versus skip, success criteria, and safe resends | Logging/config plumbing and failure simulation |
-| Matching | Write and test eligibility comparisons and uncertainty handling | Test cases and review; never replace exact rules with LLM guesses |
-| Documentation | Explain what I built and its limitations in my own words | Organize notes, improve clarity, maintain file maps |
-| Tooling/UI | Verify results and learn tools only as needed | Repetitive setup, formatting, basic layout work |
+| Area            | I should own and practise                                           | Assistant can handle                                              |
+| --------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Architecture    | Explain stages, boundaries, alternatives, and failure policy        | Present tradeoffs, draw the flow, review my decision              |
+| Schema          | Decide what each field means; model alternatives and uncertainty    | Pydantic/TypeScript syntax and repetitive field scaffolding       |
+| Parsing         | Write section boundaries and understand row alignment               | Small examples, fixtures, unfamiliar syntax explanations          |
+| LLM integration | Understand prompts, request/response schema, timeouts, cost         | Provider HTTP plumbing and repetitive adapter setup               |
+| Validation      | Write the comparisons and decide null/reject/manual-check behaviour | Suggest counterexamples, review logic, build test scaffolding     |
+| Persistence     | Trace every field from JSON to saved row; define update behaviour   | Migration boilerplate and mapping scaffolding after my decision   |
+| Reliability     | Decide retry versus skip, success criteria, and safe resends        | Logging/config plumbing and failure simulation                    |
+| Matching        | Write and test eligibility comparisons and uncertainty handling     | Test cases and review; never replace exact rules with LLM guesses |
+| Documentation   | Explain what I built and its limitations in my own words            | Organize notes, improve clarity, maintain file maps               |
+| Tooling/UI      | Verify results and learn tools only as needed                       | Repetitive setup, formatting, basic layout work                   |
 
 Delegation does not mean ignoring the code. I should read the generated change,
 run it, and explain what enters, what leaves, and what happens on failure.
