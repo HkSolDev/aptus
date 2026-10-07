@@ -17,11 +17,11 @@ export function readPort(value: string | undefined): number {
   return port;
 }
 
-export async function startServer(port: number) {
+export async function startServer(port: number, host = '127.0.0.1') {
   const app = buildApp();
   try {
     // Keep local until profile ownership and ingestion authorization exist.
-    await app.listen({ port, host: '127.0.0.1' });
+    await app.listen({ port, host });
     return app;
   } catch (error) {
     await app.close();
@@ -34,7 +34,10 @@ if (
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   try {
-    const app = await startServer(readPort(process.env.PORT));
+    const app = await startServer(
+      readPort(process.env.PORT),
+      process.env.HOST ?? '127.0.0.1',
+    );
     console.log(`Aptus: ${app.listeningOrigin}/health`);
 
     const stop = async () => {

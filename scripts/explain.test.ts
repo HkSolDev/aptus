@@ -1,11 +1,25 @@
-import { test, describe } from 'node:test';
+import { test, describe, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { server } from '../src/server.js';
-import { explainStoredPost } from '../src/routes/explain.js';
+import Fastify from 'fastify';
+import { prisma } from '../src/db.js';
+import { explainStoredPost, handleExplain } from '../src/routes/explain.js';
 
 interface InvokeResult {
   status: number;
   body: Record<string, unknown>;
+}
+
+function mockLookup(t: TestContext, delegate: object, value: unknown) {
+  const original: unknown = Reflect.get(delegate, 'findUnique');
+  const lookup = t.mock.fn((query: unknown) => {
+    assert.ok(query);
+    return Promise.resolve(value);
+  });
+  Reflect.set(delegate, 'findUnique', lookup);
+  t.after(() => {
+    Reflect.set(delegate, 'findUnique', original);
+  });
+  return lookup;
 }
 
 async function invokeServer(
@@ -13,12 +27,29 @@ async function invokeServer(
   urlPath: string,
   body?: unknown,
 ): Promise<InvokeResult> {
-  const response = await server.inject({
+  const app = Fastify();
+  app.post(
+    '/api/explain',
+    {
+      schema: { body: { type: 'object' } },
+      // Handler tests supply a fictional identity; session verification has its own suite.
+      preHandler: (request) => {
+        request.authUserId = 'fictional-owner';
+        return Promise.resolve();
+      },
+    },
+    handleExplain,
+  );
+  app.setErrorHandler((_error, _request, reply) =>
+    reply.code(400).send({ error: 'Please check your request and try again.' }),
+  );
+  const response = await app.inject({
     method,
     url: urlPath,
     headers: { 'content-type': 'application/json' },
     payload: typeof body === 'string' ? body : JSON.stringify(body ?? {}),
   });
+  await app.close();
   return {
     status: response.statusCode,
     body: response.json<Record<string, unknown>>(),
@@ -64,6 +95,47 @@ const candidate = {
   category: 'UNSPECIFIED',
   educations: [{ level: 'BACHELORS' as const, marksPercent: 80 }],
 };
+
+await test('explanation selects only the signed-in profile despite a supplied victim ID', async (t) => {
+  mockLookup(t, prisma.post, savedPost);
+  const lookup = mockLookup(t, prisma.user, candidate);
+  const response = await invokeServer('POST', '/api/explain', {
+    postId: 'fictional-job',
+    userId: 'victim-profile',
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(lookup.mock.calls[0].arguments[0], {
+    where: { authUserId: 'fictional-owner' },
+    include: { educations: true },
+  });
+  assert.match(String(response.body.explanation), /Candidate age/);
+});
+
+await test('an account without its own profile cannot use an unclaimed profile', async (t) => {
+  mockLookup(t, prisma.post, savedPost);
+  mockLookup(t, prisma.user, null);
+  const response = await invokeServer('POST', '/api/explain', {
+    postId: 'fictional-job',
+    userId: 'unclaimed-profile',
+  });
+  assert.equal(response.status, 404);
+  assert.match(String(response.body.error), /Add your profile/);
+  assert.equal(response.body.explanation, undefined);
+});
+
+await test('missing verified identity stops explanation before database access', async (t) => {
+  const lookup = mockLookup(t, prisma.post, null);
+  const app = Fastify();
+  t.after(() => app.close());
+  app.post('/api/explain', handleExplain);
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/explain',
+    payload: { postId: 'fictional-job' },
+  });
+  assert.equal(response.statusCode, 401);
+  assert.equal(lookup.mock.callCount(), 0);
+});
 
 await test('explains saved job facts and deterministic candidate comparisons', () => {
   const text = explainStoredPost(savedPost, candidate);
