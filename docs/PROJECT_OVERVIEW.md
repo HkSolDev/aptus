@@ -4,6 +4,9 @@ Snapshot: 2 October 2026. Implementation reviewed at commit `d66efff`.
 
 Follow-up changes in the working tree now preserve detailed rules in JSONB,
 validate their incoming shape, and have been verified against local PostgreSQL.
+The explanation endpoint now reads the selected job from PostgreSQL and uses
+the same deterministic candidate checks as matching. The fixed SSC PDF and
+per-explanation OpenAI call have been removed from the running app path.
 
 This is a working project record, not a claim that everything is deployed or
 production-ready. It summarizes our work and reasoning; it is not a verbatim
@@ -39,7 +42,9 @@ Python: source discovery -> fetch one notification -> parse HTML
                                   |
 Python: prompt + provider -> LLM -> Pydantic PostBatch
                                          |
-                        Post models -> JSON payload
+                         source age facts -> deterministic age validation
+                                         |
+                         Post models -> JSON payload
                                          |
 TypeScript: /api/internal/ingest -> basic numeric checks
                                          |
@@ -51,12 +56,18 @@ App: user form -> deterministic matching -> results + manual-check cases
 The diagram uses horizontal groups and vertical handoffs deliberately: each
 row describes related work; moving down changes responsibility.
 
-### Intended next boundary
+### Python age-validation handoff
 
-Python should eventually hand off source-validated, deduplicated structured
-data. Today Pydantic checks the output shape, but the standalone Python age
-validator is not called by the pipeline. Basic numeric checks still run in
-TypeScript. Do not confuse the desired architecture with what runs today.
+After extraction, the pipeline reads explicit minimum/maximum age clauses
+from the page's `age_limit` section and compares them with each post's LLM age
+rules. Clear contradictions are logged and the affected age values are nulled
+before sending the posts to TypeScript, so those cases require manual review
+instead of driving a potentially wrong match. Ambiguous source clauses are
+left unresolved. This is a narrow guardrail, not complete validation of every
+category, post-specific condition, or relaxation combination.
+
+Basic numeric checks still run in TypeScript as a second boundary check.
+Deduplication and source-grounding checks beyond age remain future work.
 
 Scheduling with cron and deployment to the Oracle VM are planned. The reviewed
 Docker Compose file starts PostgreSQL only; it is not a complete app deployment.
@@ -144,10 +155,11 @@ It does not answer: "Is 37 the correct age for this gender and post?"
 The number 37 can be valid JSON, an integer, and still belong to a different rule.
 
 `age_extractor.py` deterministically reads explicit minimum/maximum age clauses
-from a selected section and preserves unsupported wording with a null age.
-`validate.py` compares simple gender-specific maximum ages against `AgeRule`
-objects. Both are standalone. The latter expects a maximum-age-only excerpt
-and does not resolve all category/gender combinations.
+from the age section and preserves unsupported wording with a null age.
+`validate.py` compares those facts against each post's `AgeRule` objects. The
+pipeline calls it after the LLM and before TypeScript ingestion. It handles
+clear age/gender mismatches; it does not fully resolve category-specific,
+post-specific, or combined-relaxation rules.
 
 ### Send JSON and persist it
 
@@ -212,32 +224,32 @@ This document records those differences rather than silently claiming completion
 
 Paths below are relative to the repository root.
 
-| File                                                          | Responsibility                                                    |
-| ------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `services/ai/sources/sarkariresult.py`                        | RSS discovery, HTML requests, links, table/section parsing        |
-| `services/ai/hash_cache.py`                                   | Text hashes and local extraction cache                            |
-| `services/ai/pipeline.py`                                     | Connect fetch, skip check, extraction, JSON handoff, cache update |
-| `services/ai/extract.py`                                      | Shared system/user prompts and extraction entry point             |
-| `services/ai/llm.py`                                          | Configured provider selection                                     |
-| `services/ai/providers/base.py`                               | Shared provider method contract and error type                    |
-| `services/ai/providers/openai.py`                             | OpenAI-compatible HTTP request, schema adaptation, retries        |
-| `services/ai/providers/gemini.py`                             | Gemini HTTP request and typed response parsing                    |
-| `services/ai/schema.py`                                       | Output models, conditional eligibility data, date parsing         |
-| `services/ai/age_extractor.py`                                | Standalone deterministic age facts and smoke assertions           |
-| `services/ai/validate.py`                                     | Standalone simple gender maximum-age comparison                   |
-| `services/ai/main.py`                                         | Environment loading, trust-store setup, health and run endpoints  |
-| `services/ai/tests/test_sections.py`                          | Section boundaries, nested tables, cell alignment fixtures        |
-| `src/server.ts`                                               | HTTP route dispatch, home page, and server startup                |
-| `src/routes/match.ts`                                         | Candidate input checks, persistence, and matching response        |
-| `src/routes/explain.ts`                                       | Post explanations and the existing PDF excerpt cache              |
-| `src/routes/ingest.ts`                                        | Python payload checks, ingestion mapping, and database writes     |
-| `src/lib/http.ts`                                             | Shared request-body reading and JSON responses                    |
-| `src/schemas/eligibility-rules.ts`                            | Nested rule types and runtime ingestion shape checks              |
-| `scripts/eligibility-rules.test.ts`, `scripts/ingest.test.ts` | Rule validation and HTTP rejection regression tests               |
-| `scripts/validate-post.ts`                                    | Current basic numeric checks used during ingestion                |
-| `scripts/match.ts`                                            | Current deterministic age/education/marks filtering               |
-| `prisma/schema.prisma`                                        | User, Education, Source, and Post storage models                  |
-| `docker-compose.yml`                                          | Current PostgreSQL container configuration                        |
+| File                                                          | Responsibility                                                                    |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `services/ai/sources/sarkariresult.py`                        | RSS discovery, HTML requests, links, table/section parsing                        |
+| `services/ai/hash_cache.py`                                   | Text hashes and local extraction cache                                            |
+| `services/ai/pipeline.py`                                     | Connect fetch, skip check, extraction, age validation, JSON handoff, cache update |
+| `services/ai/extract.py`                                      | Shared system/user prompts and extraction entry point                             |
+| `services/ai/llm.py`                                          | Configured provider selection                                                     |
+| `services/ai/providers/base.py`                               | Shared provider method contract and error type                                    |
+| `services/ai/providers/openai.py`                             | OpenAI-compatible HTTP request, schema adaptation, retries                        |
+| `services/ai/providers/gemini.py`                             | Gemini HTTP request and typed response parsing                                    |
+| `services/ai/schema.py`                                       | Output models, conditional eligibility data, date parsing                         |
+| `services/ai/age_extractor.py`                                | Parse explicit age facts from the notification section                            |
+| `services/ai/validate.py`                                     | Compare extracted age facts with LLM rules and provide a smoke check              |
+| `services/ai/main.py`                                         | Environment loading, trust-store setup, health and run endpoints                  |
+| `services/ai/tests/test_sections.py`                          | Section boundaries, nested tables, cell alignment fixtures                        |
+| `src/server.ts`                                               | HTTP route dispatch, home page, and server startup                                |
+| `src/routes/match.ts`                                         | Candidate input checks, persistence, and matching response                        |
+| `src/routes/explain.ts`                                       | Saved job summaries and deterministic candidate check explanations                |
+| `src/routes/ingest.ts`                                        | Python payload checks, ingestion mapping, and database writes                     |
+| `src/lib/http.ts`                                             | Shared request-body reading and JSON responses                                    |
+| `src/schemas/eligibility-rules.ts`                            | Nested rule types and runtime ingestion shape checks                              |
+| `scripts/eligibility-rules.test.ts`, `scripts/ingest.test.ts` | Rule validation and HTTP rejection regression tests                               |
+| `scripts/validate-post.ts`                                    | Current basic numeric checks used during ingestion                                |
+| `scripts/match.ts`                                            | Shared age/education/marks checks used by matching and explanations               |
+| `prisma/schema.prisma`                                        | User, Education, Source, and Post storage models                                  |
+| `docker-compose.yml`                                          | Current PostgreSQL container configuration                                        |
 
 Older TypeScript extraction utilities also exist. Do not confuse their presence
 with the currently reviewed Python SarkariResult flow.
@@ -258,12 +270,11 @@ and richer schema. No extraction accuracy percentage has been established.
 
 Next work, in small slices:
 
-1. Define and connect source-grounded age validation after LLM extraction.
-2. Test one live notification through storage and read back the saved fields.
-3. Add per-notification failure isolation and useful stage logs.
-4. Protect ingestion and pipeline-trigger endpoints before public exposure.
-5. Correct matching for conditional rules, age reference dates, and uncertainty.
-6. Complete scheduling/deployment and test restart/concurrent-run behaviour.
+1. Test one live notification through age validation, storage, and read back its saved fields.
+2. Add per-notification failure isolation and useful stage logs.
+3. Protect ingestion and pipeline-trigger endpoints before public exposure.
+4. Correct matching for conditional rules, age reference dates, and uncertainty.
+5. Complete scheduling/deployment and test restart/concurrent-run behaviour.
 
 The JSONB migration has been applied locally. A temporary notification sent
 through the real ingestion handler saved nested rules intact. A malformed
