@@ -53,7 +53,7 @@ const job = {
   categoryRelaxationRules: null,
 };
 
-test('anonymous public HTML pages', async (t) => {
+await test('anonymous public HTML pages', async (t) => {
   const originalTransaction = prisma.$transaction;
   const originalFind = prisma.post.findUnique;
   let mode: 'success' | 'empty' | 'failure' = 'success';
@@ -80,8 +80,8 @@ test('anonymous public HTML pages', async (t) => {
       return missing ? null : job;
     },
   });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
+  await server.listen({ port: 0, host: '127.0.0.1' });
+  const address = server.server.address();
   assert(address && typeof address !== 'string');
   const origin = `http://127.0.0.1:${address.port}`;
   t.after(async () => {
@@ -93,7 +93,7 @@ test('anonymous public HTML pages', async (t) => {
       configurable: true,
       value: originalFind,
     });
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await server.close();
   });
 
   await t.test(

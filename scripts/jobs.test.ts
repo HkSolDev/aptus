@@ -29,12 +29,12 @@ type FakeDatabase = {
 };
 type RunQuery = (database: FakeDatabase) => Promise<unknown>;
 
-test('public jobs HTTP contract', async (t) => {
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
+await test('public jobs HTTP contract', async (t) => {
+  await server.listen({ port: 0, host: '127.0.0.1' });
+  const address = server.server.address();
   assert(address && typeof address !== 'string');
   const origin = `http://127.0.0.1:${address.port}`;
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  t.after(() => server.close());
 
   await t.test(
     'rejects invalid pagination before database access',

@@ -1,85 +1,60 @@
+import { pathToFileURL } from 'node:url';
 import 'dotenv/config';
-import http from 'node:http';
-import { sendJson } from './lib/http.js';
-import { servePublicFile } from './lib/static.js';
-import { handleMatch } from './routes/match.js';
-import { handleExplain } from './routes/explain.js';
-import { handleIngest } from './routes/ingest.js';
-import { handleJobs } from './routes/jobs.js';
-import { renderJob } from './lib/render-job.js';
+import { buildApp } from './app.js';
 
-export const server = http.createServer(async (req, res) => {
-  const url = new URL(
-    req.url ?? '/',
-    `http://${req.headers.host || 'localhost'}`,
-  );
+export const server = buildApp();
 
-  const jobPage = url.pathname.match(/^\/jobs\/([a-zA-Z0-9_-]{1,128})$/);
-  if (jobPage && (req.method === 'GET' || req.method === 'HEAD')) {
-    try {
-      const { status, html } = await renderJob(jobPage[1]);
-      res.writeHead(status, {
-        'Content-Type': 'text/html; charset=utf-8',
-        'X-Content-Type-Options': 'nosniff',
-        'Cache-Control': 'no-cache',
-      });
-      res.end(req.method === 'HEAD' ? undefined : html);
-    } catch {
-      sendJson(res, 500, { error: 'Could not load the job page' });
-    }
-    return;
+export function readPort(value: string | undefined): number {
+  if (value === undefined) return 8080;
+  const port = Number(value);
+  if (
+    !/^[1-9]\d*$/.test(value) ||
+    !Number.isSafeInteger(port) ||
+    port > 65_535
+  ) {
+    throw new Error('PORT must be a whole number between 1 and 65535.');
   }
-  if (await servePublicFile(req, res, url.pathname, url.searchParams)) return;
+  return port;
+}
 
-  if (url.pathname === '/api/jobs') {
-    if (req.method !== 'GET') {
-      res.setHeader('Allow', 'GET');
-      sendJson(res, 405, { error: 'Method Not Allowed' });
-    } else {
-      await handleJobs(res, url.searchParams);
-    }
-    return;
+export async function startServer(port: number) {
+  const app = buildApp();
+  try {
+    // Keep local until profile ownership and ingestion authorization exist.
+    await app.listen({ port, host: '127.0.0.1' });
+    return app;
+  } catch (error) {
+    await app.close();
+    throw error;
   }
+}
 
-  if (req.method === 'POST' && url.pathname === '/api/match') {
-    await handleMatch(req, res);
-    return;
-  }
-  if (req.method === 'POST' && url.pathname === '/api/explain') {
-    await handleExplain(req, res);
-    return;
-  }
-  if (req.method === 'POST' && url.pathname === '/api/internal/ingest') {
-    await handleIngest(req, res);
-    return;
-  }
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  try {
+    const app = await startServer(readPort(process.env.PORT));
+    console.log(`Aptus: ${app.listeningOrigin}/health`);
 
-  sendJson(res, 404, { error: 'Not Found' });
-});
-
-const DEFAULT_PORT = Number(process.env.PORT) || 8080;
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  function listen(port: number) {
-    const onError = (err: NodeJS.ErrnoException) => {
-      server.removeListener('listening', onListening);
-      if (err.code === 'EADDRINUSE' && !process.env.PORT) {
-        listen(port + 1);
-      } else {
-        console.error(`Failed to start server on port ${port}:`, err.message);
-        process.exit(1);
+    const stop = async () => {
+      const deadline = setTimeout(() => process.exit(1), 10_000);
+      deadline.unref();
+      try {
+        await app.close();
+      } catch {
+        console.error('Could not shut down Aptus cleanly.');
+        process.exitCode = 1;
+      } finally {
+        clearTimeout(deadline);
       }
     };
-
-    const onListening = () => {
-      server.removeListener('error', onError);
-      console.log(`Server listening on http://localhost:${port}`);
-    };
-
-    server.once('error', onError);
-    server.once('listening', onListening);
-    server.listen(port);
+    process.once('SIGINT', () => void stop());
+    process.once('SIGTERM', () => void stop());
+  } catch {
+    console.error(
+      'Could not start Fastify. Check PORT and whether it is in use.',
+    );
+    process.exitCode = 1;
   }
-
-  listen(DEFAULT_PORT);
 }

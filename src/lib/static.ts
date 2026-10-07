@@ -1,11 +1,11 @@
-import type http from 'node:http';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import fs from 'node:fs/promises';
 import { sendJson } from './http.js';
 import { renderHome } from './render-home.js';
 
 export async function servePublicFile(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
+  req: FastifyRequest,
+  res: FastifyReply,
   pathname: string,
   params = new URLSearchParams(),
 ): Promise<boolean> {
@@ -27,14 +27,15 @@ export async function servePublicFile(
         : await fs.readFile(
             new URL(`../../public/${filename}`, import.meta.url),
           );
-    res.writeHead(200, {
+    res.code(200).headers({
       'Content-Type': `${contentType}; charset=utf-8`,
       'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'no-cache',
     });
-    res.end(req.method === 'HEAD' ? undefined : content);
+    res.send(req.method === 'HEAD' ? undefined : content);
   } catch (error) {
-    const missing = (error as NodeJS.ErrnoException).code === 'ENOENT';
+    const missing =
+      error instanceof Error && 'code' in error && error.code === 'ENOENT';
     sendJson(res, missing ? 404 : 500, {
       error: missing ? 'File not found' : 'Could not serve this file',
     });

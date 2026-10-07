@@ -1,4 +1,4 @@
-import type http from 'node:http';
+import type { FastifyReply } from 'fastify';
 import { listPublicJobs } from '../lib/public-jobs.js';
 import { sendJson } from '../lib/http.js';
 
@@ -16,7 +16,7 @@ function readPageNumber(
 }
 
 export async function handleJobs(
-  res: http.ServerResponse,
+  res: FastifyReply,
   params: URLSearchParams,
 ): Promise<void> {
   const page = readPageNumber(params, 'page', 1, 10_000);

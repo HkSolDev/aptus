@@ -1,6 +1,6 @@
-import type http from 'node:http';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../db.js';
-import { readBody, sendJson } from '../lib/http.js';
+import { sendJson } from '../lib/http.js';
 import { EducationLevel } from '../../generated/prisma/index.js';
 import {
   getMatchesForUser,
@@ -22,12 +22,11 @@ interface MatchRequestBody {
 }
 
 export async function handleMatch(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
+  req: FastifyRequest<{ Body: MatchRequestBody }>,
+  res: FastifyReply,
 ): Promise<void> {
   try {
-    const rawBody = await readBody(req);
-    const body: MatchRequestBody = JSON.parse(rawBody || '{}');
+    const body = req.body ?? {};
 
     if (!body.dob || Number.isNaN(Date.parse(body.dob))) {
       sendJson(res, 400, {
@@ -195,8 +194,7 @@ export async function handleMatch(
       needsManualCheck,
       sourcesChecked,
     });
-  } catch (err) {
-    console.error('[Error] POST /api/match failed:', err);
+  } catch {
     sendJson(res, 500, { error: 'Internal Server Error' });
   }
 }
