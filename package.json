@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "postinstall": "prisma generate",
-    "start": "tsx --env-file=.env src/index.ts",
+    "start": "pnpm serve",
     "serve": "pnpm build:web && tsx --env-file=.env src/server.ts",
     "build:web": "tsc -p tsconfig.web.json",
     "dev:web": "tsc -p tsconfig.web.json --watch",

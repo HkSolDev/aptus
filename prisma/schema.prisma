@@ -24,6 +24,25 @@ model AuthUser {
   profile       User?
   sessions      AuthSession[]
   accounts      AuthAccount[]
+  passkeys      AuthPasskey[]
+}
+
+// Public verification material only; private keys stay with the authenticator.
+model AuthPasskey {
+  id           String   @id @default(cuid())
+  userId       String
+  user         AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String?
+  publicKey    String
+  credentialID String   @unique
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime @default(now())
+  aaguid       String?
+
+  @@index([userId])
 }
 
 // Aptus login sessions, not Google's access tokens.

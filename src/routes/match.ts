@@ -26,6 +26,11 @@ export async function handleMatch(
   res: FastifyReply,
 ): Promise<void> {
   try {
+    const authUserId = req.authUserId;
+    if (!authUserId) {
+      sendJson(res, 401, { error: 'Please sign in again.' });
+      return;
+    }
     const body = req.body ?? {};
 
     if (!body.dob || Number.isNaN(Date.parse(body.dob))) {
@@ -58,57 +63,29 @@ export async function handleMatch(
       eduMap.set(edu.level, Number.isFinite(marks) ? marks : null);
     }
 
-    const existingUser = body.userId
-      ? await prisma.user.findUnique({
-          where: { id: body.userId },
-        })
-      : null;
-
-    let user;
-    if (existingUser) {
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: existingUser.id },
-          data: {
-            name: body.name?.trim() || null,
-            dob: new Date(body.dob),
-            category: body.category || 'UNSPECIFIED',
-          },
-        }),
-        prisma.education.deleteMany({
-          where: { userId: existingUser.id },
-        }),
-        prisma.education.createMany({
-          data: Array.from(eduMap.entries()).map(([level, marksPercent]) => ({
-            userId: existingUser.id,
-            level,
-            marksPercent,
-          })),
-        }),
-      ]);
-
-      user = await prisma.user.findUniqueOrThrow({
-        where: { id: existingUser.id },
-        include: { educations: true },
-      });
-    } else {
-      user = await prisma.user.create({
-        data: {
-          name: body.name?.trim() || null,
-          dob: new Date(body.dob),
-          category: body.category || 'UNSPECIFIED',
-          educations: {
-            create: Array.from(eduMap.entries()).map(
-              ([level, marksPercent]) => ({
-                level,
-                marksPercent,
-              }),
-            ),
-          },
-        },
-        include: { educations: true },
-      });
-    }
+    const profileDetails = {
+      name: body.name?.trim() || null,
+      dob: new Date(body.dob),
+      category: body.category || 'UNSPECIFIED',
+    };
+    const educations = Array.from(eduMap, ([level, marksPercent]) => ({
+      level,
+      marksPercent,
+    }));
+    // Only the verified account selects ownership; old unclaimed profiles stay untouched.
+    const user = await prisma.user.upsert({
+      where: { authUserId },
+      create: {
+        ...profileDetails,
+        authUserId,
+        educations: { create: educations },
+      },
+      update: {
+        ...profileDetails,
+        educations: { deleteMany: {}, create: educations },
+      },
+      include: { educations: true },
+    });
 
     const matchedPosts = await getMatchesForUser(user.id);
 

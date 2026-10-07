@@ -64,6 +64,11 @@ export async function handleExplain(
   res: FastifyReply,
 ): Promise<void> {
   try {
+    const authUserId = req.authUserId;
+    if (!authUserId) {
+      sendJson(res, 401, { error: 'Please sign in again.' });
+      return;
+    }
     const body = req.body ?? {};
     if (!body.postId || typeof body.postId !== 'string') {
       sendJson(res, 400, { error: 'postId is required' });
@@ -74,15 +79,21 @@ export async function handleExplain(
       sendJson(res, 404, { error: 'Post not found' });
       return;
     }
-    const user =
-      body.userId && typeof body.userId === 'string'
-        ? await prisma.user.findUnique({
-            where: { id: body.userId },
-            include: { educations: true },
-          })
-        : null;
+    // The session selects the profile even when a caller supplies another profile ID.
+    const user = await prisma.user.findUnique({
+      where: { authUserId },
+      include: { educations: true },
+    });
+    if (!user) {
+      sendJson(res, 404, {
+        error: 'Add your profile details before checking why a job matches.',
+      });
+      return;
+    }
     sendJson(res, 200, { explanation: explainStoredPost(post, user) });
   } catch {
-    sendJson(res, 500, { error: 'Failed to explain saved requirements' });
+    sendJson(res, 500, {
+      error: 'We could not explain this job. Please try again.',
+    });
   }
 }
