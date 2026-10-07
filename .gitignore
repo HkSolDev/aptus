@@ -1,5 +1,6 @@
 node_modules
 downloads
+/outputs/**/blobs/
 .DS_Store
 
 /generated/prisma
