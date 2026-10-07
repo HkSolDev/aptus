@@ -56,7 +56,10 @@ export function getPostChecks(
     user.educations.map((e) => [e.level, e.marksPercent]),
   );
 
-  const { effectiveMaxAge, relaxation } = getEffectiveMaxAge(post, user.category);
+  const { effectiveMaxAge, relaxation } = getEffectiveMaxAge(
+    post,
+    user.category,
+  );
 
   const ageOk =
     (post.minAge === null || userAge >= post.minAge) &&
