@@ -4,6 +4,8 @@ downloads
 
 /generated/prisma
 /public/js
+.next/
+*.tsbuildinfo
 .env
 
 .venv
