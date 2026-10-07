@@ -19,19 +19,22 @@ Confirmed by the developer on 3 October 2026:
 The differentiator is a useful public job catalogue plus profile-based matching,
 not a form/login wall before users can discover jobs.
 
-This is the next feature, not current behavior: the saved frontend currently
-starts with a profile form. Login/account ownership is not implemented by the
-browser's saved-profile checkbox or by an API-returned user ID.
+Public browsing is now implemented before the profile form, with paginated
+server-rendered cards and `/jobs/<id>` detail pages. Login/account ownership
+is still not implemented by the browser's saved-profile checkbox or by an
+API-returned user ID.
 
 ### Next implementation slices
 
-1. Add a read-only, paginated public jobs endpoint backed by PostgreSQL. Return
+1. Added `GET /api/jobs` on `codex/public-jobs-auth`; see
+   [PUBLIC_JOBS_API.md](PUBLIC_JOBS_API.md) for its contract and live-test limit.
+   This read-only, paginated endpoint is backed by PostgreSQL. Return
    public notification data only; never include profiles or internal pipeline
    credentials. Display all saved notifications with clear dates/status when
    available, not an invented claim that every notice is still accepting forms.
-2. Make public job browsing the default frontend view, reusing card/styles.
-   Include search, loading, empty, and server-error states. Do not load the
-   entire database into the browser or require a profile for these requests.
+2. Added public browsing as the default view, reusing card/styles, with native
+   page navigation and empty/server-error states. Only six posts are read per
+   page. Search/filtering is not implemented yet. No profile is required.
 3. Add real authentication and server-verified profile ownership before
    account-based recommendations. Keep All jobs and My matches available
    together; public browsing must continue working when signed out.

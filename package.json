@@ -10,7 +10,7 @@
     "serve": "pnpm build:web && tsx --env-file=.env src/server.ts",
     "build:web": "tsc -p tsconfig.web.json",
     "dev:web": "tsc -p tsconfig.web.json --watch",
-    "test:web": "pnpm build:web && node --import tsx --test tests/frontend.test.ts",
+    "test:web": "pnpm build:web && node --import tsx --test tests/*.test.ts",
     "day1": "tsx --env-file=.env scripts/day1-fetch-ssc-pdf.ts",
     "extract": "tsx --env-file=.env scripts/extract.ts",
     "match": "tsx --env-file=.env scripts/match.ts",
