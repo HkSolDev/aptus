@@ -362,3 +362,33 @@ No second provider call, ingestion, dependency, subagent, commit or push.
 Next: exclusive nullable-parent branches and explicit array-group coverage
 decisions, using saved responses before another live test. Plan/results also
 saved in Notion's Aptus PDF pipeline evidence-selection page.
+
+## Candidate validation slice — 8 October 2026
+
+Extraction checkpoint `a99dcbd` was pushed to `codex/discovery-links` before
+starting this slice. User chose to park prompt completeness improvements and
+move forward with missing details explicitly marked for review.
+
+`services/ai/validate_candidate.py` validates the candidate contract, rejects
+malformed ISO dates before the legacy nullable-date conversion, negative or
+nonfinite numbers, marks over 100, reversed age/pay ranges or application
+dates, duplicate/empty names, and missing/invalid source citations. Existing
+single-pass and staged extractors attach its report. Null details, empty-list
+coverage, source authority and scope uncertainty remain warnings. No provider,
+database request, new dependency or change to eligibility decisions.
+
+No automatic publication: `persistence_allowed` stays false because exact
+quote location is not semantic verification. Structurally valid partial
+candidates return `needs_review` with their full facts. Invalid candidates
+return `blocked` without validated facts. This is the review boundary, not
+a production ingestion integration or a claim that missing data is harmless.
+
+Checks: 55 focused Python tests passed. Saved raw Office Assistant result
+blocks (no decoded facts). The explicitly labelled offline diagnostic copy
+passes structural/citation checks with 29 review warnings, including source
+authority, missing-main-notice and omitted-array concerns. It does not accept
+the original provider response. Reports: outputs/extract/office-assistant.validation.json
+and office-assistant.diagnostic-validation.json. No fresh Gemini tokens spent.
+Next: review acceptance and a deliberate mapping into the internal ingestion
+contract, retaining source/evidence and uncertainty; do not silently persist
+these richer CandidatePost fields through the legacy Post-only API.

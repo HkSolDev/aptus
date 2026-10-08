@@ -200,7 +200,7 @@ def extract_staged(prepared, *, provider=None, model=None, client=None, batch_si
         for key, value in call_log['usage'].items():
             if type(value) is int:
                 totals[key] = totals.get(key, 0) + value
-    return {'bundle_id': source['bundle_id'],
+    result = {'bundle_id': source['bundle_id'],
         'status': 'extraction_incomplete' if failures else 'candidate_needs_review',
         'output_format': 'staged-inline-facts-v1', 'facts': facts, 'inline_check': audit,
         'evidence_check': check_evidence(facts, source) if accepted else {
@@ -214,3 +214,6 @@ def extract_staged(prepared, *, provider=None, model=None, client=None, batch_si
         'citation_context': 'Quote-pool spans or full source units; semantic applicability is unverified.',
         'review_reasons': sorted(set(source['coverage']['review_reasons'] + warnings +
                                     (['post_coverage_incomplete'] if failures else [])))}
+    from validate_candidate import validate_candidate
+    result['validation'] = validate_candidate(result, source)
+    return result

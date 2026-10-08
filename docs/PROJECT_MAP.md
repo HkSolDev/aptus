@@ -3,6 +3,14 @@
 Updated: 7 October 2026. A compact navigation map, not a fresh full-system audit.
 Current pipeline branch: `codex/discovery-links`. Verify relevant code when its behavior changes.
 
+**Candidate validation slice (8 October):** `services/ai/validate_candidate.py`
+checks strict candidate structure, complete ISO dates, numeric bounds, age/pay
+and application-date ordering, post-name duplicates and source citations.
+Single-pass and staged extraction attach this offline report. Explained nulls
+and empty arrays continue as review flags; invalid facts block. Source authority
+and scope uncertainty remain visible. No automatic persistence or semantic
+certification. See `docs/RECOVERY_PROGRESS.md` for saved-example checks.
+
 ## Active pipeline work — 7 October 2026
 
 User direction: shared discovery from a supplied public website URL; English/Hindi

@@ -116,12 +116,15 @@ def extract_bundle(prepared, *, provider=None, model=None, client=None):
         facts, corrections = normalize_candidate_facts(facts)
     except (KeyError, TypeError, ValueError):
         raise RuntimeError('provider_invalid_structured_output') from None
-    return {'bundle_id': source['bundle_id'], **metadata,
+    result = {'bundle_id': source['bundle_id'], **metadata,
             'status': 'candidate_needs_review', 'facts': facts,
             'corrections': corrections,
             'output_format': 'compact-inline-facts-v1', 'inline_check': inline_check,
             'evidence_check': check_evidence(facts, source),
             'review_reasons': source['coverage']['review_reasons']}
+    from validate_candidate import validate_candidate
+    result['validation'] = validate_candidate(result, source)
+    return result
 
 
 def leaves(value, path):
