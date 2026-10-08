@@ -91,6 +91,32 @@ regions. Its source text remains
 unselected pending a later acceptance policy; this does not prove structured
 PDF extraction. No OCR/converter/production integration yet. No subagents used.
 
+**PDF evidence selection first slice:** `select_pdf_sections.py` consumes existing
+diagnostics offline and packages readable native-text candidates into topic
+ranges with page/block/line evidence. Six target topics, explicit contents-page
+exclusion, unresolved references, rejected-page coverage gaps and whole-unit
+character-budget omissions. It never declares complete coverage. IBPS saved-byte
+run: 76 indexed pages, 72 candidate ranges, 102,702/190,599 characters selected,
+all six topic families matched; Appendix I/II remain unresolved. Full suite:
+62 tests passed. Output: `outputs/normalize/ibps-selected-sections.json`.
+See PDF progress for limitations, local CLI, and the private Notion slice/backlog
+record. Changes in this slice are local and unpushed. Next is source comparison
+and better scope/table continuity before automatic LLM use.
+
+8 October latest decision: keep broad selection and prioritize complete evidence.
+Removed the extra `refine_pdf_sections` / `--refine` pass: it reduced the saved
+IBPS subset by only five characters and could not recover omitted table rows.
+`complete_pdf_sections` now restores complete source pages for selected
+education/age/reservation/vacancy evidence, preserves other selected lines,
+deduplicates overlaps and flags missing blocks and budget excess. CLI supports
+`--candidate-json` for the saved broad selection. Contents whitespace bug fixed;
+all 18 focused selection tests pass. IBPS qualification pages 18–20 and vacancy
+page 47 match full native source text. Output: 123,506 characters, above the
+120,000-character budget; do not treat this as approved automatic LLM input.
+Unselected pages and cross-page table coverage remain unproven. Improve trimming
+later using actual failures, rather than forcing a reduction percentage.
+See PDF progress for the decision and checks. GitHub CI does not run Python yet.
+
 Verified: 56 focused Python tests pass, using
 `PYTHONPATH=services/ai services/ai/.venv/bin/python -m unittest discover -s services/ai/tests -q`.
 Live check: Sarkari HTML `changed → identical`; official RPSC PDF
@@ -106,6 +132,41 @@ are callable/local commands, not connected to that flow or a public endpoint.
 Capture's DNS checks do not fully prevent rebinding; transport pinning or egress
 restrictions are needed before exposing arbitrary URL fetching. Local storage
 assumes one worker. Do not resume by silently expanding into the next stage.
+
+Pipeline handoff, 8 October: `services/ai/verify_bundle.py` now groups candidate
+recruitment documents offline and preserves HTML/PDF content with source locators.
+Explicit role/identity hints, exact campaign matching, configured issuer-host
+checks and review flags; no fact override, full authority guarantee or production
+integration. Ten focused tests pass. Saved IBPS v1 evidence forms `IBPS / CRP
+RRBs XV`, marked for review for mirror authority and appendix references.
+See [Verify contract, responsibilities and limits](VERIFY_PROGRESS.md).
+
+Latest real-pair check: selection now retains readable first-page identity
+context separately from topic-selected text. Verify uses its actual locators.
+Official IBPS XV main PDF plus 25 September corrigendum now form one bundle
+(previously two because the main title was dropped). All 31 focused checks pass;
+real pair retains separate content. Status remains `needs_review` for amendment
+scope, content budget/coverage and unresolved references. See Verify progress.
+
+Pipeline recovery slice, 8 October: `recovery_queue.py` persists local SQLite
+URL tasks and bundle dependencies, deduplicates claims, limits attempts and
+rejects stale completions. `recover_documents.py` connects existing capture and
+normalizers with bounded process workers and immutable normalized outputs.
+All recovered dependencies yield `ready_for_coverage`, not LLM approval.
+12 recovery checks and 48 combined focused checks pass; controlled fixtures,
+not live downloads. Missing URLs are explicit inputs; automatic coverage,
+bundle re-verification, PostgreSQL and legacy pipeline integration remain open.
+See [recovery contract, run instructions and limits](RECOVERY_PROGRESS.md).
+
+Pre-LLM handoff, 8 October: `check_coverage.py` produces seven field-family
+candidate hints and a coverage_focus list; missing keywords never mean a field
+is absent. `build_extraction_input.py` preserves all supplied selected evidence,
+HTML cells, PDF locators, quality/authority/amendment flags and a structured
+output contract. Explicit linked amendment gaps use the recovery queue; after
+terminal recovery, partial extraction keeps warnings without another cycle.
+The caller supplies the verified expanded bundle. Oversized/empty inputs are
+held without silent truncation. 14 handoff tests and 42 combined checks pass.
+No provider call or legacy pipeline integration yet. See Recovery progress.
 
 ## Passkeys — 7 October 2026
 
