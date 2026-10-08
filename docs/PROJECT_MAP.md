@@ -11,6 +11,16 @@ and empty arrays continue as review flags; invalid facts block. Source authority
 and scope uncertainty remain visible. No automatic persistence or semantic
 certification. See `docs/RECOVERY_PROGRESS.md` for saved-example checks.
 
+**Candidate database storage (8 October):** `services/ai/store_candidate.py`
+rechecks saved results and builds a draft envelope. Its generated
+`candidate-storage.schema.json` shares the contract with
+`scripts/store-extraction-candidate.ts`, a local operator/cron command that
+stores full facts, review data and evidence locations in `ExtractionCandidate`.
+Duplicate envelopes reuse one row; changed envelopes retain separate versions.
+These drafts never enter public browsing/matching. The additive migration is
+prepared; the configured database was stopped, so integration used temporary
+PostgreSQL. Usage and deployment status are in `RECOVERY_PROGRESS.md`.
+
 ## Active pipeline work — 7 October 2026
 
 User direction: shared discovery from a supplied public website URL; English/Hindi

@@ -181,3 +181,19 @@ model Post {
   categoryRelaxationRules   Json?
   eligibilityRules          Json?
 }
+
+// Offline extraction drafts. Public browsing and matching read Post, not this table.
+model ExtractionCandidate {
+  id            String   @id @default(cuid())
+  bundleId      String
+  sourceUrl     String
+  sourceName    String
+  contentHash   String   @unique
+  status        String   @default("needs_review")
+  facts         Json
+  review        Json
+  evidenceUnits Json
+  createdAt     DateTime @default(now())
+
+  @@index([bundleId, createdAt])
+}

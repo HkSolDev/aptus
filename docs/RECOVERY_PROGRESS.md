@@ -392,3 +392,56 @@ and office-assistant.diagnostic-validation.json. No fresh Gemini tokens spent.
 Next: review acceptance and a deliberate mapping into the internal ingestion
 contract, retaining source/evidence and uncertainty; do not silently persist
 these richer CandidatePost fields through the legacy Post-only API.
+
+## Candidate database storage — 8 October 2026
+
+User authorized adding database storage. This slice stores structurally valid,
+incomplete results as review drafts, not approved public jobs. No extraction
+or matching call is exposed to website visitors.
+
+Files and responsibilities:
+- `prisma/schema.prisma` and additive migration
+  `20261008190000_add_extraction_candidates`: immutable candidate versions with
+  full facts/review/evidence JSON and unique content hash. The SQL check keeps
+  status `needs_review`; existing Source/Post tables are unchanged.
+- `services/ai/store_candidate.py`: reruns candidate validation, rejects blocked
+  output or bundle mismatch, retains source identity, quotes, document role,
+  authority, locations and inline field/scope checks. It prepares an envelope
+  without database/provider calls.
+- `services/ai/candidate-storage.schema.json`: generated from the Python contract
+  plus storage bounds; a test checks synchronization. Regenerate with
+  `storage_schema()` after changing the contract, never edit JSON manually.
+- `scripts/store-extraction-candidate.ts`: local TypeScript command; reuses
+  Fastify's installed validator offline with coercion/removal/defaults disabled.
+  No network listener or public endpoint. Prisma stores only the draft envelope.
+  Canonical SHA-256 plus a unique constraint deduplicates repeat/concurrent
+  input. Changed facts/review/provenance retain separate versions.
+
+Operator flow, from repository root:
+```sh
+PYTHONPATH=services/ai services/ai/.venv/bin/python services/ai/store_candidate.py outputs/extract/your-result.json outputs/extract/your-prepared.json outputs/extract/your-storage.json --source-name 'Recruitment source' &&
+node --env-file=.env --import tsx scripts/store-extraction-candidate.ts outputs/extract/your-storage.json
+```
+The command may load configured credentials locally; never inspect or print
+the environment file. A blocked result cannot prepare the storage envelope.
+The earlier `persistence_allowed: false` means no automatic public-job write;
+this explicitly separate review table may store `needs_review` candidates.
+Missing details remain null and retain reasons; no dummy job facts are added
+to a real candidate, no automatic promotion and no new LLM call.
+
+Verification: 58 focused Python tests passed, two TypeScript tests passed with
+real temporary PostgreSQL (zero skipped), typecheck passed, focused lint passed.
+Database checks retained all facts/review/locations, reused identical concurrent input
+despite reordered object keys, stored changed input separately, rejected a
+published status and preserved an existing Post fixture. Schema synchronized.
+Full repository lint failed on existing/generated files including `.next`;
+the new storage files pass their focused lint checks. No unrelated cleanup.
+
+Deployment: configured local PostgreSQL returned connection_refused. Migration
+was verified in an isolated temporary database, not applied to the configured
+database; no real recruitment was saved. Start the normal database, then apply
+pending migrations deliberately with `pnpm exec prisma migrate deploy --config
+prisma7.config.ts` after checking which migrations are pending. Temporary test
+database is shut down after verification. Production rollout is not claimed.
+Next: operator review and promotion into Post, with per-post URLs and richer
+display fields mapped deliberately; current public-job API does not expose drafts.
