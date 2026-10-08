@@ -7,7 +7,8 @@ import re
 
 import httpx
 
-from build_extraction_input import BundleFacts
+from build_extraction_input import BundleFacts, INSTRUCTIONS
+from compact_inline import compact_schema, decode_compact, field_catalogue
 from normalize_candidate_facts import normalize_candidate_facts
 from providers.openai import _openai_schema
 
@@ -38,10 +39,8 @@ def invalid_gemini_key(response):
         return False
 
 
-def extract_bundle(prepared, *, provider=None, model=None, client=None):
-    request = prepared.get('llm_input')
-    if not request:
-        raise ValueError('No approved input: inspect coverage/budget first')
+def request_structured(source, schema, instructions, *, provider=None, model=None, client=None):
+    """One bounded provider request; shared by single-pass and staged extraction."""
     provider = provider or os.getenv('LLM_PROVIDER', 'openai')
     if provider not in {'openai', 'gemini'}:
         raise ValueError('Use openai or gemini')
@@ -52,9 +51,10 @@ def extract_bundle(prepared, *, provider=None, model=None, client=None):
     keys = provider_keys(provider)
     if not keys:
         raise RuntimeError('provider_credential_unavailable')
-    system = request['instructions']
-    source = copy.deepcopy(request['input'])
-    schema = source.pop('output_schema')
+    system = instructions
+    if len(json.dumps({'instructions': system, 'input': {**source, 'output_schema': schema}},
+                      ensure_ascii=False)) > 120_000:
+        raise ValueError('Inline extraction input exceeds character budget')
     prompt = json.dumps(source, ensure_ascii=False)
     if provider == 'openai':
         url = 'https://api.openai.com/v1/chat/completions'
@@ -94,16 +94,32 @@ def extract_bundle(prepared, *, provider=None, model=None, client=None):
                 raise RuntimeError('provider_incomplete_or_refused')
             text = ''.join(part.get('text', '') for part in candidate['content']['parts'])
             usage = data.get('usageMetadata', {})
-        facts = BundleFacts.model_validate_json(text, strict=True).model_dump(mode='json')
-        facts, corrections = normalize_candidate_facts(facts)
+        wire = json.loads(text)
     except httpx.HTTPError:
         raise RuntimeError('provider_network_failed') from None
     except (KeyError, IndexError, TypeError, ValueError):
         raise RuntimeError('provider_invalid_structured_output') from None
-    return {'bundle_id': source['bundle_id'], 'provider': provider, 'model': model,
-            'credential_attempts': attempt,
-            'status': 'candidate_needs_review', 'facts': facts, 'usage': usage,
+    return wire, {'provider': provider, 'model': model, 'credential_attempts': attempt, 'usage': usage}
+
+
+def extract_bundle(prepared, *, provider=None, model=None, client=None):
+    if not prepared.get('llm_input'):
+        raise ValueError('No approved input: inspect coverage/budget first')
+    source = copy.deepcopy(prepared['llm_input']['input'])
+    source.pop('output_schema')
+    contract = BundleFacts.model_json_schema()
+    source.update(output_format='compact-inline-facts-v1', field_catalogue=field_catalogue(contract))
+    wire, metadata = request_structured(source, compact_schema(), INSTRUCTIONS,
+                                        provider=provider, model=model, client=client)
+    try:
+        facts, inline_check = decode_compact(wire, source, contract)
+        facts, corrections = normalize_candidate_facts(facts)
+    except (KeyError, TypeError, ValueError):
+        raise RuntimeError('provider_invalid_structured_output') from None
+    return {'bundle_id': source['bundle_id'], **metadata,
+            'status': 'candidate_needs_review', 'facts': facts,
             'corrections': corrections,
+            'output_format': 'compact-inline-facts-v1', 'inline_check': inline_check,
             'evidence_check': check_evidence(facts, source),
             'review_reasons': source['coverage']['review_reasons']}
 
@@ -153,6 +169,7 @@ if __name__ == '__main__':
     parser.add_argument('output_json')
     parser.add_argument('--provider', choices=['openai', 'gemini'])
     parser.add_argument('--model')
+    parser.add_argument('--staged', action='store_true', help='Roster, shared rules, then small post batches')
     parser.add_argument('--prepare-html', action='store_true',
                         help='Prepare a saved normalized HTML document instead of calling the model')
     parser.add_argument('--source-url')
@@ -174,7 +191,11 @@ if __name__ == '__main__':
             'prepared_path': str(Path(args.output_json).resolve())}))
         raise SystemExit(0)
     try:
-        result = extract_bundle(json.loads(Path(args.prepared_json).read_text()),
+        runner = extract_bundle
+        if args.staged:
+            from staged_extraction import extract_staged
+            runner = extract_staged
+        result = runner(json.loads(Path(args.prepared_json).read_text()),
                                 provider=args.provider, model=args.model)
     except (RuntimeError, ValueError) as error:
         print(json.dumps({'status': 'blocked', 'reason': str(error)}))

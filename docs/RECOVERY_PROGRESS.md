@@ -233,3 +233,132 @@ second pass. This checks cleanup, not model accuracy: no provider request or
 credential-file access. Existing citation gaps, source authority/identity review
 and merged Treasury qualification alternatives remain unresolved. No ingestion,
 schema migration, dependency, commit or push in this slice.
+
+### Inline evidence extraction — 8 October 2026
+
+Checkpoint before changing the method: 6889833 on codex/discovery-links.
+`inline_extraction.py` derives a typed model response schema from CandidatePost.
+Every scalar carries value/status/evidence/reason/scope/scope_evidence. Code
+creates final field paths, evidence entries and missing reasons. Qualification
+routes stay separate education_options; each route's facts have their own quotes.
+Shared/post scope requires a located scope quote; unknown scope is flagged.
+Null states distinguish not_located, ambiguous, conflicting and missing_document.
+not_located never certifies source absence. Invalid scalar types/absent null
+explanations reject the response. Invented quotes remain review errors.
+
+The preparer emits inline-facts-v1. The runner upgrades saved prepared schemas
+and uses the current prompt, preserving source units and checking the complete
+120,000-character budget. Reusable schema definitions reduce duplication: the
+saved IBPS envelope is 59,483 characters (old 55,805), rather than 107,059 with
+repeated definitions. This is character size, not a provider token measurement.
+Old response files are preserved; no invented citations were added to them.
+
+39 focused tests pass, including nonempty mocked provider conversion, numeric
+types, per-route quotes, null explanations, missing-document status and unsafe
+scope/quote flags. No real credential file or provider was accessed. Semantic
+applicability, complete route detection and amendment resolution still require
+review/evaluation. inline_check records the model claims before deterministic
+corrections; corrections records moves/nulling afterward. No separate entailment
+call, automatic repair loop or shared-rule deduplication is added in this slice.
+Next: one fresh Gemini trial to compare field accuracy, citations, null reasons,
+post scopes, qualification routes and actual input/output tokens with the saved
+baseline. No claim of improved model accuracy until that trial is reviewed.
+
+### Gemini HTTP 400 isolation and transport correction — 8 October 2026
+
+Live, small-output probes accepted the legacy schema, null-only inline fact,
+the first 13 fields, and a single deeply nested qualification. The full inline
+schema and the version reduced to value/evidence were rejected. This establishes
+that the full schema causes rejection; cumulative schema complexity is the
+working explanation, not a provider-reported internal limit. Credentials/model
+and nesting depth alone were not the cause in these controls.
+
+`compact_inline.py` provides one shallow fact-record schema instead of expanding
+every typed field into a nested inline object. field_catalogue preserves allowed
+relative paths and value types in the prompt. Code rejects unknown/global paths,
+duplicates/parent-child collisions, sparse/unbounded array indices, unreported
+scalar fields and invalid final types. Each education route retains its own
+records/evidence. The converter feeds the existing quote/scope/null validator;
+no fallback to free-text parsing or relaxed local validation. The preparer and
+runner now use compact-inline-facts-v1. 43 focused tests pass.
+
+Live compact-schema probe returned HTTP 200. One fresh real IBPS request also
+reached generation: 17,040 input + 7,847 output = 24,887 total reported tokens.
+It returned one post (Office Assistant), versus 10 in the earlier baseline, with
+55 fact records. It also returned language_requirements as a null parent array,
+outside the specified scalar/nullable-object format. Strict conversion rejected
+the response; no accepted result-inline.json was created by this run. Public raw
+provider output is saved in outputs/extract/ibps-html.inline-provider.json for
+offline analysis, so no further provider retry is needed to inspect it.
+
+HTTP 400 is resolved for this input. Model completeness and collection-format
+adherence are now separate unresolved issues; do not call this an accuracy
+improvement or publish this output. No ingestion, dependency, commit or push.
+
+### Roster/shared/batch experiment — 8 October 2026
+
+`extract_bundle.py` now shares its bounded structured provider request through
+request_structured; --staged invokes `staged_extraction.py`. Existing single-pass
+mode remains for comparisons. Staged mode grounds every roster name in source,
+assigns stable IDs, extracts explicitly scoped shared rules once and processes
+two target posts per batch. It rejects unexpected/duplicate IDs and retries only
+missing or invalid posts once. Qualification routes retain separate evidence.
+Shared defaults apply only to listed post IDs, with located scope quotes; semantic
+applicability is still not certified. Quote pools reuse spans. Known original
+source-unit IDs can also resolve to their entire text as context, explicitly
+distinguished from model-selected minimal spans; unknown IDs are still rejected.
+
+49 focused tests pass, including retry bounds, per-post shared scope, strict
+types, source-unit references and reassembly of final evidence paths. No new
+dependency, public trigger, ingestion or push. A fresh real Gemini experiment
+found exactly the 10 IBPS posts seen in the baseline. Shared stage produced
+31 records with 16 quotes. Five batches plus their one repair each followed.
+All provider requests succeeded, but 0 posts passed final typed conversion.
+The responses omitted required scalar slots (rather than explicitly returning
+null with reasons), and some citations used original unit IDs instead of pool
+IDs. The strict validator prevented those omissions from silently passing.
+
+Reported live usage: 179,375 input + 43,484 output = 222,859 total tokens across
+12 calls; cachedContentTokenCount 105,661 is a subset, not additional tokens.
+Earlier single-pass baseline was 26,180. Repeating the full source in each call
+is costly, so this is an experimental approach, not a production improvement.
+Public raw responses: outputs/extract/ibps-staged/call-1.json through call-12.json.
+Original live manifest: outputs/extract/ibps-html.result-staged.json.
+
+After the run, offline-only fixes added MissingFactsError with exact omitted
+paths, per-post required_scalar_fields/repair_feedback, and explicit
+extraction_incomplete/not_checked statuses when no posts pass. No null facts
+were invented or validators weakened. Source-unit references now resolve
+deterministically as full context. Replay of the same 12 saved responses remains
+0/10: posts 0–7 have unreported fields; posts 8–9 have other invalid structure.
+Offline manifest: outputs/extract/ibps-html.result-staged-replay.json. No new
+provider tokens were spent on these diagnostics; updated prompt feedback has
+not been evaluated live. Next: reduce repeated source input and verify explicit
+field completion on a small target before another full-notice experiment.
+
+## Office Assistant focused trial — 8 October 2026
+
+User authorized exactly one fresh call after saved-response preparation. Trial
+runner: `outputs/extract/office-assistant-trial.py`; no production code changed.
+It retains the complete recruitment table and relevant source links, removes
+chrome (17,821 → 6,345 source-text characters), gives an explicit scalar checklist
+and fictional supported/null examples. Gemini returned 50 facts and 13 quotes:
+8,183 vacancies, age 18–28, bachelor degree, dates, fees and application URL.
+Actual usage: 8,066 input + 5,133 output = 13,199 total tokens, one provider call.
+
+Raw result remains `invalid_post_output`: both `pay` and
+`category_relaxation_rules` were null while their children were also returned.
+An offline diagnostic removing redundant null children found no omitted scalar
+fields or quote-location errors. This does not accept the raw response or prove
+semantic support. The model omitted exam windows, application steps, required
+documents and pre-exam training although supplied. Empty arrays currently lack
+explicit completeness decisions. Source authority/main-notice flags remain.
+This one-post run is not an equivalent benchmark against ten-post extraction.
+
+Artifacts: `office-assistant.focused-input.json`, `.offline-review.json`,
+`.provider-response.json`, `.result.json`, `.analysis.json` under outputs/extract.
+Existing compact/staged validation suites: 18 tests passed; runner syntax passed.
+No second provider call, ingestion, dependency, subagent, commit or push.
+Next: exclusive nullable-parent branches and explicit array-group coverage
+decisions, using saved responses before another live test. Plan/results also
+saved in Notion's Aptus PDF pipeline evidence-selection page.

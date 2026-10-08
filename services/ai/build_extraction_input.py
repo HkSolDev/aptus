@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 from check_coverage import bundle_units, check_coverage
 from schema import Post
+from compact_inline import compact_schema, field_catalogue
 
 
 class FieldEvidence(BaseModel):
@@ -94,8 +95,22 @@ CA/Chartered Accountant is a professional qualification: preserve it in qualific
 do not map it to BACHELORS unless the same education route explicitly requires a bachelor degree.
 Pre-exam training is not a selection stage. Preserve it in other_requirements;
 physical efficiency tests may be selection stages even when abbreviated PET.
-For every non-null factual value, cite its field_path (such as posts.0.max_age),
-an evidence_id from the supplied sections, and an exact source quote in evidence.
+Return posts as objects containing a facts array. Each fact has field (a relative
+path from field_catalogue), value, status, evidence, reason, scope and scope_evidence.
+For example: field eligibility_rules.education_options.0.qualification.
+Replace <index> with consecutive indices starting at zero, in order. Each education
+route gets its own index. Report every scalar slot, including nulls within each row.
+For absent nullable objects (pay/category_relaxation_rules), report the parent as null.
+Omit rows of empty arrays. Never send whole objects/arrays as fact values.
+Code constructs absolute citation paths; do not return a separate citation list.
+For found facts, attach evidence entries with evidence_id and an exact source quote.
+For null facts, provide a specific reason and choose not_located, ambiguous,
+conflicting or missing_document. not_located is not proof that the source omits it.
+Use scope post or shared only with scope_evidence quoting the post heading/table row
+or an explicit shared-rule statement. Otherwise use unknown; never assume all posts.
+Scope evidence may come from a different unit than the value's evidence.
+Keep every education_options entry as one separate alternative route with its own
+fact evidence. Do not collapse CA OR MBA into one qualification option.
 Distinguish application deadlines from fee/exam dates and age-as-on dates.
 Keep original and amendment documents separate. Apply an update only if explicit text
 supports its affected scope; unresolved amendment conflicts must remain null.
@@ -157,8 +172,10 @@ def prepare_extraction(bundle, *, missing_documents=None, recovery_queue=None,
                                       'coverage': content.get('coverage', {})},
                           'warnings': content.get('warnings', []), 'sections': selected})
     payload = {'input_version': 'bundle-extraction-input-v1', 'bundle_id': bundle['bundle_id'],
+               'output_format': 'compact-inline-facts-v1',
+               'field_catalogue': field_catalogue(BundleFacts.model_json_schema()),
                'identity': bundle.get('identity', {}), 'coverage': coverage,
-               'documents': documents, 'output_schema': BundleFacts.model_json_schema()}
+               'documents': documents, 'output_schema': compact_schema()}
     # Count the complete wire envelope, not only source text. Never silently trim.
     characters = len(json.dumps({'instructions': INSTRUCTIONS, 'input': payload}, ensure_ascii=False))
     result['input_characters'] = characters

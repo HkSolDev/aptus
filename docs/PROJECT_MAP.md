@@ -181,6 +181,35 @@ extraction/input tests pass. Fresh assistant invocation remains blocked because
 process credentials are unavailable. Manual/cron only; no public trigger
 or ingestion. See Recovery progress for the runnable command and boundaries.
 
+Inline extraction slice: `inline_extraction.py` derives the model schema from
+CandidatePost, attaches evidence/status/scope to scalar facts, then builds final
+values and citation paths in code. Separate education_options retain their own
+evidence. Missing/ambiguous/conflicting/document-gap nulls require explanations.
+Scope quotes are located, not certified as applicable; semantic support remains
+unverified. 39 focused tests pass, including nonempty mocked provider transport.
+The saved IBPS input upgrades to 59,483 characters; no new model trial yet.
+
+Provider compatibility follow-up: Gemini rejected the full nested inline schema
+with HTTP 400. Tiny control/legacy/single-deep-field probes succeeded, pointing
+to combined schema complexity. `compact_inline.py` now supplies a shallow facts
+array per post; Python validates relative paths, reconstructs the nested records
+and retains strict CandidatePost types/evidence checks. 43 focused tests pass.
+Live compact schema acceptance succeeded. A fresh IBPS request returned only
+Office Assistant and an invalid array-parent null, so validation rejected it.
+Raw public output: outputs/extract/ibps-html.inline-provider.json. No corrected
+model result or accuracy improvement claimed. See Recovery progress.
+
+Staged trial: `staged_extraction.py` adds a grounded roster, scoped shared rules,
+quote-reference reuse, two-post batches and one bounded repair per batch. Use
+extract_bundle.py --staged; web users cannot trigger it. The common provider
+request boundary remains in extract_bundle.py. 49 focused checks pass.
+Real IBPS trial found all 10 posts, but final acceptance remained 0/10 due to
+unreported required scalar fields and malformed outputs. It used 222,859 total
+reported tokens across 12 calls; repeated inputs make this unsuitable as-is.
+Offline replay adds exact field-gap diagnostics and resolves known source-unit
+references without inventing a supporting span. No additional provider calls.
+Do not publish it or treat roster coverage as field completeness. See progress.
+
 Credentials fix: run `scripts/run-bundle-extraction.cjs` manually/from cron to
 load the local root configuration using the existing dotenv dependency and
 launch Python. extract_bundle accepts numbered Gemini keys in numeric order;

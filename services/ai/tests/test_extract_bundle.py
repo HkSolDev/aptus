@@ -61,7 +61,7 @@ class BundleExtractionTests(unittest.TestCase):
 
     def test_openai_structured_transport_not_model_accuracy(self):
         response = httpx.Response(200, json={'choices': [{'finish_reason': 'stop',
-            'message': {'content': json.dumps({'posts': [], 'evidence': [], 'missing_fields': []})}}],
+            'message': {'content': json.dumps({'posts': []})}}],
             'usage': {'prompt_tokens': 20, 'completion_tokens': 10}})
         client = Mock()
         client.post.return_value = response
@@ -133,7 +133,7 @@ class BundleExtractionTests(unittest.TestCase):
         client = Mock()
         client.post.return_value = httpx.Response(200, json={'candidates': [{
             'finishReason': 'STOP', 'content': {'parts': [{'text': json.dumps({
-                'posts': [], 'evidence': [], 'missing_fields': []})}]}}],
+                'posts': []})}]}}],
             'usageMetadata': {'totalTokenCount': 20}})
         with patch.dict('os.environ', {'GEMINI_API_KEY': 'illustrative-test-key'}):
             result = extract_bundle(self.prepared(), provider='gemini',
@@ -143,8 +143,7 @@ class BundleExtractionTests(unittest.TestCase):
 
     def success(self):
         return httpx.Response(200, json={'candidates': [{'finishReason': 'STOP',
-            'content': {'parts': [{'text': json.dumps({'posts': [], 'evidence': [],
-                                                     'missing_fields': []})}]}}]})
+            'content': {'parts': [{'text': json.dumps({'posts': []})}]}}]})
 
     def test_numbered_keys_sort_numerically_and_deduplicate(self):
         with patch.dict('os.environ', {'GEMINI_API_KEY_10': 'placeholder-ten',
