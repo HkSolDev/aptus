@@ -168,6 +168,26 @@ The caller supplies the verified expanded bundle. Oversized/empty inputs are
 held without silent truncation. 14 handoff tests and 42 combined checks pass.
 No provider call or legacy pipeline integration yet. See Recovery progress.
 
+Model trial, 8 October: `extract_bundle.py` now supports structured OpenAI/
+Gemini call with safe error handling and an exact-quote/field citation audit.
+CandidatePost adds fee/pay/experience, vacancy breakdown, candidate steps and
+links without changing ingestion schemas. Normalized link destinations now
+have evidence IDs. One real saved IBPS HTML input is prepared (55,805 characters);
+the developer's Gemini trial returned 10 posts, with substantial citation gaps.
+`normalize_candidate_facts.py` corrects unsupported CA degree mapping, separates
+pre-exam training and normalizes complete dates, recording every correction.
+The saved-response replay retained 10 posts with 34 corrections; 31 focused
+extraction/input tests pass. Fresh assistant invocation remains blocked because
+process credentials are unavailable. Manual/cron only; no public trigger
+or ingestion. See Recovery progress for the runnable command and boundaries.
+
+Credentials fix: run `scripts/run-bundle-extraction.cjs` manually/from cron to
+load the local root configuration using the existing dotenv dependency and
+launch Python. extract_bundle accepts numbered Gemini keys in numeric order;
+only explicit key rejection fails over. Quota/timeouts stop without cycling.
+Real credential files were not read by the assistant; tests used placeholders
+and mocked launcher loading. 27 focused checks passed. See Recovery progress.
+
 ## Passkeys — 7 October 2026
 
 Review route: `prisma/schema.prisma` / additive passkey migration →

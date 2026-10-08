@@ -71,6 +71,18 @@ def bundle_units(bundle):
                 raise ValueError('Identity context needs source text and evidence')
             units.append({'document_id': identifier, 'evidence_id': f'{identifier}:identity',
                           'text': context['text'], 'locations': context['evidence']})
+        for index, link in enumerate(document['content'].get('links', [])):
+            url = link.get('url')
+            if not isinstance(url, str) or not url_identity(url, url):
+                continue
+            owner = link.get('owner')
+            locations = ([{**owner, 'method': 'html_link_attribute'}] if isinstance(owner, dict)
+                         else [{'page': link['page'], 'bbox': link.get('bbox'),
+                                'method': 'pdf_link_attribute'}] if link.get('page') else [])
+            units.append({'document_id': identifier, 'evidence_id': f'{identifier}:link-{index}',
+                          'text': json.dumps({'url': url, 'text': link.get('text', ''),
+                                             'context': link.get('context', {})}, ensure_ascii=False),
+                          'locations': locations})
     return units
 
 

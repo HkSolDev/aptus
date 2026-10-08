@@ -135,7 +135,101 @@ CLI input is {"bundle": verified_bundle, "missing_documents": optional_array}:
 PYTHONPATH=services/ai services/ai/.venv/bin/python services/ai/build_extraction_input.py /private/tmp/verified-bundle.json --queue-db /private/tmp/aptus-recovery/queue.db
 ```
 
-The existing Post contract does not yet represent fee facts. Fee text is retained
-and highlighted, but changing persisted extraction fields is a separate schema
-decision. ready_for_extraction describes usable model input, not publication
+At the original handoff the Post contract did not represent fee facts. The trial
+extension below now represents them without changing persisted Post fields.
+ready_for_extraction describes usable model input, not publication
 approval, complete recall or validated eligibility.
+
+## Structured model trial — 8 October
+
+User-confirmed execution boundary: this pipeline runs manually by the developer
+or on cron. Public users browse saved jobs and check their profiles against the
+database; they do not trigger discovery, capture, model calls or ingestion.
+
+`CandidatePost` extends the extraction-only output in build_extraction_input.py:
+category/region vacancy counts, numeric experience years, fees, numeric pay,
+application/fee/exam dates, recruiting body, nationality, locations, selection
+steps, documents, language/other conditions and official/application URLs.
+The original Post/database/ingestion contract is unchanged. Few worked examples
+clarify alternative qualification routes, fee groups and separate deadlines.
+HTML/PDF links now have their own evidence IDs and attribute locators when the
+normalizer provides an owner/page. These destinations were previously omitted
+from model input; unsupported URLs must not be guessed.
+
+`extract_bundle.py` sends one structured-schema request to the selected OpenAI
+or Gemini model, using existing httpx/Pydantic. No new dependency. Credentials
+come only from the process environment; no credential file is read or printed.
+Fixed official provider endpoints, stable errors, no automatic billed retries.
+Refused/truncated responses are rejected. Completed results retain model/usage,
+parsed candidate facts, coverage warnings and citation audit. The audit checks
+exact quote existence and citations for non-null leaves, plus reasons for nulls.
+It does not prove that a quote semantically supports the value or the correct
+post. All results remain candidate_needs_review; no publication/ingestion.
+
+Prepared one actual saved SarkariResult IBPS RRB HTML notice:
+https://www.sarkariresult.com/2026/ibps-rrb-15th-august26/
+55,805 input-envelope characters; all seven keyword families have candidates.
+Saved to outputs/extract/ibps-html.prepared.json. Secondary-source authority,
+role/campaign ambiguity and missing main-notice flags remain; this is a parsing
+trial, not an official-source verification. No current live recapture was done.
+
+Live model invocation stopped before network with provider_credential_unavailable:
+neither supported credential is available in this execution environment.
+No model-generated result file exists; no extracted fact is claimed. Do not read
+.env to work around this. Run from an already configured terminal instead:
+
+```sh
+PYTHONPATH=services/ai services/ai/.venv/bin/python services/ai/extract_bundle.py outputs/extract/ibps-html.prepared.json outputs/extract/ibps-html.result.json --provider openai --model gpt-4o-mini
+```
+
+8 new tests cover both provider payloads using mocked transport, credential
+absence, safe HTTP errors, truncated response refusal, quote/null coverage,
+candidate schema and link evidence. All 70 focused pipeline tests pass. These
+checks do not measure model accuracy. Next: actual configured model run, compare
+every post/condition against supplied source, then official-source verification
+and stronger semantic/numeric evidence validation before persistence.
+
+## Local credentials launcher and numbered Gemini keys
+
+`scripts/run-bundle-extraction.cjs` now uses the project's installed Node dotenv
+package to load the root local configuration into the Python child environment.
+It runs the same offline extraction CLI; no web endpoint, dependency or database
+change. The developer runs this launcher; the assistant did not open/read the
+actual credential file or execute the real launcher against it.
+
+The extraction runner accepts GEMINI_API_KEY_1, _2, ... in numeric order, with
+blank/duplicate values skipped. GEMINI_API_KEY is still supported and tried first
+when set. An explicit credential rejection (401 or recognized key-specific
+400/403 reasons) can try the next configured key. Quota exhaustion, general
+permission/schema errors, server failures and uncertain timeouts stop without
+key cycling. Project quotas are shared between its keys. No paid fallback.
+Results include only credential_attempts, not keys or provider error bodies.
+
+Run from the repository:
+
+```sh
+node scripts/run-bundle-extraction.cjs outputs/extract/ibps-html.prepared.json outputs/extract/ibps-html.result.json --provider gemini --model gemini-3.5-flash-lite
+```
+
+The example configuration lists blank numbered names only. The real .env is
+ignored by Git. Shell/environment values retain precedence over file values.
+27 focused extraction/input tests pass; launcher syntax and a fully mocked
+configuration/child-process check pass. No real key, credential file or provider
+was accessed in these checks, and no model tokens were spent by this change.
+
+### Extraction correction slice — 8 October 2026
+
+`normalize_candidate_facts.py` now corrects three observed trial problems after
+schema validation: unsupported CA-to-BACHELORS mappings become null while the
+qualification text stays intact; explicitly named pre-exam training moves to
+other_requirements (physical efficiency PET stays a selection stage); complete
+DD/MM/YYYY dates become ISO dates, while partial months/ranges stay unchanged.
+The runner records previous/new values in corrections and remaps moved citations.
+The shared extraction prompt now explains the CA and training distinctions.
+
+31 focused extraction/input tests pass. Replaying the saved IBPS rerun locally
+retained 10 posts and applied 34 corrections, with zero further changes on a
+second pass. This checks cleanup, not model accuracy: no provider request or
+credential-file access. Existing citation gaps, source authority/identity review
+and merged Treasury qualification alternatives remain unresolved. No ingestion,
+schema migration, dependency, commit or push in this slice.
