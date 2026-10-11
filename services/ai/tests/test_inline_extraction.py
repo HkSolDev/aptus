@@ -132,6 +132,28 @@ class InlineExtractionTests(unittest.TestCase):
         self.assertEqual(result['output_format'], 'compact-inline-facts-v1')
         self.assertEqual(result['status'], 'candidate_needs_review')
 
+    def test_email_application_and_document_limits_keep_separate_citations(self):
+        bundle = sample_bundle()
+        instruction = 'Email a resume to recruitment@example.gov.in by 12 October 2026.'
+        statement = 'Include relevant experience and a 600-word contribution statement on one page.'
+        bundle['documents'][0]['content']['sections'][0]['text'] += '\n' + instruction + '\n' + statement
+        wire = response()
+        steps = [instruction]
+        documents = ['Resume', statement]
+        wire['posts'][0]['application_steps'] = [fact(instruction, quote=instruction)]
+        wire['posts'][0]['documents_required'] = [
+            fact('Resume', quote=instruction), fact(statement, quote=statement)]
+        with patch('extract_bundle.request_structured', return_value=(compact_response(wire), {})):
+            result = extract_bundle(prepare_extraction(bundle))
+        post = result['facts']['posts'][0]
+        self.assertIsNone(post['apply_url'])
+        self.assertEqual(post['application_steps'], steps)
+        self.assertEqual(post['documents_required'], documents)
+        paths = {entry['field_path'] for entry in result['facts']['evidence']}
+        self.assertTrue({'posts.0.application_steps.0', 'posts.0.documents_required.0',
+                         'posts.0.documents_required.1'} <= paths)
+        self.assertEqual(result['validation']['errors'], [])
+
     def test_compact_converter_matches_nested_facts_without_loosening_types(self):
         wire = response()
         expected, _ = decode_inline(wire, self.source())

@@ -244,6 +244,12 @@ Extract validation/human review, before this candidate's draft storage or
 publication. See [source review and ordered next slices](EXTRACTION_REVIEW_NEXT_STEPS.md).
 No database writes or public integration were performed.
 
+Application-details follow-up: the prompt explicitly requests submission steps
+and materials with word/page limits; 47 focused tests pass. The live saved-source
+rerun failed at fact decoding and saved no candidate. Next is safe decoding
+diagnostics in `extract_bundle.py`, before repeating a paid call. The prompt
+change is not yet live-verified; see the extraction review checklist above.
+
 ## Passkeys — 7 October 2026
 
 Review route: `prisma/schema.prisma` / additive passkey migration →

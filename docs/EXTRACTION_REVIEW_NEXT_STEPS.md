@@ -56,6 +56,17 @@ not a fetch failure. No second AI is needed for this source comparison.
 
 ## Sequence: change one slice, verify, then stop
 
+Application-details attempt, 11 October: the prompt now explicitly requests the
+submission method/destination/deadline and requested materials with word/page
+limits. An illustrative offline regression checks that these arrays and separate
+citations survive the runner when `apply_url` is null. **47 focused tests passed.**
+One live saved-source rerun stopped with `provider_fact_decoding_failed`; no new
+candidate was saved, so this prompt change is not live-verified. See
+`outputs/extract/iitk-project-assistant-20261011/application-details-rerun/`.
+Do not repeat the paid call unchanged. The next diagnostic slice is
+`extract_bundle.py`: safely report the decoding check/missing field paths before
+another authorized trial. Do not dump provider records or weaken validation.
+
 1. **Application-details slice — next.** Start with `build_extraction_input.py`
    and its focused tests. Trace why returned arrays can be empty despite explicit
    application text. Add a small saved-source expectation check for email
