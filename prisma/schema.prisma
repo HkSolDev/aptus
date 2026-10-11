@@ -180,6 +180,14 @@ model Post {
   // general table) — one shared value would be wrong for some posts.
   categoryRelaxationRules   Json?
   eligibilityRules          Json?
+  extractionCandidateId     String?
+  candidatePostIndex        Int?
+  extractionCandidate       ExtractionCandidate? @relation(fields: [extractionCandidateId], references: [id], onDelete: Restrict)
+  reviewedDetails           Json?
+  reviewedAt                DateTime?
+  reviewNote                String?
+
+  @@unique([extractionCandidateId, candidatePostIndex])
 }
 
 // Offline extraction drafts. Public browsing and matching read Post, not this table.
@@ -194,6 +202,7 @@ model ExtractionCandidate {
   review        Json
   evidenceUnits Json
   createdAt     DateTime @default(now())
+  publishedPosts Post[]
 
   @@index([bundleId, createdAt])
 }

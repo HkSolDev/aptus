@@ -77,14 +77,18 @@ export async function validateStorageEnvelope(
   }
 }
 
+export function candidateContentHash(input: unknown): string {
+  return createHash('sha256')
+    .update(JSON.stringify(canonical(input)))
+    .digest('hex');
+}
+
 export async function storeExtractionCandidate(
   input: unknown,
   database: Pick<Prisma.TransactionClient, 'extractionCandidate'> = prisma,
 ) {
   const envelope = await validateStorageEnvelope(input);
-  const contentHash = createHash('sha256')
-    .update(JSON.stringify(canonical(envelope)))
-    .digest('hex');
+  const contentHash = candidateContentHash(envelope);
   // Immutable, content-addressed drafts: repeat/concurrent runs share one row.
   return database.extractionCandidate.upsert({
     where: { contentHash },

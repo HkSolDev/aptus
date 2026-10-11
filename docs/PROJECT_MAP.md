@@ -3,6 +3,13 @@
 Updated: 7 October 2026. A compact navigation map, not a fresh full-system audit.
 Current pipeline branch: `codex/discovery-links`. Verify relevant code when its behavior changes.
 
+**Latest local publication — 11 October:** two reviewed candidates published to
+Post (14 → 16), linked drafts/details retained, repeats reuse rows. Explicit
+review/hash guard and safe transaction added; actual public pages/source links
+verified in a no-JavaScript mobile browser. See [publication reasoning and checks](PUBLISH_PROGRESS.md).
+Next is deterministic matching verification, not deployment. Earlier handoffs
+below remain history.
+
 **Latest local storage checkpoint — 11 October:** both verified IIT Kanpur
 candidates are saved as ExtractionCandidate needs_review drafts. Sole pending
 candidate-table migration applied; full-envelope readback matches, repeated saves

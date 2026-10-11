@@ -172,6 +172,9 @@
   gap: var(--space-5);
   align-items: start;
 }
+.job-detail-section li {
+  overflow-wrap: anywhere;
+}
 .job-detail-section {
   margin-top: var(--space-5);
 }

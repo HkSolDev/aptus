@@ -19,19 +19,23 @@ Search terms: `fact decoding`, `compact_inline`, `unknown_field_path`, `pay.peri
 
 ## Latest state / resume here
 
-Two source-reviewed candidates have zero current validation errors and local
-`draft.json` envelopes. Latest storage checkpoint: both are now saved in LOCAL
-PostgreSQL as ExtractionCandidate needs_review rows. The existing additive
-20261008190000_add_extraction_candidates migration was the only pending migration
-and was applied successfully. Full facts/review/evidence/source metadata readback
-matches both envelopes; resaving reused the same IDs. Public Post count stayed
-14. Nothing published or deployed. We have entered stage 05's draft persistence
-boundary; selection/extraction/validation supplied its inputs. Public promotion,
-matching correctness, scheduled integration and deployment are separate work.
-Next: review the draft-to-public-Post contract before implementing publication;
-never treat these drafts as publicly listed jobs. Assistant final extraction
-still has an unresolved provider HTTP 503, separate from these stored drafts.
-See storage-verification.json under the three-notice artifact directory.
+Two source-reviewed candidates are now published LOCALLY in Post: count 14 → 16.
+Drafts remain unchanged needs_review rows; each public row links its candidate,
+post index and reviewedDetails and records reviewedAt/reviewNote. Explicit
+operator publication revalidates the envelope/recomputes its hash, refuses a
+changed reviewed draft or conflicting source publication, and reuses stable
+rows/URLs on repeat. Candidate's original publication_allowed=false is historical
+AI draft metadata; later publication approval lives on Post, not a rewritten draft.
+
+Read [publication decisions and verification](PUBLISH_PROGRESS.md) before resuming.
+New relation/details migration applied locally. Three publication tests (including
+isolated PostgreSQL) and 12 existing route tests pass. Full typecheck/web build,
+focused lint/format and actual no-JavaScript mobile public pages pass. Full-repo
+lint fails on existing/generated files. Preview: http://127.0.0.1:8082.
+No remote deployment/push. Stage 05 publication works for these two examples;
+next verify deterministic matching/unknown conditions. Source-to-listing schedule
+integration and real-user trial are later, not proven by this publication.
+Assistant's final extraction HTTP 503 remains separate.
 
 Artifacts under `outputs/extract/three-notice-review-20261011/`:
 
@@ -147,4 +151,11 @@ Never open .env/.env.* except example; never print credentials/full records.
 Live calls and local commits were explicitly authorized; no automatic retries for
 unchanged decoding failures. Earlier memory-only request did not authorize database writes.
 Later user explicitly authorized LOCAL migration and draft storage; both are complete.
-Publication, remote deployment and push remain separate actions.
+User subsequently authorized LOCAL reviewed publication; two posts are published.
+Remote deployment and push remain separate actions.
+
+## Publication ownership update
+
+scripts/publish-extraction-candidate.ts → reviewed Post rows/provenance;
+src/lib/render-reviewed-details.ts → public salary/application/experience display.
+See [publication file map](PUBLISH_PROGRESS.md#file-relationships).

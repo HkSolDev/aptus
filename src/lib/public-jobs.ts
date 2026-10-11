@@ -59,6 +59,7 @@ export function getPublicJob(id: string) {
     where: { id },
     select: {
       ...publicFields,
+      reviewedDetails: true,
       eligibilityRules: true,
       categoryRelaxationApplies: true,
       categoryRelaxationRules: true,
