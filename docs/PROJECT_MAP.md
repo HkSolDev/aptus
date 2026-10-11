@@ -235,6 +235,15 @@ only explicit key rejection fails over. Quota/timeouts stop without cycling.
 Real credential files were not read by the assistant; tests used placeholders
 and mocked launcher loading. 27 focused checks passed. See Recovery progress.
 
+**Extraction review — 11 October:** `extract_bundle.py` now distinguishes safe
+response/JSON/fact-decoding/normalization errors. The input prompt prevents URL
+metadata from being cited as source text. 46 focused tests passed; an official
+IIT Kanpur saved-source rerun has zero validation errors but omitted application
+materials, appointment/work context and inferred a monthly pay period. We are at
+Extract validation/human review, before this candidate's draft storage or
+publication. See [source review and ordered next slices](EXTRACTION_REVIEW_NEXT_STEPS.md).
+No database writes or public integration were performed.
+
 ## Passkeys — 7 October 2026
 
 Review route: `prisma/schema.prisma` / additive passkey migration →
