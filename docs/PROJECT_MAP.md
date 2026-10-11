@@ -250,6 +250,13 @@ rerun failed at fact decoding and saved no candidate. Next is safe decoding
 diagnostics in `extract_bundle.py`, before repeating a paid call. The prompt
 change is not yet live-verified; see the extraction review checklist above.
 
+Safe decoding diagnostics now distinguish schema-owned missing/type paths and
+unresolved value/explanation errors. 54 focused checks pass; live diagnostics
+exposed invalid unresolved facts and object/list-parent facts, not a demonstrated
+missing schema field. Both trials remained blocked. Next is the specific
+`compact_inline.py` parent-path rejection; no schema relaxation, draft storage
+or publication occurred. See the same extraction review checklist.
+
 ## Passkeys — 7 October 2026
 
 Review route: `prisma/schema.prisma` / additive passkey migration →

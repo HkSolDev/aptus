@@ -6,7 +6,8 @@ from unittest.mock import Mock, patch
 import httpx
 
 from build_extraction_input import BundleFacts, prepare_extraction
-from extract_bundle import check_evidence, extract_bundle, provider_keys
+from extract_bundle import FactDecodingError, check_evidence, extract_bundle, provider_keys
+from compact_inline import MissingFactsError
 from normalize_candidate_facts import normalize_candidate_facts
 from services.ai.tests.test_extraction_input import sample_bundle
 
@@ -85,6 +86,94 @@ class BundleExtractionTests(unittest.TestCase):
                       side_effect=ValueError('illustrative-sensitive-text')):
             with self.assertRaisesRegex(RuntimeError, '^candidate_normalization_failed$'):
                 extract_bundle(self.prepared())
+
+    def test_decoding_reports_missing_fields_and_accepts_explained_nulls(self):
+        from services.ai.tests.test_inline_extraction import compact_response, response
+        wire = compact_response(response())
+        wire['posts'][0]['facts'] = [f for f in wire['posts'][0]['facts'] if f['field'] != 'vacancies']
+        with patch('extract_bundle.request_structured', return_value=(wire, {})):
+            with self.assertRaises(FactDecodingError) as caught:
+                extract_bundle(self.prepared())
+        self.assertEqual(caught.exception.details, {'check': 'unreported_scalar_fields',
+                         'field_count': 1, 'field_paths': ['vacancies']})
+        with patch('extract_bundle.request_structured', return_value=(compact_response(response()), {})):
+            result = extract_bundle(self.prepared())
+        self.assertIsNone(result['facts']['posts'][0]['vacancies'])
+        self.assertEqual(result['validation']['errors'], [])
+
+    def test_decoding_reports_wrong_types_without_response_values(self):
+        from services.ai.tests.test_inline_extraction import compact_response, fact, response
+        wire = response()
+        wire['posts'][0]['vacancies'] = fact('illustrative-sensitive-value')
+        with patch('extract_bundle.request_structured', return_value=(compact_response(wire), {})):
+            with self.assertRaises(FactDecodingError) as caught:
+                extract_bundle(self.prepared())
+        self.assertEqual(caught.exception.details['check'], 'invalid_field_value')
+        self.assertEqual(caught.exception.details['field_paths'], ['vacancies'])
+        self.assertNotIn('illustrative-sensitive', json.dumps(caught.exception.details))
+
+    def test_decoding_check_codes_do_not_echo_invalid_paths_or_unknown_errors(self):
+        wire = {'posts': [{'facts': [{'field': 'illustrative-sensitive-path'}]}]}
+        with patch('extract_bundle.request_structured', return_value=(wire, {})):
+            with self.assertRaises(FactDecodingError) as caught:
+                extract_bundle(self.prepared())
+        self.assertEqual(caught.exception.details['check'], 'unknown_field_path')
+        self.assertNotIn('illustrative-sensitive', json.dumps(caught.exception.details))
+        error = FactDecodingError(ValueError('illustrative-sensitive-message'), BundleFacts.model_json_schema())
+        self.assertEqual(error.details['check'], 'unclassified_decoding_error')
+        self.assertNotIn('illustrative-sensitive', json.dumps(error.details))
+
+    def test_missing_field_diagnostics_are_schema_filtered_and_bounded(self):
+        paths = [f'application_steps.{i}' for i in range(30)] + ['illustrative-sensitive-path']
+        error = FactDecodingError(MissingFactsError(paths), BundleFacts.model_json_schema())
+        self.assertEqual(error.details['field_count'], 30)
+        self.assertEqual(len(error.details['field_paths']), 20)
+        self.assertNotIn('illustrative-sensitive', json.dumps(error.details))
+
+    def test_duplicate_array_parent_and_unexplained_null_have_distinct_checks(self):
+        from services.ai.tests.test_inline_extraction import compact_response, response
+        for mode, check in (('duplicate', 'duplicate_or_overlapping_path'),
+                            ('array_parent', 'non_scalar_fact'),
+                            ('unexplained_null', 'unresolved_explanation_missing')):
+            with self.subTest(mode=mode):
+                wire = compact_response(response())
+                records = wire['posts'][0]['facts']
+                if mode == 'duplicate':
+                    records.append(copy.deepcopy(records[0]))
+                elif mode == 'array_parent':
+                    records[0]['field'] = 'application_steps'
+                else:
+                    next(f for f in records if f['field'] == 'vacancies')['reason'] = None
+                with patch('extract_bundle.request_structured', return_value=(wire, {})):
+                    with self.assertRaises(FactDecodingError) as caught:
+                        extract_bundle(self.prepared())
+                self.assertEqual(caught.exception.details['check'], check)
+                if mode == 'unexplained_null':
+                    self.assertEqual(caught.exception.details['field_paths'], ['vacancies'])
+
+    def test_cli_prints_safe_decoding_details_and_saves_no_candidate(self):
+        import io
+        import runpy
+        import tempfile
+        from contextlib import redirect_stdout
+        from pathlib import Path
+        client_response = httpx.Response(200, json={'candidates': [{'finishReason': 'STOP',
+            'content': {'parts': [{'text': json.dumps({'posts': 'illustrative-sensitive-value'})}]}}]})
+        with tempfile.TemporaryDirectory() as directory:
+            prepared, output = Path(directory) / 'prepared.json', Path(directory) / 'result.json'
+            prepared.write_text(json.dumps(self.prepared()))
+            captured = io.StringIO()
+            with patch.dict('os.environ', {'GEMINI_API_KEY': 'illustrative-test-key'}, clear=True), \
+                    patch('httpx.post', return_value=client_response), \
+                    patch('sys.argv', ['extract_bundle.py', str(prepared), str(output), '--provider', 'gemini']), \
+                    redirect_stdout(captured):
+                with self.assertRaises(SystemExit) as caught:
+                    runpy.run_path('services/ai/extract_bundle.py', run_name='__main__')
+            self.assertEqual(caught.exception.code, 1)
+            self.assertFalse(output.exists())
+        failure = json.loads(captured.getvalue())
+        self.assertEqual(failure['details']['check'], 'invalid_response_root')
+        self.assertNotIn('illustrative-sensitive', captured.getvalue())
 
     def test_openai_structured_transport_not_model_accuracy(self):
         response = httpx.Response(200, json={'choices': [{'finish_reason': 'stop',

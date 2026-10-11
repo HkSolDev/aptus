@@ -7,7 +7,7 @@ import httpx
 
 from build_extraction_input import BundleFacts, CandidatePost, prepare_extraction
 from extract_bundle import check_evidence, extract_bundle
-from inline_extraction import decode_inline, inline_schema
+from inline_extraction import InlineFactError, decode_inline, inline_schema
 from compact_inline import compact_schema, decode_compact
 from services.ai.tests.test_extraction_input import sample_bundle
 
@@ -98,6 +98,19 @@ class InlineExtractionTests(unittest.TestCase):
         facts, _ = decode_inline(wire, self.source())
         reason = next(item['reason'] for item in facts['missing_fields'] if item['field_path'] == 'posts.0.vacancies')
         self.assertTrue(reason.startswith('missing_document:'))
+
+    def test_unresolved_errors_identify_field_and_condition_without_values(self):
+        for value, reason, check in ((12, 'Not located.', 'unresolved_value_not_null'),
+                                    (None, None, 'unresolved_explanation_missing')):
+            with self.subTest(check=check):
+                wire = response()
+                wire['posts'][0]['vacancies'].update(value=value, reason=reason)
+                before = copy.deepcopy(wire)
+                with self.assertRaises(InlineFactError) as caught:
+                    decode_inline(wire, self.source())
+                self.assertEqual(caught.exception.field_path, 'posts.0.vacancies')
+                self.assertEqual(caught.exception.check, check)
+                self.assertEqual(wire, before)
 
     def test_numeric_string_is_not_silently_accepted(self):
         wire = response()

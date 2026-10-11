@@ -67,6 +67,25 @@ Do not repeat the paid call unchanged. The next diagnostic slice is
 `extract_bundle.py`: safely report the decoding check/missing field paths before
 another authorized trial. Do not dump provider records or weaken validation.
 
+Decoding diagnostics follow-up: `extract_bundle.py` now emits fixed check codes
+and bounded schema-owned field paths. `inline_extraction.py` attaches paths and
+distinct checks for unresolved values versus absent explanations; validation is
+not relaxed. **54 focused tests passed**, including CLI output privacy, valid
+explained nulls, wrong types, missing paths, duplicate paths and array-parent
+facts. Two saved-source diagnostic trials were made in this slice, both blocked:
+`invalid_unresolved_fact` before the inline path refinement, then
+`non_scalar_fact`. No candidate was saved and no database write occurred.
+The second error means a fact addressed an object/list rather than a scalar or
+list entry. Its exact parent path is not available. Next small transport slice:
+`compact_inline.py` should carry a safe path/check for that rejection before any
+repair or further trial. The older failed response cannot be reconstructed from
+its generic log. These trials do not establish a missing schema field; schema
+evolution must follow source-reviewed requirements, not acceptance of malformed
+model output. Saved diagnostics are under `decoding-diagnostics-rerun/` and
+`decoding-diagnostics-final/` within the same IIT Kanpur trial directory.
+An additional 12 staged-extraction/candidate-validator caller tests passed;
+66 focused checks passed across the two runs. No full-project test claim.
+
 1. **Application-details slice — next.** Start with `build_extraction_input.py`
    and its focused tests. Trace why returned arrays can be empty despite explicit
    application text. Add a small saved-source expectation check for email
