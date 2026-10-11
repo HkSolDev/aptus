@@ -19,6 +19,15 @@ Search terms: `fact decoding`, `compact_inline`, `unknown_field_path`, `pay.peri
 
 ## Latest state / resume here
 
+Latest verification: five illustrative profiles checked offline through the match
+handler with mocked database boundaries. Unknown ages stay manual, but matching
+ignores alternative qualification/experience conditions and only mentions age.
+TENTH alone is included for Technician without verifying ITI. Next small fix is
+scripts/match.ts uncertainty reasons + src/routes/match.ts presentation; do not
+claim matching complete or infer experience. Two existing rules tests pass;
+no production changes/profile writes in this verification. See PUBLISH_PROGRESS.md.
+
+
 Two source-reviewed candidates are now published LOCALLY in Post: count 14 → 16.
 Drafts remain unchanged needs_review rows; each public row links its candidate,
 post index and reviewedDetails and records reviewedAt/reviewNote. Explicit

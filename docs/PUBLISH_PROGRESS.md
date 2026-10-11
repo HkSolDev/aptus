@@ -92,3 +92,27 @@ performed in this slice. No sub-agents used. Unrelated working changes preserved
 Next slice: verify deterministic matching on these jobs, particularly unknown
 age/category and route-specific experience. Listing publication is not a promise
 of eligibility. Do not silently turn missing conditions into a positive match.
+
+## Focused eligibility verification — 11 October
+
+Checked the two saved draft/public facts with five illustrative education profiles
+(TENTH, DIPLOMA, BACHELORS, MASTERS, PHD) through handleMatch using mocked database
+and profile-write boundaries. No real profile/database writes or LLM requests.
+Both unknown age bounds route included jobs to needsManualCheck, never confirmed
+matches. Existing eligibility-rule shape tests: 2 pass. This is an offline
+behavior check, not a signed-in browser/database integration test.
+
+Gap established: scripts/match.ts evaluates only scalar education rank, age and
+marks; it ignores education_options, route conditions and reviewed experience.
+Technician includes a TENTH-only or bachelor-only profile without verifying ITI
+or the diploma route. Masters/PHD analyst profiles have no experience verification.
+Their manual-check messages mention age only, omitting qualifications/experience.
+Optional desirable skills are not enforced, as intended. These two jobs currently
+remain manual due to missing age; the general matcher is not yet qualification-
+complete. No production code changed in this verification slice.
+
+Next smallest fix: scripts/match.ts should return explicit uncertainty for
+unverified qualification/experience conditions; src/routes/match.ts should carry
+those reasons into manual checks. Do not infer ITI from a higher education rank,
+assume years of experience, or build a richer profile schema in this verification.
+Evidence: outputs/extract/three-notice-review-20261011/matching-verification.json.
