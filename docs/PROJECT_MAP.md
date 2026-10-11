@@ -3,6 +3,15 @@
 Updated: 7 October 2026. A compact navigation map, not a fresh full-system audit.
 Current pipeline branch: `codex/discovery-links`. Verify relevant code when its behavior changes.
 
+**Latest extraction handoff — 11 October:** two official IIT Kanpur candidates
+(Technician and Research Analyst) pass validation/source review and have offline
+draft envelopes. 72 focused tests pass. No database writes or publication in this
+slice; next is TypeScript draft storage and persisted-field verification. The
+Assistant's final request failed provider HTTP 503. Local fixes committed through
+`c8c03b2`, not pushed. Read [AI memory: reasoning, file graph and exact resume point](AI_PIPELINE_MEMORY.md)
+and [three-notice verification](THREE_NOTICE_EXTRACTION_REVIEW.md).
+The older extraction handoffs below are chronological history, not current next steps.
+
 **Candidate validation slice (8 October):** `services/ai/validate_candidate.py`
 checks strict candidate structure, complete ISO dates, numeric bounds, age/pay
 and application-date ordering, post-name duplicates and source citations.
