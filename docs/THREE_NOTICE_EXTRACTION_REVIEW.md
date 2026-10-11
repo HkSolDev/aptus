@@ -108,3 +108,22 @@ database draft storage as its own slice. The two offline drafts are reviewable
 and storage-ready under the current gate; publication_allowed remains false and
 source identity/authority warnings remain. Basic source review is not universal
 semantic certification. Do not broaden required fields before basic reliability.
+
+## Local draft storage completed — 11 October
+
+User started Docker and authorized local migrations/storage, no deployment.
+PostgreSQL service started; all 12 prior migrations were complete. Applied the
+sole pending additive 20261008190000_add_extraction_candidates migration.
+Revalidated both envelopes against their result/source before writing.
+Existing TypeScript storeExtractionCandidate saved both needs_review drafts;
+complete facts, review, evidence units and source/bundle metadata match readback.
+Repeated writes reused their IDs. Public Post count remained 14 before/after.
+No publication or deployment; publication_allowed remains false.
+
+Focused storage checks: Python 3 pass; TypeScript validation boundary 1 pass,
+isolated TEST_DATABASE_URL integration 1 skipped. Separate real LOCAL writes,
+full-envelope readback and duplicate reuse passed. No full-suite claim.
+Evidence: outputs/extract/three-notice-review-20261011/storage-verification.json.
+Stage position: entered stage 05 draft persistence, not complete public publish.
+Next investigate the mapping/review contract from ExtractionCandidate to public
+Post; keep source evidence, uncertainty and deterministic eligibility separate.

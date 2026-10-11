@@ -20,11 +20,18 @@ Search terms: `fact decoding`, `compact_inline`, `unknown_field_path`, `pay.peri
 ## Latest state / resume here
 
 Two source-reviewed candidates have zero current validation errors and local
-`draft.json` envelopes. No database writes or public publication happened in this
-extraction investigation. Next stage is storing those two drafts through the
-existing TypeScript command, then checking persisted facts/evidence and duplicate
-handling. Database readiness/migration status must be verified in that slice;
-local draft preparation does not prove a database write will succeed.
+`draft.json` envelopes. Latest storage checkpoint: both are now saved in LOCAL
+PostgreSQL as ExtractionCandidate needs_review rows. The existing additive
+20261008190000_add_extraction_candidates migration was the only pending migration
+and was applied successfully. Full facts/review/evidence/source metadata readback
+matches both envelopes; resaving reused the same IDs. Public Post count stayed
+14. Nothing published or deployed. We have entered stage 05's draft persistence
+boundary; selection/extraction/validation supplied its inputs. Public promotion,
+matching correctness, scheduled integration and deployment are separate work.
+Next: review the draft-to-public-Post contract before implementing publication;
+never treat these drafts as publicly listed jobs. Assistant final extraction
+still has an unresolved provider HTTP 503, separate from these stored drafts.
+See storage-verification.json under the three-notice artifact directory.
 
 Artifacts under `outputs/extract/three-notice-review-20261011/`:
 
@@ -138,5 +145,6 @@ instructions → ce587a0 safe decoding diagnostics → 330fa9c compact path diag
 No sub-agents. Necessary targeted tools only. Preserve unrelated dirty files.
 Never open .env/.env.* except example; never print credentials/full records.
 Live calls and local commits were explicitly authorized; no automatic retries for
-unchanged decoding failures. Latest request is memory only, not a database write.
-Next request can authorize storage; publication/push remain separate actions.
+unchanged decoding failures. Earlier memory-only request did not authorize database writes.
+Later user explicitly authorized LOCAL migration and draft storage; both are complete.
+Publication, remote deployment and push remain separate actions.

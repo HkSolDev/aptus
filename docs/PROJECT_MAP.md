@@ -3,6 +3,14 @@
 Updated: 7 October 2026. A compact navigation map, not a fresh full-system audit.
 Current pipeline branch: `codex/discovery-links`. Verify relevant code when its behavior changes.
 
+**Latest local storage checkpoint — 11 October:** both verified IIT Kanpur
+candidates are saved as ExtractionCandidate needs_review drafts. Sole pending
+candidate-table migration applied; full-envelope readback matches, repeated saves
+reuse rows, public Post count remains 14. No publication/deployment. Storage
+checks: 3 Python + 1 TypeScript pass, 1 isolated-DB test skipped; actual local save,
+readback and duplicate checks passed separately. See [latest AI memory](AI_PIPELINE_MEMORY.md).
+We are in stage 05 draft persistence; public promotion is still separate.
+
 **Latest extraction handoff — 11 October:** two official IIT Kanpur candidates
 (Technician and Research Analyst) pass validation/source review and have offline
 draft envelopes. 72 focused tests pass. No database writes or publication in this
