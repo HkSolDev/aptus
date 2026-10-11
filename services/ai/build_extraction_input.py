@@ -101,11 +101,19 @@ For example: field eligibility_rules.education_options.0.qualification.
 Replace <index> with consecutive indices starting at zero, in order. Each education
 route gets its own index. Report every scalar slot, including nulls within each row.
 For absent nullable objects (pay/category_relaxation_rules), report the parent as null.
+Choose either an absent object parent OR its child facts, never both. If salary
+exists, report pay.minimum_amount etc.; do not also report field pay.
 Omit rows of empty arrays. Never send whole objects/arrays as fact values.
+An absent list such as application_steps has NO fact record, not a parent null fact.
+Copy field names from field_catalogue exactly; never invent aliases or extra fields.
 Code constructs absolute citation paths; do not return a separate citation list.
 For found facts, attach evidence entries with evidence_id and an exact source quote.
+Prefer short verbatim quotes. Preserve punctuation, quotation marks and whitespace;
+do not rewrite a source sentence. Reuse a short exact post heading for scope evidence.
 For null facts, provide a specific reason and choose not_located, ambiguous,
 conflicting or missing_document. not_located is not proof that the source omits it.
+Every status other than found MUST have value null. For example, an unstated
+pay period is field pay.period, value null, status not_located; never infer MONTH.
 Use scope post or shared only with scope_evidence quoting the post heading/table row
 or an explicit shared-rule statement. Otherwise use unknown; never assume all posts.
 Scope evidence may come from a different unit than the value's evidence.
@@ -136,6 +144,10 @@ Dates must be YYYY-MM-DD
 when fully specified; do not manufacture a day/year from an incomplete date.
 Keep diploma-plus-experience and degree routes separate; do not apply one route's
 experience requirement to every candidate. Shared rules apply only within their stated scope.
+Desirable qualifications/skills are optional: preserve them in other_requirements
+with a 'Desirable:' label, never as mandatory subject_requirement or education conditions.
+For route-specific experience, keep the condition in that education option and in
+experience_rules.conditions; never imply it applies to the alternative route.
 Examples of interpretation (examples are NOT facts for this recruitment):
 - 'B.Tech OR Diploma with three years experience': two education_options;
   attach three years experience only to the diploma option's conditions.

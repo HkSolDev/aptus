@@ -80,6 +80,18 @@ class BundleExtractionTests(unittest.TestCase):
                 extract_bundle(self.prepared())
         normalize.assert_not_called()
 
+    def test_opt_in_replay_survives_decode_failure_without_http_secrets(self):
+        import tempfile
+        from pathlib import Path
+        wire, metadata = {'posts': 'invalid'}, {'provider': 'gemini', 'usage': {}}
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'response.json'
+            with patch('extract_bundle.request_structured', return_value=(wire, metadata)):
+                with self.assertRaises(FactDecodingError):
+                    extract_bundle(self.prepared(), response_path=target)
+            self.assertEqual(json.loads(target.read_text()),
+                             {'response': wire, 'metadata': metadata})
+
     def test_normalization_failure_has_safe_stage_error(self):
         with patch('extract_bundle.request_structured', return_value=({'posts': []}, {})), \
                 patch('extract_bundle.normalize_candidate_facts',
@@ -162,6 +174,24 @@ class BundleExtractionTests(unittest.TestCase):
             error = FactDecodingError(CompactPathError(
                 'Fact must address a scalar or a nullable object', path), schema)
             self.assertEqual(error.details['field_paths'], expected)
+
+    def test_absent_pay_cannot_coexist_with_salary_or_inferred_unresolved_period(self):
+        from services.ai.tests.test_inline_extraction import compact_response, response
+        for mode, check in (('parent_and_child', 'duplicate_or_overlapping_path'),
+                            ('inferred_period', 'unresolved_value_not_null')):
+            wire = compact_response(response())
+            records = wire['posts'][0]['facts']
+            parent = next(f for f in records if f['field'] == 'pay')
+            child = {**parent, 'field': 'pay.period', 'value': 'MONTH'}
+            if mode == 'inferred_period':
+                records.remove(parent)
+                records.extend({**parent, 'field': f'pay.{field}'} for field in
+                               ('minimum_amount', 'maximum_amount', 'currency', 'conditions'))
+            records.append(child)
+            with patch('extract_bundle.request_structured', return_value=(wire, {})):
+                with self.assertRaises(FactDecodingError) as caught:
+                    extract_bundle(self.prepared())
+            self.assertEqual(caught.exception.details['check'], check)
 
     def test_cli_prints_safe_decoding_details_and_saves_no_candidate(self):
         import io

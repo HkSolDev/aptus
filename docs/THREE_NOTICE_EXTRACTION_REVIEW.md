@@ -57,3 +57,54 @@ technician path without printing records or credentials. Reproduce offline,
 then fix the specific format/quote issue in its owning module. Current artifacts
 cannot establish that unknown field's identity. Do not run the same paid trial
 unchanged. We remain in EXTRACT/validation, before draft storage and publication.
+
+## Formatting/quotation follow-up
+
+Completed the next slice, 11 October. Source inspection established that the old
+analyst quote changed the project's double quotation marks to single quotation
+marks, then reused the altered sentence for scope evidence. The assistant's old
+website quote came solely from source metadata, not section text.
+
+Changes: an opt-in `--save-response` public-source replay file in extract_bundle.py
+retains parsed response plus provider usage metadata before decoding. It does
+not retain HTTP headers, credentials or prompts. Default extraction retains no
+response file. build_extraction_input.py now explicitly requires exact short
+quotes, exact catalogue paths, empty-list omission, mutually exclusive absent
+object parents/child facts, null unresolved values, labelled desirable skills,
+and route-specific experience. No schema expansion or validation relaxation.
+
+First three updated trials: technician failed on pay.period (status not_located
+but inferred value MONTH); assistant mixed absent parent pay with pay children;
+analyst had zero validation errors but source review found desirable subjects
+promoted to mandatory requirements and insufficient experience scope. These are
+new retained responses, not reconstruction of the older unknown-field failure.
+Targeted prompt clarification addressed those observed cases.
+
+Final three trials:
+
+- Technician: zero errors; two posts, extended deadline 2026-10-15; diploma +
+  four years versus High School/ITI + nine years preserved separately. Pay
+  18,000–45,000, unstated period null. Three application steps, three document
+  items and four explicitly desirable items. Source-reviewed basic details;
+  local draft.json prepared successfully, no database write.
+- Research analyst: zero errors; two posts, deadline 2026-10-20, PhD OR
+  postgraduate + three relevant years. Optional subjects no longer mandatory;
+  experience explicitly scoped to postgraduate route. Monthly pay 32,400 +
+  20% HRA, two application steps, resume and five desirable items. Source-reviewed
+  basic details; local draft.json prepared successfully, no database write.
+- Assistant: provider_http_503 before a response was available. Final verification
+  remains incomplete. No automatic retry or draft preparation for this trial.
+
+72 focused tests passed across extraction-input, bundle, inline, staged,
+candidate-validation and storage-preparation suites. New regressions cover
+opt-in response retention on failure, conflicting pay parent/children and an
+inferred unresolved period. Focused whitespace check passed. No full-project,
+database integration or production reliability claim. Six live calls in this
+slice. Results: each notice's verified-rerun directory; compact summary:
+`outputs/extract/three-notice-review-20261011/format-fix-summary.json`.
+
+Next: resume the assistant check after the provider recovers, then handle actual
+database draft storage as its own slice. The two offline drafts are reviewable
+and storage-ready under the current gate; publication_allowed remains false and
+source identity/authority warnings remain. Basic source review is not universal
+semantic certification. Do not broaden required fields before basic reliability.

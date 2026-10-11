@@ -162,7 +162,7 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
     return wire, {'provider': provider, 'model': model, 'credential_attempts': attempt, 'usage': usage}
 
 
-def extract_bundle(prepared, *, provider=None, model=None, client=None):
+def extract_bundle(prepared, *, provider=None, model=None, client=None, response_path=None):
     if not prepared.get('llm_input'):
         raise ValueError('No approved input: inspect coverage/budget first')
     source = copy.deepcopy(prepared['llm_input']['input'])
@@ -171,6 +171,12 @@ def extract_bundle(prepared, *, provider=None, model=None, client=None):
     source.update(output_format='compact-inline-facts-v1', field_catalogue=field_catalogue(contract))
     wire, metadata = request_structured(source, compact_schema(), INSTRUCTIONS,
                                         provider=provider, model=model, client=client)
+    if response_path is not None:
+        from pathlib import Path
+        from capture_store import atomic_write
+        # Explicit public-source trials only; never retain HTTP headers or credentials.
+        atomic_write(Path(response_path), json.dumps(
+            {'response': wire, 'metadata': metadata}, ensure_ascii=False, indent=2).encode())
     try:
         facts, inline_check = decode_compact(wire, source, contract)
     except (KeyError, TypeError, ValueError) as error:
@@ -239,6 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('--prepare-html', action='store_true',
                         help='Prepare a saved normalized HTML document instead of calling the model')
     parser.add_argument('--source-url')
+    parser.add_argument('--save-response', help='Opt-in local replay file for public-source trials')
     args = parser.parse_args()
     if args.prepare_html:
         from build_extraction_input import prepare_extraction
@@ -259,10 +266,13 @@ if __name__ == '__main__':
     try:
         runner = extract_bundle
         if args.staged:
+            if args.save_response:
+                parser.error('--save-response is only supported for single-pass trials')
             from staged_extraction import extract_staged
             runner = extract_staged
+        options = {'response_path': args.save_response} if args.save_response else {}
         result = runner(json.loads(Path(args.prepared_json).read_text()),
-                                provider=args.provider, model=args.model)
+                        provider=args.provider, model=args.model, **options)
     except (RuntimeError, ValueError) as error:
         failure = {'status': 'blocked', 'reason': str(error)}
         if isinstance(error, FactDecodingError):
