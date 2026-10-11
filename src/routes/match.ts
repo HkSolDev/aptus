@@ -6,6 +6,7 @@ import {
   getMatchesForUser,
   ageOn,
   getEffectiveMaxAge,
+  getUnverifiedRequirements,
 } from '../../scripts/match.js';
 
 const VALID_LEVELS = new Set<string>(Object.values(EducationLevel));
@@ -113,16 +114,18 @@ export async function handleMatch(
         : undefined;
       const marksMissing =
         post.minMarksPercent !== null && userMarksAtLevel == null;
+      const unverifiedRequirements = getUnverifiedRequirements(post);
 
-      // A post requires manual verification if any matching parameter was null
+      // Unknown inputs and requirements the profile cannot verify stay manual.
       const isNullFieldPost =
         post.minAge === null ||
         post.maxAge === null ||
         post.minEducationLevel === null ||
-        marksMissing;
+        marksMissing ||
+        unverifiedRequirements.length > 0;
 
       if (isNullFieldPost) {
-        const reasons: string[] = [];
+        const reasons: string[] = [...unverifiedRequirements];
         if (post.minEducationLevel === null) {
           reasons.push('Education qualification requires manual verification');
         }

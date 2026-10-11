@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { prisma } from '../src/db.js';
 import type { Post, User, Education } from '../generated/prisma/index.js';
+import { isEligibilityRules } from '../src/schemas/eligibility-rules.js';
 
 const EDUCATION_ORDER = [
   'TENTH',
@@ -37,6 +38,57 @@ export type MatchCandidate = Pick<User, 'dob' | 'category'> & {
   educations: Pick<Education, 'level' | 'marksPercent'>[];
 };
 
+export function getUnverifiedRequirements(
+  post: Partial<Pick<Post, 'eligibilityRules' | 'reviewedDetails'>>,
+): string[] {
+  const reasons: string[] = [];
+  if (post.eligibilityRules != null) {
+    if (!isEligibilityRules(post.eligibilityRules)) {
+      reasons.push('Detailed qualification rules require manual verification');
+    } else if (post.eligibilityRules.education_options.length) {
+      const routes = post.eligibilityRules.education_options.map((option) =>
+        [
+          option.qualification ?? option.minimum_level,
+          option.subject_requirement,
+          option.conditions,
+          option.minimum_marks_percent == null
+            ? null
+            : `${option.minimum_marks_percent}% marks`,
+        ]
+          .filter(Boolean)
+          .join('; '),
+      );
+      // Profiles record education levels, not exact qualifications or route conditions.
+      reasons.push(
+        `Verify the applicable qualification route: ${routes.join(' OR ')}`,
+      );
+    }
+  }
+  const details = post.reviewedDetails;
+  if (
+    details &&
+    typeof details === 'object' &&
+    !Array.isArray(details) &&
+    Array.isArray(details.experience_rules)
+  ) {
+    for (const row of details.experience_rules as unknown[]) {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+      const rule = row as Record<string, unknown>;
+      const years =
+        typeof rule.minimum_years === 'number'
+          ? `${rule.minimum_years} years`
+          : null;
+      const condition =
+        typeof rule.conditions === 'string' ? rule.conditions : null;
+      if (years || condition)
+        reasons.push(
+          `Verify experience for the applicable route: ${[years, condition].filter(Boolean).join(' — ')}`,
+        );
+    }
+  }
+  return reasons;
+}
+
 export function getPostChecks(
   post: Pick<
     Post,
@@ -45,7 +97,8 @@ export function getPostChecks(
     | 'minEducationLevel'
     | 'minMarksPercent'
     | 'categoryRelaxationRules'
-  >,
+  > &
+    Partial<Pick<Post, 'eligibilityRules' | 'reviewedDetails'>>,
   user: MatchCandidate,
 ) {
   const userAge = ageOn(user.dob);
@@ -56,7 +109,10 @@ export function getPostChecks(
     user.educations.map((e) => [e.level, e.marksPercent]),
   );
 
-  const { effectiveMaxAge, relaxation } = getEffectiveMaxAge(post, user.category);
+  const { effectiveMaxAge, relaxation } = getEffectiveMaxAge(
+    post,
+    user.category,
+  );
 
   const ageOk =
     (post.minAge === null || userAge >= post.minAge) &&
@@ -89,6 +145,7 @@ export function getPostChecks(
     educationOk,
     marksOk,
     marksAtRequiredLevel,
+    unverifiedRequirements: getUnverifiedRequirements(post),
   };
 }
 
@@ -112,7 +169,9 @@ async function main() {
   }
 
   const matches = await getMatchesForUser(userId);
-  console.log(`Eligible for ${matches.length} posts:\n`);
+  console.log(
+    `Potential matches requiring verification: ${matches.length} posts:\n`,
+  );
   for (const post of matches) {
     console.log(
       `- ${post.postName} (${post.source.name}) -> ${post.source.url}`,

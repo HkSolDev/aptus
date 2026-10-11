@@ -116,3 +116,22 @@ unverified qualification/experience conditions; src/routes/match.ts should carry
 those reasons into manual checks. Do not infer ITI from a higher education rank,
 assume years of experience, or build a richer profile schema in this verification.
 Evidence: outputs/extract/three-notice-review-20261011/matching-verification.json.
+
+## Explicit matching flags completed — 11 October
+
+scripts/match.ts now returns unverified qualification alternatives and reviewed
+experience conditions as manual reasons. src/routes/match.ts includes them in
+needsManualCheck even when scalar age/education/marks checks pass. Profiles only
+record education level, so this deliberately stays conservative: it does not
+claim to verify exact qualifications, route conditions or experience. Optional
+other_requirements are not enforced. Postgraduate-only experience keeps its
+source condition in the message; no rule is invented for PhD candidates.
+
+Six focused rule/matching tests pass, including known age with unverified routes,
+missing-age preservation, malformed rules and desirable-skill exclusion. Full
+typecheck and focused lint pass. Five saved-source illustrative profiles rerun
+offline through mocked database boundaries: explicit manual reasons confirmed,
+no real profile writes. No schema, public-post or extraction change.
+Artifact: matching-flag-verification.json in the three-notice output directory.
+Next: source-to-listing/scheduling integration verification; richer profile fields
+and exact experience evaluation remain separate product decisions.

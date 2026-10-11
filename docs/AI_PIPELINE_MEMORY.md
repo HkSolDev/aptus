@@ -19,6 +19,14 @@ Search terms: `fact decoding`, `compact_inline`, `unknown_field_path`, `pay.peri
 
 ## Latest state / resume here
 
+Matching flags follow-up complete: scripts/match.ts owns explicit unverified
+qualification/experience reasons; src/routes/match.ts routes them to manual checks
+even with known ages. Six focused tests/typecheck/lint pass; five saved-source
+illustrative profiles confirm the messages. No DB/LLM calls or richer profile
+schema. This is conservative uncertainty handling, not exact experience matching.
+Earlier gap verification below is historical. See PUBLISH_PROGRESS.md.
+
+
 Latest verification: five illustrative profiles checked offline through the match
 handler with mocked database boundaries. Unknown ages stay manual, but matching
 ignores alternative qualification/experience conditions and only mentions age.
