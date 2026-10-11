@@ -150,6 +150,18 @@ class BundleExtractionTests(unittest.TestCase):
                 self.assertEqual(caught.exception.details['check'], check)
                 if mode == 'unexplained_null':
                     self.assertEqual(caught.exception.details['field_paths'], ['vacancies'])
+                elif mode == 'array_parent':
+                    self.assertEqual(caught.exception.details['field_paths'], ['application_steps'])
+
+    def test_container_diagnostics_only_report_schema_owned_paths(self):
+        from compact_inline import CompactPathError
+        schema = BundleFacts.model_json_schema()
+        for path, expected in (('eligibility_rules', ['eligibility_rules']),
+                               ('documents_required', ['documents_required']),
+                               ('private-made-up-path', [])):
+            error = FactDecodingError(CompactPathError(
+                'Fact must address a scalar or a nullable object', path), schema)
+            self.assertEqual(error.details['field_paths'], expected)
 
     def test_cli_prints_safe_decoding_details_and_saves_no_candidate(self):
         import io

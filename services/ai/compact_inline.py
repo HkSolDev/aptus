@@ -11,6 +11,12 @@ class MissingFactsError(ValueError):
         self.fields = fields
 
 
+class CompactPathError(ValueError):
+    def __init__(self, message, field_path):
+        super().__init__(message)
+        self.field_path = field_path
+
+
 def compact_schema():
     fact = {'type': 'object', 'additionalProperties': False, 'properties': {
         'field': {'type': 'string'},
@@ -115,7 +121,10 @@ def decode_compact(response, source, schema):
             used.add(path)
             fact = copy.deepcopy(record)
             fact.pop('field')
-            assign(candidate, fields, path.split('.'), fact)
+            try:
+                assign(candidate, fields, path.split('.'), fact)
+            except ValueError as error:
+                raise CompactPathError(str(error), path) from None
         def missing(node, path=''):
             if node is None:
                 return [path]

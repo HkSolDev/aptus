@@ -9,7 +9,7 @@ import httpx
 from pydantic import ValidationError
 
 from build_extraction_input import BundleFacts, INSTRUCTIONS
-from compact_inline import MissingFactsError, compact_schema, decode_compact, field_catalogue
+from compact_inline import CompactPathError, MissingFactsError, compact_schema, decode_compact, field_catalogue
 from inline_extraction import InlineFactError
 from normalize_candidate_facts import normalize_candidate_facts
 from providers.openai import _openai_schema
@@ -44,6 +44,13 @@ class FactDecodingError(RuntimeError):
         paths = []
         if isinstance(cause, MissingFactsError):
             check, paths = 'unreported_scalar_fields', cause.fields
+        elif isinstance(cause, CompactPathError):
+            check = DECODE_CHECKS.get(str(cause), 'unclassified_decoding_error')
+            paths = [cause.field_path]
+            # Container paths are diagnostic locations, never accepted fact values.
+            patterns = [prefix for pattern in patterns
+                        for prefix in [pattern, *[pattern[:match.start()]
+                            for match in re.finditer(r'\\\.', pattern)]]]
         elif isinstance(cause, InlineFactError):
             check = (cause.check if cause.check in {'unresolved_value_not_null',
                      'unresolved_explanation_missing'} else 'unclassified_decoding_error')
