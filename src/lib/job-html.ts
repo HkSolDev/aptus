@@ -1,5 +1,7 @@
 // Source text is untrusted, even after database storage. Escape text and attributes.
-export function escapeHtml(value: unknown): string {
+export function escapeHtml(
+  value: string | number | boolean | null | undefined,
+): string {
   return String(value ?? 'Not specified').replace(
     /[&<>"']/g,
     (char) =>
@@ -24,7 +26,10 @@ export function displayDate(date: Date | null): string {
     : 'Not specified';
 }
 
-export function fact(label: string, value: unknown): string {
+export function fact(
+  label: string,
+  value: string | number | boolean | null | undefined,
+): string {
   return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`;
 }
 

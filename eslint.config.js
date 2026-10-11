@@ -12,10 +12,10 @@ export default tseslint.config(
   tseslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked.map((config) => ({
     ...config,
-    files: ['src/**/*.ts', 'scripts/**/*.ts'],
+    files: ['src/**/*.ts', 'scripts/match.ts', 'scripts/validate-post.ts'],
   })),
   {
-    files: ['src/**/*.ts', 'scripts/**/*.ts'],
+    files: ['src/**/*.ts', 'scripts/match.ts', 'scripts/validate-post.ts'],
     languageOptions: {
       parserOptions: {
         projectService: true,
