@@ -59,6 +59,33 @@ class BundleExtractionTests(unittest.TestCase):
     def prepared(self):
         return prepare_extraction(sample_bundle(), recovery_pass=1)
 
+    def test_invalid_provider_envelope_and_json_have_distinct_safe_errors(self):
+        for body, reason in (
+                ({'private_diagnostic': 'illustrative-sensitive-text'}, 'provider_response_invalid'),
+                ({'choices': [{'finish_reason': 'stop', 'message': {
+                    'content': 'illustrative-sensitive-text'}}]}, 'provider_json_invalid')):
+            with self.subTest(reason=reason):
+                client = Mock()
+                client.post.return_value = httpx.Response(200, json=body)
+                with patch.dict('os.environ', {'OPENAI_API_KEY': 'illustrative-test-key'}, clear=True):
+                    with self.assertRaisesRegex(RuntimeError, f'^{reason}$'):
+                        extract_bundle(self.prepared(), provider='openai', client=client)
+                self.assertEqual(client.post.call_count, 1)
+
+    def test_invalid_facts_fail_before_normalization(self):
+        with patch('extract_bundle.request_structured', return_value=({'posts': 'invalid'}, {})), \
+                patch('extract_bundle.normalize_candidate_facts') as normalize:
+            with self.assertRaisesRegex(RuntimeError, '^provider_fact_decoding_failed$'):
+                extract_bundle(self.prepared())
+        normalize.assert_not_called()
+
+    def test_normalization_failure_has_safe_stage_error(self):
+        with patch('extract_bundle.request_structured', return_value=({'posts': []}, {})), \
+                patch('extract_bundle.normalize_candidate_facts',
+                      side_effect=ValueError('illustrative-sensitive-text')):
+            with self.assertRaisesRegex(RuntimeError, '^candidate_normalization_failed$'):
+                extract_bundle(self.prepared())
+
     def test_openai_structured_transport_not_model_accuracy(self):
         response = httpx.Response(200, json={'choices': [{'finish_reason': 'stop',
             'message': {'content': json.dumps({'posts': []})}}],

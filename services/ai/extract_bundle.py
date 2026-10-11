@@ -94,11 +94,14 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
                 raise RuntimeError('provider_incomplete_or_refused')
             text = ''.join(part.get('text', '') for part in candidate['content']['parts'])
             usage = data.get('usageMetadata', {})
-        wire = json.loads(text)
     except httpx.HTTPError:
         raise RuntimeError('provider_network_failed') from None
     except (KeyError, IndexError, TypeError, ValueError):
-        raise RuntimeError('provider_invalid_structured_output') from None
+        raise RuntimeError('provider_response_invalid') from None
+    try:
+        wire = json.loads(text)
+    except (TypeError, ValueError):
+        raise RuntimeError('provider_json_invalid') from None
     return wire, {'provider': provider, 'model': model, 'credential_attempts': attempt, 'usage': usage}
 
 
@@ -113,9 +116,12 @@ def extract_bundle(prepared, *, provider=None, model=None, client=None):
                                         provider=provider, model=model, client=client)
     try:
         facts, inline_check = decode_compact(wire, source, contract)
+    except (KeyError, TypeError, ValueError):
+        raise RuntimeError('provider_fact_decoding_failed') from None
+    try:
         facts, corrections = normalize_candidate_facts(facts)
     except (KeyError, TypeError, ValueError):
-        raise RuntimeError('provider_invalid_structured_output') from None
+        raise RuntimeError('candidate_normalization_failed') from None
     result = {'bundle_id': source['bundle_id'], **metadata,
             'status': 'candidate_needs_review', 'facts': facts,
             'corrections': corrections,
