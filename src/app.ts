@@ -8,6 +8,7 @@ import { createAuth, type AppAuth } from './auth/auth.js';
 import { readAuthConfig } from './auth/config.js';
 import { registerAuthRoutes } from './auth/routes.js';
 import { requireSession } from './auth/require-session.js';
+import { requireIngestToken } from './auth/require-ingest-token.js';
 import {
   logSecurityEvent,
   registerRequestLogging,
@@ -15,7 +16,7 @@ import {
 } from './lib/logging.js';
 
 // Build without listening so tests and startup use the same configuration.
-export function buildApp(auth?: AppAuth) {
+export function buildApp(auth?: AppAuth, env: NodeJS.ProcessEnv = process.env) {
   const app = Fastify({
     ...safeLoggingOptions,
     exposeHeadRoutes: false,
@@ -50,7 +51,7 @@ export function buildApp(auth?: AppAuth) {
 
   registerHealthRoute(app);
   registerPublicRoutes(app);
-  const config = auth ? null : readAuthConfig();
+  const config = auth ? null : readAuthConfig(env);
   const appAuth = auth ?? (config ? createAuth(config) : null);
   if (appAuth) registerAuthRoutes(app, appAuth);
   const options = { schema: { body: { type: 'object' } } };
@@ -86,6 +87,13 @@ export function buildApp(auth?: AppAuth) {
     protectedOptions,
     handleExplain,
   );
-  app.post('/api/internal/ingest', options, handleIngest);
+  app.post<{ Body: Parameters<typeof handleIngest>[0]['body'] }>(
+    '/api/internal/ingest',
+    {
+      ...options,
+      onRequest: requireIngestToken(env),
+    },
+    handleIngest,
+  );
   return app;
 }

@@ -50,7 +50,8 @@ export function listPublicJobs(page: number, pageSize: number) {
         },
       };
     },
-    { isolationLevel: 'RepeatableRead', maxWait: 2000, timeout: 5000 },
+    // Neon may need several seconds to establish a verified connection.
+    { isolationLevel: 'RepeatableRead', maxWait: 10_000, timeout: 5000 },
   );
 }
 

@@ -1,0 +1,12 @@
+.git
+.env*
+!.env.example
+node_modules
+generated
+public/js
+outputs
+services
+downloads
+.venv
+__pycache__
+*.zip

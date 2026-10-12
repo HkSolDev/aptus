@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import Fastify from 'fastify';
 import { createAuth } from '../src/auth/auth.js';
 import { requireSession } from '../src/auth/require-session.js';
+import { requireIngestToken } from '../src/auth/require-ingest-token.js';
 import { registerAuthRoutes } from '../src/auth/routes.js';
 import {
   registerRequestLogging,
@@ -11,6 +12,32 @@ import {
 
 const origin = 'https://aptus.example';
 const privateValue = 'fictional-private-marker';
+
+await test('ingestion access decisions never log supplied or configured credentials', async (t) => {
+  const { app, output, entries } = fixture();
+  t.after(() => app.close());
+  const token = 'fictional-ingest-credential-for-tests-only';
+  app.post(
+    '/ingest-fixture',
+    { onRequest: requireIngestToken({ INGEST_TOKEN: token }) },
+    () => ({ accepted: true }),
+  );
+  const denied = await app.inject({
+    method: 'POST',
+    url: '/ingest-fixture',
+    headers: { authorization: `Bearer ${privateValue}` },
+  });
+  assert.equal(denied.statusCode, 401);
+  const accepted = await app.inject({
+    method: 'POST',
+    url: '/ingest-fixture',
+    headers: { authorization: `Bearer ${token}` },
+  });
+  assert.equal(accepted.statusCode, 200);
+  assert.ok(entries().some((entry) => entry.event === 'auth_rejected'));
+  assert.ok(!output().includes(token));
+  assert.ok(!output().includes(privateValue));
+});
 
 function fixture() {
   let output = '';
