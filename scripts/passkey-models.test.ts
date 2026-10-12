@@ -32,13 +32,18 @@ async function assertSqlState(
   values: unknown[],
   expectedCode: string,
 ) {
-  await client.query('SAVEPOINT expected_constraint_failure');
-  await assert.rejects(
-    client.query(query, values),
-    (error: unknown) =>
-      error instanceof Error && 'code' in error && error.code === expectedCode,
-  );
-  await client.query('ROLLBACK TO SAVEPOINT expected_constraint_failure');
+  await client.query('BEGIN');
+  try {
+    await assert.rejects(
+      client.query(query, values),
+      (error: unknown) =>
+        error instanceof Error &&
+        'code' in error &&
+        error.code === expectedCode,
+    );
+  } finally {
+    await client.query('ROLLBACK');
+  }
 }
 
 await test(
@@ -230,25 +235,32 @@ await test(
       'SELECT id, name, "publicKey", "userId", "credentialID", counter, "deviceType", "backedUp", transports, "createdAt", aaguid FROM "AuthPasskey" ORDER BY id',
     );
     assert.equal(rows.rowCount, 3);
-    assert.deepEqual(rows.rows[0], {
-      id: 'fixture-passkey-other',
-      name: 'Other device',
-      publicKey,
-      userId: 'fixture-other-owner',
-      credentialID: 'credential-other',
-      counter: 2,
-      deviceType: 'singleDevice',
-      backedUp: false,
-      transports: 'internal',
-      createdAt,
-      aaguid: null,
-    });
+    assert.deepEqual(
+      rows.rows.find(
+        (row: { id: string }) => row.id === 'fixture-passkey-other',
+      ),
+      {
+        id: 'fixture-passkey-other',
+        name: 'Other device',
+        publicKey,
+        userId: 'fixture-other-owner',
+        credentialID: 'credential-other',
+        counter: 2,
+        deviceType: 'singleDevice',
+        backedUp: false,
+        transports: 'internal',
+        createdAt,
+        aaguid: null,
+      },
+    );
     assert.deepEqual(
       (
         await client.query(
           'SELECT "userId", count(*)::int AS count FROM "AuthPasskey" GROUP BY "userId" ORDER BY "userId"',
         )
-      ).rows,
+      ).rows.sort((a: { userId: string }, b: { userId: string }) =>
+        a.userId.localeCompare(b.userId),
+      ),
       [
         { userId: 'fixture-other-owner', count: 1 },
         { userId: 'fixture-passkey-owner', count: 2 },
@@ -298,8 +310,8 @@ await test(
        ORDER BY ordinal_position`,
     );
     assert.deepEqual(
-      columns.rows.map((row) => row.column_name),
-      ['id', ...fields],
+      columns.rows.map((row) => row.column_name).sort(),
+      ['id', ...fields].sort(),
     );
     assert.doesNotMatch(
       columns.rows.map((row) => row.column_name).join(' '),

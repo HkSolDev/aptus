@@ -1,8 +1,13 @@
 // Source text is untrusted, even after database storage. Escape text and attributes.
-export function escapeHtml(
-  value: string | number | boolean | null | undefined,
-): string {
-  return String(value ?? 'Not specified').replace(
+export function escapeHtml(value: unknown): string {
+  const text =
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+      ? String(value)
+      : 'Not specified';
+  return text.replace(
     /[&<>"']/g,
     (char) =>
       ({
@@ -26,10 +31,7 @@ export function displayDate(date: Date | null): string {
     : 'Not specified';
 }
 
-export function fact(
-  label: string,
-  value: string | number | boolean | null | undefined,
-): string {
+export function fact(label: string, value: unknown): string {
   return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`;
 }
 

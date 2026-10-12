@@ -7,6 +7,8 @@ export default tseslint.config(
       'public/js/**',
       'node_modules/**',
       'downloads/**',
+      '.next/**',
+      'outputs/**',
     ],
   },
   tseslint.configs.recommended,

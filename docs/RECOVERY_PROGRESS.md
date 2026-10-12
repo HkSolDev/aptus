@@ -53,7 +53,10 @@ recovery generation/version policy rather than resetting a shared task silently.
 Request file (illustrative URL):
 
 ```json
-{"bundle_id":"example-recruitment","missing_urls":["https://example.org/annexure.pdf"]}
+{
+  "bundle_id": "example-recruitment",
+  "missing_urls": ["https://example.org/annexure.pdf"]
+}
 ```
 
 ```sh
@@ -400,6 +403,7 @@ incomplete results as review drafts, not approved public jobs. No extraction
 or matching call is exposed to website visitors.
 
 Files and responsibilities:
+
 - `prisma/schema.prisma` and additive migration
   `20261008190000_add_extraction_candidates`: immutable candidate versions with
   full facts/review/evidence JSON and unique content hash. The SQL check keeps
@@ -418,10 +422,12 @@ Files and responsibilities:
   input. Changed facts/review/provenance retain separate versions.
 
 Operator flow, from repository root:
+
 ```sh
 PYTHONPATH=services/ai services/ai/.venv/bin/python services/ai/store_candidate.py outputs/extract/your-result.json outputs/extract/your-prepared.json outputs/extract/your-storage.json --source-name 'Recruitment source' &&
 node --env-file=.env --import tsx scripts/store-extraction-candidate.ts outputs/extract/your-storage.json
 ```
+
 The command may load configured credentials locally; never inspect or print
 the environment file. A blocked result cannot prepare the storage envelope.
 The earlier `persistence_allowed: false` means no automatic public-job write;

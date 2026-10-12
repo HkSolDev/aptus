@@ -2,9 +2,37 @@ name: CI Checks
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: aptus_ci
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: aptus_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aptus_ci -d aptus_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://aptus_ci:ci-only-password@127.0.0.1:5432/aptus_ci
+      TEST_DATABASE_URL: postgresql://aptus_ci:ci-only-password@127.0.0.1:5432/aptus_ci
+      AUTH_ENABLED: 'false'
+      DOTENV_CONFIG_PATH: /dev/null
+      PYTHONPATH: services/ai
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -12,11 +40,35 @@ jobs:
         with:
           node-version: 24
           cache: 'pnpm'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: services/ai/requirements.txt
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint # 1. Lint check (ESLint)
-      - run: pnpm exec prettier --check . # 2. Formatting check (Prettier)
-      - run: pnpm tsc --noEmit # 3. Type check
-      - run: pnpm test # 4. Unit tests
-        env:
-          OPENAI_API_KEY: ci-placeholder
+      - name: Install offline Python test dependencies
+        run: |
+          python -m venv services/ai/.venv
+          services/ai/.venv/bin/pip install -r services/ai/requirements.txt
+      - name: Prepare disposable test database
+        run: pnpm exec prisma migrate deploy --config prisma7.config.ts
+      - name: Install test browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Lint
+        run: pnpm lint
+      - name: Formatting
+        if: ${{ !cancelled() }}
+        run: pnpm exec prettier --check .
+      - name: Type checking
+        if: ${{ !cancelled() }}
+        run: pnpm typecheck
+      - name: Node and database tests
+        if: ${{ !cancelled() }}
+        run: node --import tsx --test --test-concurrency=1 scripts/**/*.test.ts
+      - name: Offline Python tests
+        if: ${{ !cancelled() }}
+        run: services/ai/.venv/bin/python -m unittest discover -s services/ai/tests -q
+      - name: Build and browser tests
+        if: ${{ !cancelled() }}
+        run: pnpm test:web

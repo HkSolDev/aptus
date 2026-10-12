@@ -23,19 +23,19 @@ not complete extraction, semantic accuracy, or deterministic eligibility.
 
 ## Source review
 
-| Detail | Saved-source finding | Rerun assessment |
-| --- | --- | --- |
-| Employer / advertisement | IIT Kanpur / P.Rect./R&D/2026/204 | Correct |
-| Job / vacancies | Project Assistant / two positions | Correct |
-| Education | Science bachelor's degree, BSc/BS | Correct |
-| Deadline | 25 October 2026 | Correct |
-| Salary | 20,000 plus 20% HRA | Amount/HRA supported; `MONTH` is not explicit |
-| Website / apply URL | No literal URL in evidence text; applications by email | Explained nulls are correct; source URL remains provenance |
-| How to apply | Email the named institute address before the deadline | `application_steps` empty |
-| Application material | Resume, relevant experience and a 600-word contribution statement on one page | `documents_required` empty |
-| Appointment | Initially one year; extension depends on performance | Missing from user-facing details |
+| Detail                    | Saved-source finding                                                                  | Rerun assessment                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Employer / advertisement  | IIT Kanpur / P.Rect./R&D/2026/204                                                     | Correct                                                                            |
+| Job / vacancies           | Project Assistant / two positions                                                     | Correct                                                                            |
+| Education                 | Science bachelor's degree, BSc/BS                                                     | Correct                                                                            |
+| Deadline                  | 25 October 2026                                                                       | Correct                                                                            |
+| Salary                    | 20,000 plus 20% HRA                                                                   | Amount/HRA supported; `MONTH` is not explicit                                      |
+| Website / apply URL       | No literal URL in evidence text; applications by email                                | Explained nulls are correct; source URL remains provenance                         |
+| How to apply              | Email the named institute address before the deadline                                 | `application_steps` empty                                                          |
+| Application material      | Resume, relevant experience and a 600-word contribution statement on one page         | `documents_required` empty                                                         |
+| Appointment               | Initially one year; extension depends on performance                                  | Missing from user-facing details                                                   |
 | Work and desirable skills | Field surveys, equipment/computer familiarity, fitness and travel in mountain terrain | `other_requirements` empty; desirable skills must not become mandatory eligibility |
-| Age / category relaxation | Not specified in supplied notice | Keep unknown; never infer defaults |
+| Age / category relaxation | Not specified in supplied notice                                                      | Keep unknown; never infer defaults                                                 |
 
 The current record supports basic discovery. It is incomplete for applying and
 does not establish that a particular applicant is eligible. Missing details
