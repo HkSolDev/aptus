@@ -27,7 +27,7 @@ const rules = {
   relaxation_combination_rule: null,
 };
 
-test('accepts conditional rules with nullable fields and empty rule lists', () => {
+await test('accepts conditional rules with nullable fields and empty rule lists', () => {
   assert.equal(isEligibilityRules(rules), true);
   assert.equal(
     isEligibilityRules({ ...rules, age_rules: [], education_options: [] }),
@@ -35,7 +35,7 @@ test('accepts conditional rules with nullable fields and empty rule lists', () =
   );
 });
 
-test('rejects malformed nested fields and invented keys', () => {
+await test('rejects malformed nested fields and invented keys', () => {
   for (const invalid of [
     null,
     'invalid shape',

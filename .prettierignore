@@ -3,6 +3,10 @@ pnpm-lock.yaml
 generated
 downloads
 dist
+.next
+outputs
+.venv
+next-env.d.ts
 claude.md
 public/index.html
 *.prisma

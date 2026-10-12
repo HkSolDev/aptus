@@ -62,7 +62,15 @@ input::placeholder {
   padding: var(--space-3) var(--space-4);
   font-weight: 600;
   font-size: 0.875rem;
+  line-height: 1.25;
   text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 .button-primary {
   width: 100%;
@@ -72,6 +80,7 @@ input::placeholder {
 }
 .button-primary:hover:not(:disabled) {
   background: var(--accent-hover);
+  box-shadow: var(--shadow-sm);
 }
 .button-secondary {
   background: var(--surface);
@@ -80,6 +89,7 @@ input::placeholder {
 }
 .button-secondary:hover:not(:disabled) {
   background: var(--soft);
+  border-color: var(--ink);
 }
 .text-button {
   background: transparent;
@@ -116,6 +126,7 @@ input[type='checkbox'] {
 .notice {
   padding: var(--space-3) var(--space-4);
   background: var(--soft);
+  border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
   border-radius: var(--small-radius);
   font-size: 0.875rem;
@@ -128,10 +139,12 @@ input[type='checkbox'] {
 }
 .count-label {
   border: 1px solid var(--line);
+  background: var(--surface);
   padding: var(--space-2) var(--space-3);
   border-radius: 2rem;
   color: var(--muted);
   font-size: 0.75rem;
+  font-weight: 500;
 }
 .source-summary {
   color: var(--muted);
@@ -153,14 +166,17 @@ input[type='checkbox'] {
   display: inline-block;
   color: var(--accent);
   background: var(--soft);
+  border: 1px solid var(--line);
   padding: var(--space-1) var(--space-3);
   border-radius: 2rem;
   font-size: 0.75rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
 }
 .badge-warning {
   color: var(--warning);
   background: var(--warning-bg);
+  border-color: var(--warning-line, var(--line));
 }
 .job-list {
   display: grid;
@@ -172,6 +188,7 @@ input[type='checkbox'] {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: var(--space-5);
+  box-shadow: var(--shadow-xs);
   overflow-wrap: anywhere;
 }
 .job-topline {
