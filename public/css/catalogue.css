@@ -167,6 +167,12 @@
 .job-detail .notice {
   margin-block: var(--space-5);
 }
+.job-source-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
 .job-detail-grid {
   display: grid;
   gap: var(--space-5);

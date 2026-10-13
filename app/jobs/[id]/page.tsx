@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { getSourceLinks } from './source-links';
 
 interface JobDetailData {
   id: string;
@@ -88,6 +89,8 @@ export default async function JobDetailPage(props: {
     );
   }
 
+  const sourceLinks = getSourceLinks(job.source);
+
   return (
     <article className="job-detail">
       <nav aria-label="Breadcrumb">
@@ -100,6 +103,24 @@ export default async function JobDetailPage(props: {
         {job.source.name}
         {job.source.fetchedAt && ` · Collected ${job.source.fetchedAt}`}
       </p>
+      {sourceLinks.length > 0 && (
+        <nav
+          className="job-source-links"
+          aria-label="Source and application links"
+        >
+          {sourceLinks.map((link) => (
+            <a
+              className="button button-secondary"
+              href={link.url}
+              key={link.url}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {link.label} ↗
+            </a>
+          ))}
+        </nav>
+      )}
       <p className="notice">
         Stored notification details, not an eligibility guarantee. Missing
         fields need manual verification. Check the official source for updates.
