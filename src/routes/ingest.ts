@@ -1,4 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
+import { isDeepStrictEqual } from 'node:util';
 import { prisma } from '../db.js';
 import { sendJson } from '../lib/http.js';
 import {
@@ -166,18 +167,36 @@ export async function handleIngest(
       });
     }
 
-    // Re-extraction of a changed page can add, drop, or reorder posts —
-    // matching old rows to new ones isn't attempted here (that's the
-    // separate dedup task). Replacing the set atomically keeps this
-    // idempotent: a retry or duplicate send never leaves duplicate Posts.
-    await prisma.$transaction([
-      prisma.post.deleteMany({ where: { sourceId: source.id } }),
-      prisma.post.createMany({ data: toCreate }),
-    ]);
+    const created = await prisma.$transaction(
+      async (db) => {
+        // Serialize retries for this exact notice URL, without merging titles.
+        await db.$queryRaw`SELECT id FROM "Source" WHERE id = ${source.id} FOR UPDATE`;
+        const saved = await db.post.findMany({
+          where: { sourceId: source.id },
+        });
+        let count = 0;
+        for (const post of toCreate) {
+          const duplicate = saved.some((row) =>
+            Object.entries(post).every(([key, value]) =>
+              isDeepStrictEqual(
+                Reflect.get(row, key),
+                value === Prisma.DbNull ? null : value,
+              ),
+            ),
+          );
+          if (duplicate) continue;
+          saved.push(await db.post.create({ data: post }));
+          count++;
+        }
+        // Missing from an extraction is not evidence that an older job was removed.
+        return count;
+      },
+      { maxWait: 10_000, timeout: 10_000 },
+    );
 
     sendJson(res, 200, {
       sourceId: source.id,
-      created: toCreate.length,
+      created,
       skipped,
     });
   } catch {
