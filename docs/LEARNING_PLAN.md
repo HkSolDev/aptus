@@ -29,18 +29,18 @@ authentication work; I review and learn from the code. Follow
 [CODING_STANDARD.md](CODING_STANDARD.md) and [AUTH_IMPLEMENTATION.md](AUTH_IMPLEMENTATION.md)
 for that work. The practice split below remains guidance for other learning tasks.
 
-| Area | I should own and practise | Assistant can handle |
-|---|---|---|
-| Architecture | Explain stages, boundaries, alternatives, and failure policy | Present tradeoffs, draw the flow, review my decision |
-| Schema | Decide what each field means; model alternatives and uncertainty | Pydantic/TypeScript syntax and repetitive field scaffolding |
-| Parsing | Write section boundaries and understand row alignment | Small examples, fixtures, unfamiliar syntax explanations |
-| LLM integration | Understand prompts, request/response schema, timeouts, cost | Provider HTTP plumbing and repetitive adapter setup |
-| Validation | Write the comparisons and decide null/reject/manual-check behaviour | Suggest counterexamples, review logic, build test scaffolding |
-| Persistence | Trace every field from JSON to saved row; define update behaviour | Migration boilerplate and mapping scaffolding after my decision |
-| Reliability | Decide retry versus skip, success criteria, and safe resends | Logging/config plumbing and failure simulation |
-| Matching | Write and test eligibility comparisons and uncertainty handling | Test cases and review; never replace exact rules with LLM guesses |
-| Documentation | Explain what I built and its limitations in my own words | Organize notes, improve clarity, maintain file maps |
-| Tooling/UI | Verify results and learn tools only as needed | Repetitive setup, formatting, basic layout work |
+| Area            | I should own and practise                                           | Assistant can handle                                              |
+| --------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Architecture    | Explain stages, boundaries, alternatives, and failure policy        | Present tradeoffs, draw the flow, review my decision              |
+| Schema          | Decide what each field means; model alternatives and uncertainty    | Pydantic/TypeScript syntax and repetitive field scaffolding       |
+| Parsing         | Write section boundaries and understand row alignment               | Small examples, fixtures, unfamiliar syntax explanations          |
+| LLM integration | Understand prompts, request/response schema, timeouts, cost         | Provider HTTP plumbing and repetitive adapter setup               |
+| Validation      | Write the comparisons and decide null/reject/manual-check behaviour | Suggest counterexamples, review logic, build test scaffolding     |
+| Persistence     | Trace every field from JSON to saved row; define update behaviour   | Migration boilerplate and mapping scaffolding after my decision   |
+| Reliability     | Decide retry versus skip, success criteria, and safe resends        | Logging/config plumbing and failure simulation                    |
+| Matching        | Write and test eligibility comparisons and uncertainty handling     | Test cases and review; never replace exact rules with LLM guesses |
+| Documentation   | Explain what I built and its limitations in my own words            | Organize notes, improve clarity, maintain file maps               |
+| Tooling/UI      | Verify results and learn tools only as needed                       | Repetitive setup, formatting, basic layout work                   |
 
 Delegation does not mean ignoring the code. I should read the generated change,
 run it, and explain what enters, what leaves, and what happens on failure.
@@ -185,12 +185,12 @@ Remaining lessons, one topic and one failure scenario at a time:
 - [ ] Cookie settings: Secure, HttpOnly, SameSite, domain/path and expiry.
 - [ ] CSRF protection for authenticated state-changing requests.
 - [ ] OAuth configuration: callback allowlists, client ID versus secret,
-  secret storage, and safe post-login redirects.
+      secret storage, and safe post-login redirects.
 - [ ] Account linking and recovery, including changed email/lost access.
 - [ ] Rate limiting and privacy-safe authentication audit events.
 - [ ] Passkey registration, sign-in, device loss and recovery.
 - [ ] Verify the chosen session/cache design: expiry, logout, cache failure,
-  stale cache entries, and one-device versus all-device revocation.
+      stale cache entries, and one-device versus all-device revocation.
 
 Resume at safe redirects and client-secret handling. Learn first; implement
 only after the developer says they are ready.
@@ -434,25 +434,25 @@ pending items here. These are optional learning experiments, not changes to
 the active product checkpoint.
 
 - [ ] **Understand how frontend checks can be bypassed.** On local Aptus,
-  send an HTTP request directly without using the webpage's JavaScript.
-  Use illustrative data to demonstrate why frontend validation is only a
-  convenience and why the backend must independently validate inputs,
-  verify sessions, and enforce profile ownership. Check that protected
-  requests fail when authentication or ownership is missing.
+      send an HTTP request directly without using the webpage's JavaScript.
+      Use illustrative data to demonstrate why frontend validation is only a
+      convenience and why the backend must independently validate inputs,
+      verify sessions, and enforce profile ownership. Check that protected
+      requests fail when authentication or ownership is missing.
 
 - [ ] **Learn how to implement magic-link login.** Understand how the app
-  creates and emails a temporary login link, verifies its token, and creates
-  a session. Practise locally with illustrative accounts; test expired links,
-  reused links, and invalid tokens. Learn first, then implement when requested.
+      creates and emails a temporary login link, verifies its token, and creates
+      a session. Practise locally with illustrative accounts; test expired links,
+      reused links, and invalid tokens. Learn first, then implement when requested.
 
 - [ ] **Revisit Promises, session locks and cache race conditions.** Parked
-  on 5 October 2026 because the Promise code is not yet fully understood.
-  Later, walk through one small TypeScript example: Promise versus await,
-  per-session completion signals, concurrent cache fill versus logout, and
-  finally/lock cleanup. Then cover bounded waits, cancellation versus merely
-  timing out, and preventing late writes after a timeout. Discussion so far
-  does not mean mastery. Do not block the current login-learning path on this
-  optional cache design or implement it before it is understood and requested.
+      on 5 October 2026 because the Promise code is not yet fully understood.
+      Later, walk through one small TypeScript example: Promise versus await,
+      per-session completion signals, concurrent cache fill versus logout, and
+      finally/lock cleanup. Then cover bounded waits, cancellation versus merely
+      timing out, and preventing late writes after a timeout. Discussion so far
+      does not mean mastery. Do not block the current login-learning path on this
+      optional cache design or implement it before it is understood and requested.
 
 Added: 4 October 2026; updated: 5 October 2026. Practise later, when requested.
 

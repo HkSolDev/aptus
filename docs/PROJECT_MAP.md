@@ -337,51 +337,51 @@ Private profile guard / account-owned matching: NEXT, not connected yet
 
 Paths in this section are under `services/ai/`.
 
-| File | Responsibility / connection |
-| --- | --- |
-| `main.py` | Loads configuration; exposes Python health/pipeline trigger handlers. |
-| `pipeline.py` | Orchestrates discovery, fetching, change checks, extraction, validation and ingestion. |
+| File                       | Responsibility / connection                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `main.py`                  | Loads configuration; exposes Python health/pipeline trigger handlers.                                            |
+| `pipeline.py`              | Orchestrates discovery, fetching, change checks, extraction, validation and ingestion.                           |
 | `sources/sarkariresult.py` | Discovers notices and parses HTML into full text, bounded sections and links; saves PDF links, not PDF contents. |
-| `hash_cache.py` | Hashes content and loads/saves the local successful-run cache. |
-| `extract.py` | Builds extraction prompts from text/sections and returns structured posts. |
-| `llm.py` | Chooses the configured provider; keeps provider selection out of extraction logic. |
-| `providers/base.py` | Common provider protocol / expected return shape. |
-| `providers/openai.py` | OpenAI-compatible provider request and response handling. |
-| `providers/gemini.py` | Gemini provider request and response handling. |
-| `providers/__init__.py` | Marks the provider package. |
-| `schema.py` | Pydantic post/batch and eligibility-rule shapes. Correct shape does not prove factual correctness. |
-| `age_extractor.py` | Reads explicit source age facts without an LLM. |
-| `validate.py` | Compares extracted age rules with source facts. Not complete validation of every eligibility condition. |
-| `requirements.txt` | Python dependencies. |
-| `tests/test_sections.py` | HTML section/table extraction checks. |
+| `hash_cache.py`            | Hashes content and loads/saves the local successful-run cache.                                                   |
+| `extract.py`               | Builds extraction prompts from text/sections and returns structured posts.                                       |
+| `llm.py`                   | Chooses the configured provider; keeps provider selection out of extraction logic.                               |
+| `providers/base.py`        | Common provider protocol / expected return shape.                                                                |
+| `providers/openai.py`      | OpenAI-compatible provider request and response handling.                                                        |
+| `providers/gemini.py`      | Gemini provider request and response handling.                                                                   |
+| `providers/__init__.py`    | Marks the provider package.                                                                                      |
+| `schema.py`                | Pydantic post/batch and eligibility-rule shapes. Correct shape does not prove factual correctness.               |
+| `age_extractor.py`         | Reads explicit source age facts without an LLM.                                                                  |
+| `validate.py`              | Compares extracted age rules with source facts. Not complete validation of every eligibility condition.          |
+| `requirements.txt`         | Python dependencies.                                                                                             |
+| `tests/test_sections.py`   | HTML section/table extraction checks.                                                                            |
 
 Some Python files have developer-owned uncommitted edits. This map does not
 certify those edits or claim a new live pipeline run.
 
 ## TypeScript backend files
 
-| File | Responsibility / connection |
-| --- | --- |
-| `src/server.ts` | Starts/stops the listening server and validates its port. |
-| `src/app.ts` | Builds one Fastify app, registers routes, sets limits and safe errors. |
-| `src/db.ts` | Shared Prisma/PostgreSQL client. |
-| `src/routes/health.ts` | Public health route. |
-| `src/routes/public.ts` | Registers public catalogue, detail and asset routes. |
-| `src/routes/jobs.ts` | Validates bounded pagination for the read-only jobs API. |
-| `src/routes/ingest.ts` | Validates Python's finished JSON and persists notifications/posts. Not an LLM extraction step. |
-| `src/routes/match.ts` | Existing applicant/profile input handling and matching caller; account protection still needed. |
-| `src/routes/explain.ts` | Explains selected stored facts and deterministic checks; no per-request LLM required. |
-| `src/schemas/eligibility-rules.ts` | Runtime validation of detailed eligibility-rule shapes. |
-| `src/lib/public-jobs.ts` | Bounded public database queries and selected public fields. |
-| `src/lib/render-home.ts` | Composes the home HTML and its parts. |
-| `src/lib/render-catalogue.ts` | Renders stored job cards and pagination. |
-| `src/lib/render-job.ts` | Renders one job's detail page. |
-| `src/lib/render-job-rules.ts` | Renders detailed eligibility rules. |
-| `src/lib/job-html.ts` | Shared HTML escaping, dates, facts and document links. |
-| `src/lib/static.ts` | Serves only allowed public assets; not arbitrary project files such as .env. |
-| `src/lib/http.ts` | Shared JSON response helper. |
-| `scripts/match.ts` | Deterministic age/education/category comparison helpers used by match/explain. |
-| `scripts/validate-post.ts` | Basic numeric/source checks at the ingestion boundary. |
+| File                               | Responsibility / connection                                                                     |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `src/server.ts`                    | Starts/stops the listening server and validates its port.                                       |
+| `src/app.ts`                       | Builds one Fastify app, registers routes, sets limits and safe errors.                          |
+| `src/db.ts`                        | Shared Prisma/PostgreSQL client.                                                                |
+| `src/routes/health.ts`             | Public health route.                                                                            |
+| `src/routes/public.ts`             | Registers public catalogue, detail and asset routes.                                            |
+| `src/routes/jobs.ts`               | Validates bounded pagination for the read-only jobs API.                                        |
+| `src/routes/ingest.ts`             | Validates Python's finished JSON and persists notifications/posts. Not an LLM extraction step.  |
+| `src/routes/match.ts`              | Existing applicant/profile input handling and matching caller; account protection still needed. |
+| `src/routes/explain.ts`            | Explains selected stored facts and deterministic checks; no per-request LLM required.           |
+| `src/schemas/eligibility-rules.ts` | Runtime validation of detailed eligibility-rule shapes.                                         |
+| `src/lib/public-jobs.ts`           | Bounded public database queries and selected public fields.                                     |
+| `src/lib/render-home.ts`           | Composes the home HTML and its parts.                                                           |
+| `src/lib/render-catalogue.ts`      | Renders stored job cards and pagination.                                                        |
+| `src/lib/render-job.ts`            | Renders one job's detail page.                                                                  |
+| `src/lib/render-job-rules.ts`      | Renders detailed eligibility rules.                                                             |
+| `src/lib/job-html.ts`              | Shared HTML escaping, dates, facts and document links.                                          |
+| `src/lib/static.ts`                | Serves only allowed public assets; not arbitrary project files such as .env.                    |
+| `src/lib/http.ts`                  | Shared JSON response helper.                                                                    |
+| `scripts/match.ts`                 | Deterministic age/education/category comparison helpers used by match/explain.                  |
+| `scripts/validate-post.ts`         | Basic numeric/source checks at the ingestion boundary.                                          |
 
 Cleanup, 6 October: removed the unused TypeScript PDF/LLM extraction experiment
 and its chunk/dedup/schema helpers. Python → ingest remains the extraction path.
@@ -391,15 +391,15 @@ Retained `scripts/validate-post.ts`: ingestion still calls it.
 
 ## Google / session files — review in this order
 
-| File | Responsibility |
-| --- | --- |
-| `src/auth/config.ts` | Validates explicit auth opt-in, canonical origin and private backend configuration. |
-| `src/auth/auth.ts` | Better Auth OIDC, model mappings, provider-token non-storage, seven-day rolling session and honest logout. |
+| File                     | Responsibility                                                                                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/auth/config.ts`     | Validates explicit auth opt-in, canonical origin and private backend configuration.                                                                                                                        |
+| `src/auth/auth.ts`       | Better Auth OIDC, model mappings, provider-token non-storage, seven-day rolling session and honest logout.                                                                                                 |
 | `src/auth/rate-limit.ts` | Per-source/per-auth-endpoint counters and increasing cooldown; wired by auth.ts. In-memory for one process; independent behavior suite passes 6 checks; PostgreSQL case skipped without TEST_DATABASE_URL. |
-| `src/auth/http.ts` | Safe Fastify/Fetch conversion, separate cookies and limited session JSON. |
-| `src/auth/routes.ts` | Endpoint allowlist, bounded inputs, exact POST origin and fixed safe redirects. |
-| `src/auth/README.md` | Short module boundary and reading guide. |
-| `.env.example` | Empty configuration template; never put real credentials here. |
+| `src/auth/http.ts`       | Safe Fastify/Fetch conversion, separate cookies and limited session JSON.                                                                                                                                  |
+| `src/auth/routes.ts`     | Endpoint allowlist, bounded inputs, exact POST origin and fixed safe redirects.                                                                                                                            |
+| `src/auth/README.md`     | Short module boundary and reading guide.                                                                                                                                                                   |
+| `.env.example`           | Empty configuration template; never put real credentials here.                                                                                                                                             |
 
 Auth is disabled by default. PostgreSQL is authoritative; one opaque session
 cookie, not an app JWT access/refresh pair. Daily renewal extends expiry to seven
@@ -411,52 +411,51 @@ linking. Redis, local Map/locks, passkeys and login UI are not implemented.
 
 Configured with `tsconfig.next.json` and `next.config.ts`. Next.js serves the browser-facing origin (`http://localhost:8080`) and rewrites `/api/:path*` to Fastify backend on port 8081.
 
-| File | Responsibility |
-| --- | --- |
-| `app/layout.tsx` | Root layout with tokens, `WorkspaceProvider`, skip link, header, and footer. |
-| `app/page.tsx` | Server-rendered public jobs browsing with pagination. |
-| `app/jobs/[id]/page.tsx` | Dynamic server-rendered job details with graceful backend API fallback. |
-| `app/profile/page.tsx` | Private profile workspace wrapper with `robots: noindex, nofollow` and private cache headers. |
-| `app/results/page.tsx` | Private match results workspace wrapper with `robots: noindex, nofollow` and private cache headers. |
-| `app/how-it-works/page.tsx` | Informational guide on deterministic matching and source verification. |
-| `app/auth/error/page.tsx` | Safe OAuth error recovery page owned directly by Next.js. |
-| `components/providers/workspace-provider.tsx` | In-memory React Context managing profile and match state across navigation without browser storage. |
-| `components/auth/auth-bar.tsx` | Google sign-in trigger, session polling, renewal, sign-out, and passkeys trigger. |
-| `components/auth/passkeys.tsx` | WebAuthn registration, authentication, list, and removal. |
-| `components/jobs/catalogue-grid.tsx` | Public jobs grid fetching from Fastify `/api/jobs` at build/request time. |
-| `components/jobs/job-card.tsx` | Public job card with metadata facts. |
-| `components/profile/profile-form.tsx` | Profile entry form, duplicate education validation, and `POST /api/match` caller. |
-| `components/profile/education-row.tsx` | Individual qualification input row with duplicate warnings. |
-| `components/results/results-view.tsx` | Renders matched jobs, manual check items, and stale result indicators. |
-| `components/results/result-card.tsx` | Individual matched/manual job result card with source links. |
-| `components/results/explanation-box.tsx` | Interactive toggle fetching criteria explanations from `/api/explain`. |
-| `tests/next-frontend.test.ts` | End-to-end integration test validating SEO HTML, private cache headers, in-memory state preservation, and zero browser storage. |
+| File                                          | Responsibility                                                                                                                  |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `app/layout.tsx`                              | Root layout with tokens, `WorkspaceProvider`, skip link, header, and footer.                                                    |
+| `app/page.tsx`                                | Server-rendered public jobs browsing with pagination.                                                                           |
+| `app/jobs/[id]/page.tsx`                      | Dynamic server-rendered job details with graceful backend API fallback.                                                         |
+| `app/profile/page.tsx`                        | Private profile workspace wrapper with `robots: noindex, nofollow` and private cache headers.                                   |
+| `app/results/page.tsx`                        | Private match results workspace wrapper with `robots: noindex, nofollow` and private cache headers.                             |
+| `app/how-it-works/page.tsx`                   | Informational guide on deterministic matching and source verification.                                                          |
+| `app/auth/error/page.tsx`                     | Safe OAuth error recovery page owned directly by Next.js.                                                                       |
+| `components/providers/workspace-provider.tsx` | In-memory React Context managing profile and match state across navigation without browser storage.                             |
+| `components/auth/auth-bar.tsx`                | Google sign-in trigger, session polling, renewal, sign-out, and passkeys trigger.                                               |
+| `components/auth/passkeys.tsx`                | WebAuthn registration, authentication, list, and removal.                                                                       |
+| `components/jobs/catalogue-grid.tsx`          | Public jobs grid fetching from Fastify `/api/jobs` at build/request time.                                                       |
+| `components/jobs/job-card.tsx`                | Public job card with metadata facts.                                                                                            |
+| `components/profile/profile-form.tsx`         | Profile entry form, duplicate education validation, and `POST /api/match` caller.                                               |
+| `components/profile/education-row.tsx`        | Individual qualification input row with duplicate warnings.                                                                     |
+| `components/results/results-view.tsx`         | Renders matched jobs, manual check items, and stale result indicators.                                                          |
+| `components/results/result-card.tsx`          | Individual matched/manual job result card with source links.                                                                    |
+| `components/results/explanation-box.tsx`      | Interactive toggle fetching criteria explanations from `/api/explain`.                                                          |
+| `tests/next-frontend.test.ts`                 | End-to-end integration test validating SEO HTML, private cache headers, in-memory state preservation, and zero browser storage. |
 
 ## Legacy frontend files (HTML/CSS/TS)
 
-
-| File | Responsibility |
-| --- | --- |
-| `frontend/app.ts` | Coordinates profile form submission, auth setup and result UI. |
-| `frontend/auth.ts` | Google sign-in button flow, redirect navigation and error state. |
-| `frontend/api.ts` | Backend requests and response checks. |
-| `frontend/education.ts` | Education rows and form validation. |
-| `frontend/results.ts` | Loading, stale state and result groups. |
-| `frontend/job-card.ts` | Reusable match card and explanation interaction. |
-| `frontend/dom.ts` | DOM lookup / template helpers. |
-| `frontend/types.ts` | Browser-facing profile/result types. |
+| File                          | Responsibility                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `frontend/app.ts`             | Coordinates profile form submission, auth setup and result UI.                                                     |
+| `frontend/auth.ts`            | Google sign-in button flow, redirect navigation and error state.                                                   |
+| `frontend/api.ts`             | Backend requests and response checks.                                                                              |
+| `frontend/education.ts`       | Education rows and form validation.                                                                                |
+| `frontend/results.ts`         | Loading, stale state and result groups.                                                                            |
+| `frontend/job-card.ts`        | Reusable match card and explanation interaction.                                                                   |
+| `frontend/dom.ts`             | DOM lookup / template helpers.                                                                                     |
+| `frontend/types.ts`           | Browser-facing profile/result types.                                                                               |
 | `frontend/profile-storage.ts` | Existing opt-in browser profile storage; must be replaced in the private-profile slice. Never use for auth tokens. |
-| `public/index.html` | Home page shell. |
-| `public/job.html` | Job detail shell. |
-| `public/parts/profile.html` | Profile form markup. |
-| `public/parts/catalogue.html` | Public browsing markup. |
-| `public/parts/results.html` | Match result containers. |
-| `public/parts/templates.html` | Reusable browser templates. |
-| `public/css/tokens.css` | Design variables. |
-| `public/css/base.css` | Base element styles. |
-| `public/css/layout.css` | Page / responsive layout. |
-| `public/css/components.css` | Shared UI components. |
-| `public/css/catalogue.css` | Public catalogue styling. |
+| `public/index.html`           | Home page shell.                                                                                                   |
+| `public/job.html`             | Job detail shell.                                                                                                  |
+| `public/parts/profile.html`   | Profile form markup.                                                                                               |
+| `public/parts/catalogue.html` | Public browsing markup.                                                                                            |
+| `public/parts/results.html`   | Match result containers.                                                                                           |
+| `public/parts/templates.html` | Reusable browser templates.                                                                                        |
+| `public/css/tokens.css`       | Design variables.                                                                                                  |
+| `public/css/base.css`         | Base element styles.                                                                                               |
+| `public/css/layout.css`       | Page / responsive layout.                                                                                          |
+| `public/css/components.css`   | Shared UI components.                                                                                              |
+| `public/css/catalogue.css`    | Public catalogue styling.                                                                                          |
 
 `tsconfig.web.json` compiles frontend TypeScript to generated `public/js/` once
 at build time, not on every user request. Do not hand-edit generated JS.

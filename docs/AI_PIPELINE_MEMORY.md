@@ -26,7 +26,6 @@ illustrative profiles confirm the messages. No DB/LLM calls or richer profile
 schema. This is conservative uncertainty handling, not exact experience matching.
 Earlier gap verification below is historical. See PUBLISH_PROGRESS.md.
 
-
 Latest verification: five illustrative profiles checked offline through the match
 handler with mocked database boundaries. Unknown ages stay manual, but matching
 ignores alternative qualification/experience conditions and only mentions age.
@@ -34,7 +33,6 @@ TENTH alone is included for Technician without verifying ITI. Next small fix is
 scripts/match.ts uncertainty reasons + src/routes/match.ts presentation; do not
 claim matching complete or infer experience. Two existing rules tests pass;
 no production changes/profile writes in this verification. See PUBLISH_PROGRESS.md.
-
 
 Two source-reviewed candidates are now published LOCALLY in Post: count 14 → 16.
 Drafts remain unchanged needs_review rows; each public row links its candidate,
@@ -129,21 +127,21 @@ from public jobs or eligibility decisions. LLM extracts; deterministic code matc
 
 ## File relationships / ownership
 
-| File | Responsibility and next connection |
-| --- | --- |
-| [services/ai/normalize_html.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/normalize_html.py) | Saved captured HTML → blocks/links with source locations |
-| [services/ai/verify_bundle.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/verify_bundle.py) | Normalized evidence → grouped source bundle/identity warnings |
-| [services/ai/build_extraction_input.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/build_extraction_input.py) | Coverage-approved bundle → input; CandidatePost/BundleFacts and shared instructions |
-| [services/ai/compact_inline.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/compact_inline.py) | Shallow provider schema/catalogue; path facts → nested inline tree; reject invalid paths, missing scalars, overlapping containers |
-| [services/ai/inline_extraction.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/inline_extraction.py) | Inline tree → values, exact fact/scope citations and null explanations; generates absolute posts.N field paths |
-| [services/ai/extract_bundle.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/extract_bundle.py) | Provider request → compact decode → normalization → evidence/validation reports; safe stage errors and opt-in replay |
-| [services/ai/normalize_candidate_facts.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/normalize_candidate_facts.py) | Deterministic date/qualification/training corrections; no speculative new change |
-| [services/ai/validate_candidate.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/validate_candidate.py) | Strict facts/dates/ranges/citation gate; errors block, warnings remain review items |
-| [services/ai/store_candidate.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/store_candidate.py) | Revalidate result/source and build offline draft envelope; never writes DB |
-| [services/ai/candidate-storage.schema.json](/Users/mrblackghost/Work/Projects/aptus/services/ai/candidate-storage.schema.json) | Generated Python storage contract consumed by TypeScript |
-| [scripts/store-extraction-candidate.ts](/Users/mrblackghost/Work/Projects/aptus/scripts/store-extraction-candidate.ts) | Validate envelope; hash and upsert immutable ExtractionCandidate draft via Prisma |
-| [prisma/schema.prisma](/Users/mrblackghost/Work/Projects/aptus/prisma/schema.prisma) | ExtractionCandidate stores facts, review and evidence; not public job publication |
-| [scripts/run-bundle-extraction.cjs](/Users/mrblackghost/Work/Projects/aptus/scripts/run-bundle-extraction.cjs) | Authorized live extraction launcher; configuration handled internally, never inspect real credential files |
+| File                                                                                                                           | Responsibility and next connection                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| [services/ai/normalize_html.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/normalize_html.py)                         | Saved captured HTML → blocks/links with source locations                                                                          |
+| [services/ai/verify_bundle.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/verify_bundle.py)                           | Normalized evidence → grouped source bundle/identity warnings                                                                     |
+| [services/ai/build_extraction_input.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/build_extraction_input.py)         | Coverage-approved bundle → input; CandidatePost/BundleFacts and shared instructions                                               |
+| [services/ai/compact_inline.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/compact_inline.py)                         | Shallow provider schema/catalogue; path facts → nested inline tree; reject invalid paths, missing scalars, overlapping containers |
+| [services/ai/inline_extraction.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/inline_extraction.py)                   | Inline tree → values, exact fact/scope citations and null explanations; generates absolute posts.N field paths                    |
+| [services/ai/extract_bundle.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/extract_bundle.py)                         | Provider request → compact decode → normalization → evidence/validation reports; safe stage errors and opt-in replay              |
+| [services/ai/normalize_candidate_facts.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/normalize_candidate_facts.py)   | Deterministic date/qualification/training corrections; no speculative new change                                                  |
+| [services/ai/validate_candidate.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/validate_candidate.py)                 | Strict facts/dates/ranges/citation gate; errors block, warnings remain review items                                               |
+| [services/ai/store_candidate.py](/Users/mrblackghost/Work/Projects/aptus/services/ai/store_candidate.py)                       | Revalidate result/source and build offline draft envelope; never writes DB                                                        |
+| [services/ai/candidate-storage.schema.json](/Users/mrblackghost/Work/Projects/aptus/services/ai/candidate-storage.schema.json) | Generated Python storage contract consumed by TypeScript                                                                          |
+| [scripts/store-extraction-candidate.ts](/Users/mrblackghost/Work/Projects/aptus/scripts/store-extraction-candidate.ts)         | Validate envelope; hash and upsert immutable ExtractionCandidate draft via Prisma                                                 |
+| [prisma/schema.prisma](/Users/mrblackghost/Work/Projects/aptus/prisma/schema.prisma)                                           | ExtractionCandidate stores facts, review and evidence; not public job publication                                                 |
+| [scripts/run-bundle-extraction.cjs](/Users/mrblackghost/Work/Projects/aptus/scripts/run-bundle-extraction.cjs)                 | Authorized live extraction launcher; configuration handled internally, never inspect real credential files                        |
 
 ## Historical IBPS trap
 
