@@ -12,11 +12,18 @@ jobs:
         with:
           node-version: 24
           cache: 'pnpm'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - run: pnpm install --frozen-lockfile
+      - name: Install offline fixture dependencies
+        run: |
+          python -m venv services/ai/.venv
+          services/ai/.venv/bin/pip install -r services/ai/requirements.txt
       - run: pnpm lint # 1. Lint check (ESLint)
       - run: pnpm exec prettier --check . # 2. Formatting check (Prettier)
       - run: pnpm tsc --noEmit # 3. Type check
-      - run: pnpm test # 4. Unit tests
+      - run: node --import tsx --test --test-concurrency=1 scripts/**/*.test.ts
         env:
           OPENAI_API_KEY: ci-placeholder

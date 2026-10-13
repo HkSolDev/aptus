@@ -12,8 +12,8 @@ function post(overrides: Partial<Parameters<typeof validatePost>[0]> = {}) {
   };
 }
 
-describe('validatePost', () => {
-  test('keeps values that are in range and present in the source text', () => {
+await describe('validatePost', async () => {
+  await test('keeps values that are in range and present in the source text', () => {
     const result = validatePost(
       post(),
       'Age limit 18 to 27 years, min 60% marks. SC relaxation 5 years.',
@@ -24,7 +24,7 @@ describe('validatePost', () => {
     assert.strictEqual(result.categoryRelaxationRules.SC, 5);
   });
 
-  test('nulls a value never mentioned in the source text', () => {
+  await test('nulls a value never mentioned in the source text', () => {
     const result = validatePost(
       post({ minMarksPercent: 60 }),
       'No marks requirement mentioned anywhere.',
@@ -32,7 +32,7 @@ describe('validatePost', () => {
     assert.strictEqual(result.minMarksPercent, null);
   });
 
-  test('nulls an out-of-range percentage even if the digits appear in the text', () => {
+  await test('nulls an out-of-range percentage even if the digits appear in the text', () => {
     const result = validatePost(
       post({ minMarksPercent: 500 }),
       'Some unrelated number 500 appears here.',
@@ -40,7 +40,7 @@ describe('validatePost', () => {
     assert.strictEqual(result.minMarksPercent, null);
   });
 
-  test('nulls both ages when minAge is greater than maxAge', () => {
+  await test('nulls both ages when minAge is greater than maxAge', () => {
     const result = validatePost(
       post({ minAge: 30, maxAge: 25 }),
       'Age limit 30 to 25 years.',
@@ -49,7 +49,7 @@ describe('validatePost', () => {
     assert.strictEqual(result.maxAge, null);
   });
 
-  test('nulls an out-of-range relaxation value without touching others', () => {
+  await test('nulls an out-of-range relaxation value without touching others', () => {
     const result = validatePost(
       post({
         categoryRelaxationRules: {
@@ -66,7 +66,7 @@ describe('validatePost', () => {
     assert.strictEqual(result.categoryRelaxationRules.ST, null);
   });
 
-  test('leaves already-null fields untouched', () => {
+  await test('leaves already-null fields untouched', () => {
     const result = validatePost(
       post({ minAge: null, maxAge: null, minMarksPercent: null }),
       '',

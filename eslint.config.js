@@ -10,6 +10,10 @@ export default tseslint.config(
     ],
   },
   tseslint.configs.recommended,
+  {
+    files: ['**/*.cjs'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
   ...tseslint.configs.recommendedTypeChecked.map((config) => ({
     ...config,
     files: ['src/**/*.ts', 'scripts/**/*.ts'],

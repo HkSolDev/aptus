@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import Fastify from 'fastify';
 import {
   SCHEMA,
   RECONCILE_SCHEMA,
@@ -143,9 +144,26 @@ export async function extractNotification(rawText: string) {
       response_format: { type: 'json_schema', json_schema: SCHEMA },
     });
 
-    const chunkData: ExtractedNotification = JSON.parse(
-      response.choices[0].message.content!,
+    const raw: unknown = JSON.parse(response.choices[0].message.content!);
+    const checker = Fastify({ logger: false });
+    checker.post<{ Body: ExtractedNotification }>(
+      '/',
+      { schema: { body: SCHEMA.schema } },
+      (request, reply) => reply.send(request.body),
     );
+    let chunkData: ExtractedNotification;
+    try {
+      const checked = await checker.inject({
+        method: 'POST',
+        url: '/',
+        payload: JSON.stringify(raw),
+      });
+      if (checked.statusCode !== 200)
+        throw new Error('Invalid extraction structure');
+      chunkData = checked.json<ExtractedNotification>();
+    } finally {
+      await checker.close();
+    }
 
     // jobName/dates are usually only stated once — keep the first non-empty
     // values seen across chunks.
