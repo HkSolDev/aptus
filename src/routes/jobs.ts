@@ -1,6 +1,7 @@
 import type { FastifyReply } from 'fastify';
 import { listPublicJobs } from '../lib/public-jobs.js';
 import { sendJson } from '../lib/http.js';
+import { readJobFilters } from '../../frontend/public-job-filters.js';
 
 function readPageNumber(
   params: URLSearchParams,
@@ -21,6 +22,14 @@ export async function handleJobs(
 ): Promise<void> {
   const page = readPageNumber(params, 'page', 1, 10_000);
   const pageSize = readPageNumber(params, 'pageSize', 20, 100);
+  const filters = readJobFilters(params);
+  if (!filters) {
+    sendJson(res, 400, {
+      error:
+        'Use one search of at most 100 characters, a supported qualification and soonest or furthest sorting.',
+    });
+    return;
+  }
   if (page === null || pageSize === null) {
     sendJson(res, 400, {
       error:
@@ -29,7 +38,7 @@ export async function handleJobs(
     return;
   }
   try {
-    const result = await listPublicJobs(page, pageSize);
+    const result = await listPublicJobs(page, pageSize, filters);
     sendJson(res, 200, result);
   } catch {
     sendJson(res, 503, {

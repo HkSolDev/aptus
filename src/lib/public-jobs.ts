@@ -1,5 +1,6 @@
 import { prisma } from '../db.js';
 import type { Prisma } from '../../generated/prisma/index.js';
+import type { JobFilters } from '../../frontend/public-job-filters.js';
 
 // Shared by the JSON API and HTML catalogue; never select user/profile data.
 const publicFields = {
@@ -29,15 +30,56 @@ const publicFields = {
 
 export type PublicJob = Prisma.PostGetPayload<{ select: typeof publicFields }>;
 
-export function listPublicJobs(page: number, pageSize: number) {
+export function listPublicJobs(
+  page: number,
+  pageSize: number,
+  filters?: JobFilters,
+) {
+  const conditions: Prisma.PostWhereInput[] = [];
+  if (filters?.q) {
+    const keyword = filters.q.replace(/[\\%_]/g, '\\$&');
+    conditions.push({
+      OR: [
+        { postName: { contains: keyword, mode: 'insensitive' } },
+        { educationRequired: { contains: keyword, mode: 'insensitive' } },
+      ],
+    });
+  }
+  if (filters?.qualification) {
+    conditions.push({
+      OR: [
+        { minEducationLevel: filters.qualification },
+        {
+          eligibilityRules: {
+            path: ['education_options'],
+            array_contains: [{ minimum_level: filters.qualification }],
+          },
+        },
+      ],
+    });
+  }
+  const where: Prisma.PostWhereInput = { AND: conditions };
+  // The legacy HTML caller keeps its existing alphabetic order.
+  const orderBy: Prisma.PostOrderByWithRelationInput[] = filters
+    ? [
+        {
+          applicationLastDate: {
+            sort: filters.sort === 'soonest' ? 'asc' : 'desc',
+            nulls: 'last',
+          },
+        },
+        { id: 'asc' },
+      ]
+    : [{ postName: 'asc' }, { id: 'asc' }];
   // Count and rows share a snapshot while the extraction pipeline updates jobs.
   return prisma.$transaction(
     async (db) => {
-      const totalItems = await db.post.count();
+      const totalItems = await db.post.count({ where });
       const data = await db.post.findMany({
         skip: (page - 1) * pageSize,
         take: pageSize,
-        orderBy: [{ postName: 'asc' }, { id: 'asc' }],
+        where,
+        orderBy,
         select: publicFields,
       });
       return {
