@@ -11,6 +11,7 @@ import '@/public/css/navigation.css';
 import '@/public/css/components.css';
 import '@/public/css/catalogue.css';
 import '@/public/css/sign-in.css';
+import '@/public/css/home.css';
 
 export const metadata: Metadata = {
   title: {
