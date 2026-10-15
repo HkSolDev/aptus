@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { PasskeyIcon } from './auth-icons';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -124,6 +125,7 @@ interface PasskeyItem {
 
 interface PasskeysProps {
   signedIn: boolean;
+  showUnavailable?: boolean;
   onVerifyGoogle: () => void;
   onError: (msg: string) => void;
   onSuccess: () => void;
@@ -131,6 +133,7 @@ interface PasskeysProps {
 
 export function Passkeys({
   signedIn,
+  showUnavailable = false,
   onVerifyGoogle,
   onError,
   onSuccess,
@@ -212,7 +215,20 @@ export function Passkeys({
     }
   };
 
-  if (!enabled) return null;
+  if (!enabled) {
+    if (!showUnavailable || signedIn) return null;
+    return (
+      <div className="passkeys-section">
+        <button type="button" className="button button-secondary" disabled>
+          <PasskeyIcon />
+          Sign in with a passkey
+        </button>
+        <p className="small muted">
+          If passkey sign-in is unavailable, continue with Google.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <section aria-label="Passkeys" className="passkeys-section">
@@ -228,6 +244,7 @@ export function Passkeys({
             })
           }
         >
+          <PasskeyIcon />
           Sign in with a passkey
         </button>
       ) : (
