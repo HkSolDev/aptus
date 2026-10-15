@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useWorkspace } from '@/components/providers/workspace-provider';
 import { Passkeys } from './passkeys';
+import { GoogleIcon } from './auth-icons';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -55,7 +58,14 @@ function readSession(status: number, data: unknown): SessionView | null {
   };
 }
 
-export function AuthBar() {
+export function AuthBar({
+  presentation = 'header',
+}: {
+  presentation?: 'header' | 'signin';
+}) {
+  const hiddenHeader =
+    usePathname() === '/sign-in' && presentation === 'header';
+  const errorId = `${presentation}-auth-error`;
   const { clearWorkspace } = useWorkspace();
   const [userName, setUserName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,8 +92,9 @@ export function AuthBar() {
   }, [clearWorkspace]);
 
   useEffect(() => {
+    if (hiddenHeader) return;
     void checkSession();
-  }, [checkSession]);
+  }, [checkSession, hiddenHeader]);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -170,20 +181,29 @@ export function AuthBar() {
     }
   };
 
+  if (hiddenHeader) return null;
+  if (presentation === 'header' && userName === null) {
+    return (
+      <Link className="header-signin" href="/sign-in">
+        Sign in
+      </Link>
+    );
+  }
+
   return (
-    <div className="auth-bar">
-      {userName ? (
+    <div className={presentation === 'signin' ? 'signin-actions' : 'auth-bar'}>
+      {userName !== null ? (
         <div id="auth-user">
           <span id="auth-user-name" className="small">
             {userName ? `Signed in as ${userName}` : 'Signed in'}
           </span>{' '}
           <button
-            id="sign-out"
+            id={presentation === 'header' ? 'sign-out' : 'account-sign-out'}
             type="button"
             className="button button-secondary"
             disabled={loading}
             onClick={handleSignOut}
-            aria-describedby="auth-error"
+            aria-describedby={error ? errorId : undefined}
           >
             Sign out
           </button>
@@ -195,21 +215,30 @@ export function AuthBar() {
           className="button button-secondary"
           disabled={loading}
           onClick={handleGoogleSignIn}
-          aria-describedby="auth-error"
+          aria-describedby={error ? errorId : undefined}
+          aria-busy={loading}
         >
-          Sign in with Google
+          <GoogleIcon />
+          {loading ? 'Connecting…' : 'Continue with Google'}
         </button>
       )}
 
-      <Passkeys
-        signedIn={userName !== null}
-        onVerifyGoogle={handleGoogleSignIn}
-        onError={(msg) => setError(msg || null)}
-        onSuccess={() => void checkSession()}
-      />
+      {presentation === 'header' && userName !== null && (
+        <Link href="/sign-in">Manage sign-in</Link>
+      )}
+
+      {presentation === 'signin' && (
+        <Passkeys
+          signedIn={userName !== null}
+          showUnavailable
+          onVerifyGoogle={handleGoogleSignIn}
+          onError={(msg) => setError(msg || null)}
+          onSuccess={() => void checkSession()}
+        />
+      )}
 
       {error && (
-        <div id="auth-error" className="notice notice-error" role="alert">
+        <div id={errorId} className="notice notice-error" role="alert">
           {error}
         </div>
       )}

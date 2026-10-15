@@ -1,0 +1,64 @@
+.signin-panel {
+  width: min(100%, 440px);
+  margin: var(--space-7) auto;
+  padding: var(--space-6);
+}
+.signin-panel h1 {
+  margin: 0 0 var(--space-3);
+  font-size: 2rem;
+}
+.signin-actions {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 var(--space-3);
+}
+.signin-actions .button {
+  width: 100%;
+  min-height: 50px;
+  font-size: 1rem;
+}
+.signin-actions svg {
+  flex: none;
+}
+.signin-actions .passkeys-section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.signin-actions .passkeys-section > p {
+  margin-top: var(--space-2);
+}
+.signin-actions .notice {
+  margin: 0;
+}
+.signin-browse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target);
+  margin-block: var(--space-5);
+  color: var(--ink);
+  font-weight: 600;
+}
+.signin-note {
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--soft);
+}
+.signin-note p {
+  margin-top: var(--space-2);
+}
+@media (max-width: 759px) {
+  .signin-panel {
+    padding: var(--page-gutter);
+    border-radius: var(--job-radius);
+    margin-block: var(--space-5);
+  }
+  .signin-panel h1 {
+    font-size: 1.75rem;
+  }
+  .signin-actions .button {
+    padding-inline: var(--space-3);
+    font-size: 0.9375rem;
+  }
+}

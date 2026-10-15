@@ -3,9 +3,9 @@ import Link from 'next/link';
 export function Footer() {
   return (
     <footer className="page-width site-footer">
-      <span className="brand">aptus</span>
-      <p>A clearer way to approach your next opportunity.</p>
-      <Link href="/profile">Back to your profile ↑</Link>
+      <span className="brand">Aptus</span>
+      <p>Check the recruitment notice before applying.</p>
+      <Link href="/how-it-works">How Aptus works</Link>
     </footer>
   );
 }
