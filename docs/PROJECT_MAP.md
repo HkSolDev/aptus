@@ -1,5 +1,42 @@
 # Aptus — start here
 
+**Home presentation — 15 October:** Home layout now follows the approved
+reference across mobile/tablet/desktop, with independent wider Rows/Cards and
+local-only guest/setup/ready examples. Nine reference comparisons and ten
+focused checks pass; see [exact scope and backend gaps](UI_REDESIGN_IMPLEMENTATION.md).
+Real account recommendations/Saved persistence remain unconnected. Review Home
+at `http://127.0.0.1:8082/?reviewProfile=ready` before starting another page.
+
+**Shared navigation — 15 October:** approved mobile bottom Home/Saved/Profile
+bar and tablet/desktop top navigation implemented and verified. Production
+build/type/lint plus all five Next browser checks pass, including the formerly
+pending Home scenario. Exact three-device reference comparison and screenshots
+are recorded in [redesign implementation](UI_REDESIGN_IMPLEMENTATION.md).
+Saved is an explicit unavailable destination until its backend slice exists.
+
+**Local visual comparison — 15 October:** user approved the reference's four
+fictional jobs for review. An isolated fixture API (8891) and implemented Next
+review copy (8082) avoid the configured database and existing app server. See
+[startup commands and boundaries](UI_REDESIGN_IMPLEMENTATION.md). This is sample
+data for comparing the current slice, not completed recommendations or Saved.
+
+**Home search/filter/sort — 15 October:** implemented in Next and the public API;
+final build/type/lint checks pass and a real isolated PostgreSQL test passes.
+The newly added complete Home browser flow remains unrun because automatic
+approval review hit a usage limit. Temporary test DB cleanup and Obsidian sync
+are pending too. Read [exact scope and resume point](UI_REDESIGN_IMPLEMENTATION.md)
+before advancing; do not claim full browser verification.
+
+**Frontend redesign — 15 October:** first Next.js slice is implemented locally:
+neutral system light/dark tokens, compact header/intro, conditional public cards
+and a keyboard skip-link/Back regression fix. No deployment or new dependency.
+See [implementation, checks and backend gaps](UI_REDESIGN_IMPLEMENTATION.md).
+Next: review this slice, then API-backed search/filter/deadline sorting.
+Follow-up: approved `/sign-in` card now replaces header provider buttons;
+first-slice gutters, heading scale and two-column wider card view corrected
+against the saved preview. Final navigation/Saved/recommendation work remains.
+
+
 Updated: 7 October 2026. A compact navigation map, not a fresh full-system audit.
 Current pipeline branch: `codex/discovery-links`. Verify relevant code when its behavior changes.
 
