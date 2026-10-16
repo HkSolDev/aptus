@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ProfileForm } from '@/components/profile/profile-form';
+import { ProfileReview } from '@/components/profile/profile-review';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,5 +17,10 @@ export const metadata: Metadata = {
 };
 
 export default function ProfilePage() {
+  if (
+    process.env.APTUS_LOCAL_REVIEW === '1' &&
+    process.env.NODE_ENV === 'development'
+  )
+    return <ProfileReview />;
   return <ProfileForm />;
 }

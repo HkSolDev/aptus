@@ -12,3 +12,4 @@ downloads
 .venv
 __pycache__
 *.zip
+.next-design-review/

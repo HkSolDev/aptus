@@ -55,7 +55,6 @@ class PayRule(BaseModel):
 
 class CandidatePost(Post):
     """Trial extraction fields; not a change to the database ingestion contract."""
-    recruiting_body: str | None
     advertisement_number: str | None
     application_start_date: str | None
     fee_payment_last_date: str | None
@@ -88,6 +87,9 @@ Return structured output matching output_schema. Inspect ALL supplied sections a
 give extra attention to coverage_focus fields. Checklist matches are hints, not facts.
 not_located means a heuristic did not find the field; you may find it in unusual wording.
 Return null for unsupported or conflicting values, with a reason in missing_fields.
+For recruiting_body, copy only the recruiting organization clearly identified in the
+notice, verbatim. Never substitute the scraper, source website, document title or
+source record name. Unclear/conflicting recruiting organizations mean null.
 Never guess numeric ages, marks, vacancy counts or relaxation years. Keep numeric facts
 in their numeric fields and preserve post/category/gender-specific conditions and education alternatives.
 Never assume General category or uniform category relaxation. Never calculate user eligibility.

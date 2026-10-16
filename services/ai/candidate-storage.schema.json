@@ -111,7 +111,11 @@
           "type": "array"
         }
       },
-      "required": ["posts", "evidence", "missing_fields"],
+      "required": [
+        "posts",
+        "evidence",
+        "missing_fields"
+      ],
       "title": "BundleFacts",
       "type": "object"
     },
@@ -123,6 +127,19 @@
           "type": "string",
           "minLength": 1,
           "pattern": "\\S"
+        },
+        "recruiting_body": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Recruiting organization named verbatim in the notice; null if unclear. Never the source website.",
+          "title": "Recruiting Body"
         },
         "vacancies": {
           "anyOf": [
@@ -202,7 +219,12 @@
         "post_group": {
           "anyOf": [
             {
-              "enum": ["A", "B", "C", "D"],
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
               "type": "string"
             },
             {
@@ -277,17 +299,6 @@
         },
         "eligibility_rules": {
           "$ref": "#/$defs/EligibilityRules"
-        },
-        "recruiting_body": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Recruiting Body"
         },
         "advertisement_number": {
           "anyOf": [
@@ -453,6 +464,7 @@
       },
       "required": [
         "post_name",
+        "recruiting_body",
         "vacancies",
         "application_last_date",
         "age_as_on_date",
@@ -466,7 +478,6 @@
         "category_relaxation_applies",
         "category_relaxation_rules",
         "eligibility_rules",
-        "recruiting_body",
         "advertisement_number",
         "application_start_date",
         "fee_payment_last_date",
@@ -553,7 +564,13 @@
           "title": "Pwbd"
         }
       },
-      "required": ["SC", "ST", "OBC", "EWS", "PwBD"],
+      "required": [
+        "SC",
+        "ST",
+        "OBC",
+        "EWS",
+        "PwBD"
+      ],
       "title": "CategoryRelaxationRules",
       "type": "object"
     },
@@ -835,7 +852,10 @@
           "title": "Conditions"
         }
       },
-      "required": ["minimum_years", "conditions"],
+      "required": [
+        "minimum_years",
+        "conditions"
+      ],
       "title": "ExperienceRule",
       "type": "object"
     },
@@ -884,7 +904,12 @@
           "title": "Conditions"
         }
       },
-      "required": ["categories", "amount", "currency", "conditions"],
+      "required": [
+        "categories",
+        "amount",
+        "currency",
+        "conditions"
+      ],
       "title": "FeeRule",
       "type": "object"
     },
@@ -904,7 +929,11 @@
           "type": "string"
         }
       },
-      "required": ["field_path", "evidence_id", "quote"],
+      "required": [
+        "field_path",
+        "evidence_id",
+        "quote"
+      ],
       "title": "FieldEvidence",
       "type": "object"
     },
@@ -921,7 +950,10 @@
           "type": "string"
         }
       },
-      "required": ["field_path", "reason"],
+      "required": [
+        "field_path",
+        "reason"
+      ],
       "title": "MissingField",
       "type": "object"
     },
@@ -1008,7 +1040,10 @@
           "type": "string"
         }
       },
-      "required": ["field_path", "reason"],
+      "required": [
+        "field_path",
+        "reason"
+      ],
       "title": "ReviewIssue",
       "type": "object"
     },
@@ -1050,7 +1085,11 @@
           "title": "Count"
         }
       },
-      "required": ["category", "region_or_organisation", "count"],
+      "required": [
+        "category",
+        "region_or_organisation",
+        "count"
+      ],
       "title": "VacancyCount",
       "type": "object"
     }

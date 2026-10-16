@@ -1,0 +1,288 @@
+.page {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--page-gutter) var(--space-8);
+}
+
+.header {
+  margin: var(--space-6) 0 var(--space-7);
+}
+
+.topActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.topActions > :global(.button),
+.topActions > button {
+  width: auto;
+}
+
+.fixtureLabel {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 4vw, 2.75rem);
+  letter-spacing: -0.035em;
+  line-height: 1.13;
+}
+
+.organization {
+  font-size: 1.0625rem;
+  margin: var(--space-3) 0 0;
+}
+
+.deadline,
+.applyDeadline {
+  font-weight: 650;
+}
+
+.deadline {
+  margin: var(--space-4) 0 0;
+}
+
+.grid {
+  display: grid;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+.sections {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.applyPanel,
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.applyPanel {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.applyPanel p {
+  margin: 0;
+}
+
+.applyDeadline {
+  font-size: 1.125rem;
+}
+
+.applyPanel > :is(a, .resourceLink) {
+  align-items: center;
+  border: 1px solid var(--control-line);
+  border-radius: var(--small-radius);
+  color: var(--ink);
+  display: flex;
+  font-size: 0.875rem;
+  font-weight: 600;
+  justify-content: center;
+  min-height: var(--target);
+  padding: var(--space-3) var(--space-4);
+  text-decoration: none;
+}
+
+.primaryAction {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.applyPanel > .primaryAction {
+  color: var(--on-accent);
+}
+
+.applyPanel > a:hover {
+  background: var(--soft);
+}
+
+.applyPanel > a.primaryAction:hover {
+  background: var(--accent-hover);
+}
+
+.previewOnly {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.125rem;
+}
+
+.card {
+  padding: var(--space-5) 1.75rem;
+}
+
+.card h2,
+.route h3,
+.ageGroups h3,
+.relaxations h3 {
+  margin-top: 0;
+}
+
+.card h2 {
+  font-size: 1.25rem;
+  margin-bottom: var(--space-4);
+}
+
+.intro {
+  margin: 0 0 var(--space-5);
+}
+
+.routes {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.route {
+  border: 1px solid var(--line);
+  border-radius: var(--small-radius);
+  padding: var(--space-4);
+}
+
+.route h3 {
+  font-size: 1rem;
+  margin-bottom: var(--space-3);
+}
+
+.or {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--space-4);
+  text-align: center;
+}
+
+.factList,
+.route dl {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.fact {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(7rem, 0.75fr) minmax(0, 1.75fr);
+  font-size: 0.9375rem;
+}
+
+.fact dt {
+  color: var(--muted);
+}
+
+.fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.conditions,
+.conditionDetail {
+  color: var(--muted);
+  display: block;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.conditions {
+  border-top: 1px solid var(--line-subtle);
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+}
+
+.conditionDetail {
+  margin-top: var(--space-2);
+}
+
+.ageGroups,
+.relaxations {
+  border-top: 1px solid var(--line-subtle);
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+}
+
+.ageGroups h3,
+.relaxations h3 {
+  font-size: 1rem;
+  margin-bottom: var(--space-3);
+}
+
+.links {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.resourceLink,
+.unavailable a,
+.sections :global(.small) a {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.unavailable {
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (min-width: 1050px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr) 19rem;
+  }
+
+  .sections {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .applyPanel {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: var(--space-5);
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1049px) {
+  .applyPanel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: var(--space-5) 1.5rem;
+  }
+
+  .applyPanel > p {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding-top: var(--space-5);
+  }
+
+  .header {
+    margin: var(--space-5) 0 var(--space-6);
+  }
+
+  .card {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .applyPanel {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .fact {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+}

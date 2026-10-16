@@ -80,6 +80,10 @@ class Post(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     post_name: str | None
+    recruiting_body: str | None = Field(
+        max_length=200,
+        description="Recruiting organization named verbatim in the notice; null if unclear. Never the source website.",
+    )
     vacancies: int | None
     application_last_date: date | None = Field(description=DATE_HINT)
     age_as_on_date: date | None = Field(description=DATE_HINT)
@@ -95,6 +99,15 @@ class Post(BaseModel):
     category_relaxation_applies: bool | None
     category_relaxation_rules: "CategoryRelaxationRules | None"
     eligibility_rules: EligibilityRules
+
+    @field_validator("recruiting_body", mode="before")
+    @classmethod
+    def _normalize_recruiting_body(cls, value: object) -> object:
+        if isinstance(value, str):
+            if any(ord(char) < 32 or ord(char) == 127 for char in value):
+                raise ValueError("Recruiting body must be single-line text")
+            return value.strip() or None
+        return value
 
     @field_validator("application_last_date", "age_as_on_date", mode="before")
     @classmethod

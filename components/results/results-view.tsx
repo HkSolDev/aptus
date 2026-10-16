@@ -3,9 +3,16 @@
 import Link from 'next/link';
 import { useWorkspace } from '@/components/providers/workspace-provider';
 import { ResultCard } from './result-card';
+import { RecommendationsPreview } from './recommendations-preview';
 
-export function ResultsView() {
+export function ResultsView({
+  designReview = false,
+}: {
+  designReview?: boolean;
+}) {
   const { results, isStale } = useWorkspace();
+
+  if (designReview) return <RecommendationsPreview />;
 
   if (!results) {
     return (

@@ -160,6 +160,7 @@ model Post {
   sourceId                  String
   source                    Source          @relation(fields: [sourceId], references: [id])
   postName                  String
+  organization              String?
   postGroup                 PostGroup?
   payLevel                  String?
   minAge                    Int?

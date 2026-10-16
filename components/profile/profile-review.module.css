@@ -1,0 +1,121 @@
+.page {
+  max-width: 780px;
+  margin: 40px auto var(--space-8);
+}
+.heading {
+  margin-bottom: 28px;
+}
+.heading h1 {
+  font-size: 2rem;
+  margin: 0 0 var(--space-3);
+}
+.form {
+  padding: var(--space-6);
+}
+.fields {
+  margin-top: var(--space-5);
+  column-gap: var(--space-5);
+}
+.fields .field {
+  margin-bottom: 0;
+}
+.form h2 {
+  font-size: 22px;
+}
+.hint {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  margin-top: var(--space-2);
+}
+.section {
+  margin-top: var(--space-6);
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+.section > p {
+  margin: var(--space-2) 0 var(--space-5);
+}
+.qualification {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: var(--space-4) 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-block: var(--space-3);
+}
+.qualification strong {
+  display: block;
+}
+.qualification .hint {
+  margin: 0;
+}
+.optionActions {
+  display: flex;
+  gap: var(--space-4);
+}
+.qform {
+  background: var(--page);
+  border-radius: 12px;
+  padding: 20px;
+}
+.qform > .field {
+  margin: 0;
+}
+.qform > button:last-child {
+  width: auto;
+  margin-top: var(--space-4);
+}
+.qgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+.another {
+  margin-top: var(--space-4);
+}
+.form .actions {
+  margin-bottom: var(--space-4);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+.actions button {
+  width: auto;
+}
+@media (max-width: 640px) {
+  .page {
+    margin-top: var(--space-5);
+  }
+  .heading h1 {
+    font-size: 1.75rem;
+  }
+  .form {
+    padding: 20px;
+  }
+  .form h2 {
+    font-size: 20px;
+  }
+  .actions {
+    flex-direction: column-reverse;
+  }
+  .actions button {
+    width: 100%;
+  }
+  .qgrid {
+    grid-template-columns: 1fr;
+  }
+  .qualification {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: var(--space-4);
+  }
+}

@@ -11,7 +11,6 @@ export function ProfileForm() {
   const { profile, setProfile, setResults, markStale } = useWorkspace();
   const formId = useId();
 
-  const [name, setName] = useState(profile?.name ?? '');
   const [dob, setDob] = useState(profile?.dob ?? '');
   const [category, setCategory] = useState(profile?.category ?? '');
   const [educations, setEducations] = useState<EducationEntry[]>(
@@ -30,12 +29,12 @@ export function ProfileForm() {
   useEffect(() => {
     setProfile({
       userId: profile?.userId,
-      name: name.trim() || undefined,
+      name: profile?.name,
       dob,
       category: category || null,
       educations,
     });
-  }, [name, dob, category, educations, profile?.userId, setProfile]);
+  }, [dob, category, educations, profile?.name, profile?.userId, setProfile]);
 
   const addEducation = () => {
     setEducations((prev) => [...prev, { level: '', marksPercent: null }]);
@@ -77,7 +76,7 @@ export function ProfileForm() {
     setSubmitting(true);
     const payload: Profile = {
       userId: profile?.userId,
-      name: name.trim() || undefined,
+      name: profile?.name,
       dob,
       category: category || null,
       educations: educations.filter((e) => e.level !== ''),
@@ -121,34 +120,17 @@ export function ProfileForm() {
       aria-labelledby="profile-title"
     >
       <div className="section-heading">
-        <p className="eyebrow">01 / YOUR STARTING POINT</p>
-        <h2 id="profile-title">A little about you</h2>
+        <p className="eyebrow">YOUR PROFILE</p>
+        <h2 id="profile-title">Find jobs for you</h2>
         <p className="muted">
-          Add completed qualifications, including earlier levels when marks
-          matter. Profile details are kept in memory only and never stored in
-          browser storage.
+          Add your date of birth, category, and completed qualifications. We’ll
+          compare them with the recorded notification requirements.
         </p>
       </div>
 
       <form id="match-form" onSubmit={handleSubmit}>
         <fieldset id="profile-fields" disabled={submitting}>
           <legend className="sr-only">Your profile details</legend>
-
-          <label className="field" htmlFor={`${formId}-name`}>
-            Name <span className="optional">Optional</span>
-            <input
-              id={`${formId}-name`}
-              name="name"
-              autoComplete="name"
-              maxLength={120}
-              placeholder="What should we call you?"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                markStale();
-              }}
-            />
-          </label>
 
           <div className="field-pair">
             <label className="field" htmlFor={`${formId}-dob`}>
