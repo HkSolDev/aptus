@@ -42,7 +42,6 @@ Follow-up: approved `/sign-in` card now replaces header provider buttons;
 first-slice gutters, heading scale and two-column wider card view corrected
 against the saved preview. Final navigation/Saved/recommendation work remains.
 
-
 Updated: 7 October 2026. A compact navigation map, not a fresh full-system audit.
 Current pipeline branch: `codex/discovery-links`. Verify relevant code when its behavior changes.
 

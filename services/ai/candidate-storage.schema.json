@@ -111,11 +111,7 @@
           "type": "array"
         }
       },
-      "required": [
-        "posts",
-        "evidence",
-        "missing_fields"
-      ],
+      "required": ["posts", "evidence", "missing_fields"],
       "title": "BundleFacts",
       "type": "object"
     },
@@ -219,12 +215,7 @@
         "post_group": {
           "anyOf": [
             {
-              "enum": [
-                "A",
-                "B",
-                "C",
-                "D"
-              ],
+              "enum": ["A", "B", "C", "D"],
               "type": "string"
             },
             {
@@ -564,13 +555,7 @@
           "title": "Pwbd"
         }
       },
-      "required": [
-        "SC",
-        "ST",
-        "OBC",
-        "EWS",
-        "PwBD"
-      ],
+      "required": ["SC", "ST", "OBC", "EWS", "PwBD"],
       "title": "CategoryRelaxationRules",
       "type": "object"
     },
@@ -852,10 +837,7 @@
           "title": "Conditions"
         }
       },
-      "required": [
-        "minimum_years",
-        "conditions"
-      ],
+      "required": ["minimum_years", "conditions"],
       "title": "ExperienceRule",
       "type": "object"
     },
@@ -904,12 +886,7 @@
           "title": "Conditions"
         }
       },
-      "required": [
-        "categories",
-        "amount",
-        "currency",
-        "conditions"
-      ],
+      "required": ["categories", "amount", "currency", "conditions"],
       "title": "FeeRule",
       "type": "object"
     },
@@ -929,11 +906,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "field_path",
-        "evidence_id",
-        "quote"
-      ],
+      "required": ["field_path", "evidence_id", "quote"],
       "title": "FieldEvidence",
       "type": "object"
     },
@@ -950,10 +923,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "field_path",
-        "reason"
-      ],
+      "required": ["field_path", "reason"],
       "title": "MissingField",
       "type": "object"
     },
@@ -1040,10 +1010,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "field_path",
-        "reason"
-      ],
+      "required": ["field_path", "reason"],
       "title": "ReviewIssue",
       "type": "object"
     },
@@ -1085,11 +1052,7 @@
           "title": "Count"
         }
       },
-      "required": [
-        "category",
-        "region_or_organisation",
-        "count"
-      ],
+      "required": ["category", "region_or_organisation", "count"],
       "title": "VacancyCount",
       "type": "object"
     }

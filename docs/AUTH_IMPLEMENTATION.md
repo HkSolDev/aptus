@@ -44,7 +44,6 @@ keyboard skip → details → Back regression check passes. A small client skip-
 control preserves focus/history while catalogue content remains server-rendered.
 See [scope, file map, checks and remaining gaps](UI_REDESIGN_IMPLEMENTATION.md).
 
-
 Updated: 6 October 2026
 
 ## Status
