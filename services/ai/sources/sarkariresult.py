@@ -2,6 +2,7 @@ import json
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
 import httpx
 from bs4 import BeautifulSoup, NavigableString
@@ -54,15 +55,43 @@ def is_recruitment_notice(title: str) -> bool:
     return has_job_signal and not has_noisy_signal
 
 
-def list_jobs() -> list[tuple[str, str]]:
-    root = ET.fromstring(get_with_retry(RSS_URL).content)
-    jobs = []
+def discover_feed(xml: str | bytes) -> list[dict[str, str]]:
+    """Return bounded, recruitment-only entries from a captured RSS document."""
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError as error:
+        raise ValueError("invalid_rss") from error
+    if root.tag.rsplit("}", 1)[-1] != "rss" or root.find("channel") is None:
+        raise ValueError("rss_root_missing")
+
+    jobs = {}
     for item in root.iter("item"):
-        title = item.findtext("title")
-        url = item.findtext("link")
-        if title and url and is_recruitment_notice(title):
-            jobs.append((title, url))
-    return jobs
+        title = (item.findtext("title") or "").strip()[:500]
+        url = (item.findtext("link") or "").strip()
+        try:
+            parts = urlsplit(url)
+            port = parts.port
+        except ValueError:
+            continue
+        allowed_url = (
+            parts.scheme == "https"
+            and parts.hostname == "www.sarkariresult.com"
+            and port in {None, 443}
+            and not parts.username
+            and not parts.password
+            and not parts.query
+            and not parts.fragment
+            and parts.path.startswith("/")
+        )
+        if title and allowed_url and is_recruitment_notice(title):
+            jobs.setdefault(url, {"url": url, "title": title, "source": "sarkariresult"})
+        if len(jobs) >= 100:
+            break
+    return list(jobs.values())
+
+
+def list_jobs() -> list[tuple[str, str]]:
+    return [(job["title"], job["url"]) for job in discover_feed(get_with_retry(RSS_URL).content)]
 
 
 NOISY_PATTERNS = (
