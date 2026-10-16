@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   devIndicators: process.env.APTUS_LOCAL_REVIEW === '1' ? false : undefined,
   distDir:
     process.env.APTUS_LOCAL_REVIEW === '1' ? '.next-design-review' : '.next',

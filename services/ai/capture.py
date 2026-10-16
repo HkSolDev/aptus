@@ -5,6 +5,7 @@ import ipaddress
 import re
 import socket
 import time
+import xml.etree.ElementTree as ET
 from contextlib import closing
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
@@ -30,6 +31,14 @@ def accept_document(body: bytes, content_type: str, url: str):
         if media in {"application/pdf", "application/octet-stream", ""} and body.startswith(b"%PDF-"):
             return "pdf"
         raise ValueError("invalid_pdf")
+    if media in {"application/rss+xml", "application/xml", "text/xml"}:
+        try:
+            root = ET.fromstring(body)
+        except ET.ParseError as error:
+            raise ValueError("invalid_xml") from error
+        if root.tag.rsplit("}", 1)[-1] != "rss" or root.find("channel") is None:
+            raise ValueError("invalid_xml")
+        return "xml"
     if media not in {"text/html", "application/xhtml+xml", "application/octet-stream", ""}:
         raise ValueError("unsupported_type")
     soup = BeautifulSoup(body, "html.parser")
@@ -128,7 +137,7 @@ def capture(url, storage_dir, client=None, *, force=False):
         codes = {"non_public_destination", "invalid_or_excessive_redirects", "unexpected_304",
                  "http_error", "body_too_large", "elapsed_budget_exceeded", "empty_body",
                  "invalid_pdf", "unsupported_type", "invalid_html", "login_required",
-                 "blocked_or_error_page", "request_limit_exceeded"}
+                 "invalid_xml", "blocked_or_error_page", "request_limit_exceeded"}
         reason = (str(error) if str(error) in codes else "invalid_response") if isinstance(error, ValueError) else type(error).__name__
         result.update(outcome="rejected" if isinstance(error, ValueError) else "failed", reason=reason)
     finally:

@@ -434,3 +434,25 @@ Uncommitted Python age-validation changes stay local for separate review: the
 current cache/payload path can conflate Male with Female through substring
 matching and may apply post-specific age facts too broadly. Editor settings
 and unrelated video outputs are excluded from the review branches.
+
+# Release ingestion protection — 16 October 2026
+
+The merged redesign release previously registered ingestion without authorization.
+`src/auth/require-ingest-token.ts` now guards that route in `onRequest`, before
+body parsing or database access. Missing runtime configuration disables ingestion
+with 503; missing or invalid bearer credentials return 401. Accepted credentials
+continue through existing validation and persistence. Browser sessions do not
+authorize ingestion. Responses are no-store and logs omit credential values.
+
+Configure the same private `INGEST_TOKEN` (32–512 URL-safe characters) for API
+and worker, or use `INGEST_TOKEN_FILE` for a mounted secret. Conflicting sources
+and invalid values fail closed. No value belongs in Git, frontend builds or URLs.
+`services/ai/pipeline.py` supplies the header, rejects invalid configuration before
+HTTP, bounds requests to 30 seconds and refuses redirects. Focused coverage lives
+in `scripts/ingest-access.test.ts`, `scripts/security-logging.test.ts` and
+`services/ai/tests/test_ingest_access.py`. Production configuration, database
+migration and deployment verification remain separate from these offline tests.
+
+Verification: 19 focused Node checks and three Python ingestion-client checks
+passed; project TypeScript checks and changed-file ESLint passed. No live
+database, account, provider call or deployment was used for these checks.

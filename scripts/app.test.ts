@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildApp } from '../src/app.js';
 
+const token = 'fictional-ingest-credential-for-tests-only';
+
 await test('setup health check is public and does not create a session', async (t) => {
   const app = buildApp();
   t.after(() => app.close());
@@ -48,14 +50,20 @@ await test('authentication routes remain unavailable during setup', async (t) =>
 });
 
 await test('Fastify rejects malformed and non-object JSON before database access', async (t) => {
-  const app = buildApp();
+  const app = buildApp(undefined, {
+    AUTH_ENABLED: 'false',
+    INGEST_TOKEN: token,
+  });
   t.after(() => app.close());
   for (const url of ['/api/match', '/api/explain', '/api/internal/ingest']) {
     for (const payload of ['{', 'null', '[]']) {
       const response = await app.inject({
         method: 'POST',
         url,
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
         payload,
       });
       assert.equal(response.statusCode, 400);
@@ -68,11 +76,15 @@ await test('Fastify rejects malformed and non-object JSON before database access
 });
 
 await test('Fastify enforces the request body limit', async (t) => {
-  const app = buildApp();
+  const app = buildApp(undefined, {
+    AUTH_ENABLED: 'false',
+    INGEST_TOKEN: token,
+  });
   t.after(() => app.close());
   const response = await app.inject({
     method: 'POST',
     url: '/api/internal/ingest',
+    headers: { authorization: `Bearer ${token}` },
     payload: { source_text: 'x'.repeat(1_048_576) },
   });
   assert.equal(response.statusCode, 413);
