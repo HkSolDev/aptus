@@ -49,6 +49,12 @@ def validate_candidate(result, source):
     names = set()
     for index, post in enumerate(facts['posts']):
         prefix = f'posts.{index}'
+        organization = post['recruiting_body']
+        if organization is not None and not any(
+                citation['field_path'] == prefix + '.recruiting_body'
+                and organization in citation['quote'] for citation in facts['evidence']):
+            errors.append({'field_path': prefix + '.recruiting_body',
+                           'reason': 'recruiting_body_not_in_citation'})
         name = (post['post_name'] or '').strip().casefold()
         if not name or name in names:
             errors.append({'field_path': prefix + '.post_name', 'reason': 'missing_or_duplicate_post_name'})

@@ -14,6 +14,7 @@ import {
 
 interface IngestPost {
   post_name: string | null;
+  recruiting_body?: string | null;
   vacancies: number | null;
   application_last_date: string | null;
   age_as_on_date: string | null;
@@ -69,6 +70,21 @@ export async function handleIngest(
       ) {
         sendJson(res, 400, {
           error: `posts[${index}] must be an object with valid eligibility_rules when supplied`,
+        });
+        return;
+      }
+    }
+
+    for (const [index, post] of body.posts.entries()) {
+      const organization = post.recruiting_body;
+      if (
+        organization != null &&
+        (typeof organization !== 'string' ||
+          organization.length > 200 ||
+          /[\u0000-\u001f\u007f]/u.test(organization))
+      ) {
+        sendJson(res, 400, {
+          error: `posts[${index}].recruiting_body must be nullable text of at most 200 characters`,
         });
         return;
       }
@@ -145,9 +161,14 @@ export async function handleIngest(
         sourceText,
       );
 
+      const organization = raw.recruiting_body?.trim() || null;
       toCreate.push({
         sourceId: source.id,
         postName: raw.post_name.trim(),
+        organization:
+          organization && sourceText.includes(organization)
+            ? organization
+            : null,
         postGroup: raw.post_group,
         payLevel: raw.pay_level,
         minAge: validated.minAge,

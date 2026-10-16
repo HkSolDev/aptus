@@ -13,6 +13,7 @@ await test('anonymous public job detail contract', async (t) => {
   const job = {
     id: 'fixture-job',
     postName: 'Fictional Assistant',
+    organization: null,
     educationRequired: null,
     minAge: null,
     maxAge: null,
@@ -68,6 +69,7 @@ await test('anonymous public job detail contract', async (t) => {
         select: {
           id: true,
           postName: true,
+          organization: true,
           postGroup: true,
           payLevel: true,
           vacancies: true,

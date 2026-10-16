@@ -6,6 +6,7 @@ import type { JobFilters } from '../../frontend/public-job-filters.js';
 const publicFields = {
   id: true,
   postName: true,
+  organization: true,
   postGroup: true,
   payLevel: true,
   vacancies: true,
@@ -42,6 +43,7 @@ export function listPublicJobs(
       OR: [
         { postName: { contains: keyword, mode: 'insensitive' } },
         { educationRequired: { contains: keyword, mode: 'insensitive' } },
+        { organization: { contains: keyword, mode: 'insensitive' } },
       ],
     });
   }
