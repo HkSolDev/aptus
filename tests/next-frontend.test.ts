@@ -141,8 +141,8 @@ test('Next.js frontend: server-rendered SEO, private caching, in-memory workspac
         'Initial server-rendered HTML must contain real job title for SEO',
       );
       assert.ok(
-        html.includes('SSC Selection Post Phase XII'),
-        'Initial HTML must contain source name',
+        !html.includes('SSC Selection Post Phase XII'),
+        'Cards must not present the scraper source as the recruiting organization',
       );
     },
   );
@@ -228,7 +228,7 @@ test('Next.js frontend: server-rendered SEO, private caching, in-memory workspac
 
         // Check accessibility and title
         await expect(
-          page.getByRole('heading', { name: 'A little about you' }),
+          page.getByRole('heading', { name: 'Find jobs for you' }),
         ).toBeVisible();
 
         // Fill DOB
@@ -277,8 +277,8 @@ test('Next.js frontend: server-rendered SEO, private caching, in-memory workspac
           '1998-05-15',
         );
 
-        // Navigate to /results using header navigation
-        await page.click('header nav a[href="/results"]');
+        // Results are reached from the profile flow; browser Back retains memory.
+        await page.goBack();
         await page.waitForURL(`${nextOrigin}/results`);
         await expect(page.locator('#result-count')).toBeVisible();
       } finally {
@@ -306,10 +306,10 @@ test('Next.js frontend: server-rendered SEO, private caching, in-memory workspac
           });
         });
 
-        await page.goto(`${nextOrigin}/`);
+        await page.goto(`${nextOrigin}/sign-in`);
 
         const signInBtn = page.getByRole('button', {
-          name: 'Sign in with Google',
+          name: 'Continue with Google',
         });
         await expect(signInBtn).toBeVisible();
 

@@ -1,5 +1,11 @@
 # Aptus — start here
 
+**Frontend review checkpoint — 16 October:** Recommendations, Saved and Profile
+now follow the saved responsive design in local review mode, including shared
+preview saves and searchable/editable qualification choices. Production data
+integration is still backend work. See the current scope, passing checks and
+legacy check blockers in [redesign implementation](UI_REDESIGN_IMPLEMENTATION.md).
+
 **Home presentation — 15 October:** Home layout now follows the approved
 reference across mobile/tablet/desktop, with independent wider Rows/Cards and
 local-only guest/setup/ready examples. Nine reference comparisons and ten

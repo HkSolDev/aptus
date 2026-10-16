@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useDesignReview } from './design-review-state';
 
 const ReviewContext = createContext<{
   ready: boolean;
@@ -19,8 +20,15 @@ export function HomeReviewState({
   profile?: 'guest' | 'setup' | 'ready';
   children: ReactNode;
 }) {
-  const [saved, setSaved] = useState<string[]>([]);
-  const [hidden, setHidden] = useState<string[]>([]);
+  const shared = useDesignReview();
+  const [localSaved, setLocalSaved] = useState<string[]>([]);
+  const [localHidden, setLocalHidden] = useState<string[]>([]);
+  const { saved, setSaved, hidden, setHidden } = shared ?? {
+    saved: localSaved,
+    setSaved: setLocalSaved,
+    hidden: localHidden,
+    setHidden: setLocalHidden,
+  };
   const [message, setMessage] = useState('');
   const [undo, setUndo] = useState<(() => void) | null>(null);
   const value = profile

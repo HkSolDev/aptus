@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './job-detail-section.module.css';
+import { useDesignReview } from './design-review-state';
 
 export function JobDetailSection({
   title,
@@ -75,8 +76,10 @@ export function JobDetailSection({
   );
 }
 
-export function JobPreviewSaveButton() {
-  const [saved, setSaved] = useState(false);
+export function JobPreviewSaveButton({ id }: { id?: string }) {
+  const review = useDesignReview();
+  const [localSaved, setLocalSaved] = useState(false);
+  const saved = review && id ? review.saved.includes(id) : localSaved;
 
   return (
     <button
@@ -84,7 +87,15 @@ export function JobPreviewSaveButton() {
       className={styles.saveButton}
       aria-pressed={saved}
       title="Preview-only save; this does not persist to an account."
-      onClick={() => setSaved((value) => !value)}
+      onClick={() => {
+        if (review && id)
+          review.setSaved((current) =>
+            current.includes(id)
+              ? current.filter((item) => item !== id)
+              : [...current, id],
+          );
+        else setLocalSaved((value) => !value);
+      }}
     >
       {saved ? 'Saved for this preview' : 'Save job'}
     </button>

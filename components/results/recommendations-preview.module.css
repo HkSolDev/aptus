@@ -1,7 +1,13 @@
 .page {
-  max-width: var(--content-width);
-  margin: 0 auto;
-  padding: var(--space-6) var(--page-gutter) var(--space-8);
+  padding-block: 40px var(--space-8);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  margin-bottom: var(--space-5);
+  color: var(--ink);
 }
 
 .intro {
@@ -29,7 +35,7 @@
   gap: var(--space-3);
   align-items: end;
   margin-bottom: var(--space-6);
-  padding: var(--space-5);
+  padding: 20px;
   border: 1px solid var(--line);
   border-radius: var(--job-radius);
   background: var(--surface);
@@ -49,8 +55,31 @@
   margin: 0;
 }
 
+.search input,
+.search select {
+  font-size: 1rem;
+  min-height: 48px;
+}
 .search button {
-  min-width: 7rem;
+  min-height: 48px;
+  font-size: 1rem;
+}
+
+.sort {
+  display: flex;
+  align-items: center;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.sort select {
+  width: auto;
+  max-width: 230px;
+  font-size: 0.875rem;
+  border-color: var(--line);
+}
+
+.search button {
+  min-width: 0;
 }
 
 .toolbar {
@@ -98,11 +127,26 @@
 }
 
 .cards {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.jobs :global([data-job-card]) > :nth-child(2) {
+  align-content: start;
+}
+.cards :global([data-job-card]) > :nth-child(2) {
+  flex: 1;
+}
+.cards :global([data-job-card]) {
+  gap: 20px;
 }
 
 .cards :global([data-job-card]) {
   height: 100%;
+}
+
+.cards :global([data-job-card]) > :last-child {
+  width: 100%;
+  align-self: stretch;
 }
 
 .rows :global([data-job-card]) {
@@ -113,6 +157,10 @@
 
 .rows :global([data-job-card]) > :last-child {
   align-self: center;
+}
+
+.rows :global([data-job-card]) > :last-child > :last-child {
+  flex-direction: column;
 }
 
 .matchSummary {
@@ -140,7 +188,7 @@
 .empty {
   max-width: 37.5rem;
   margin: var(--space-6) auto;
-  padding: var(--space-7);
+  padding: 40px;
   text-align: center;
 }
 
@@ -149,6 +197,12 @@
 }
 
 @media (min-width: 641px) and (max-width: 1049px) {
+  .page {
+    padding-top: var(--space-6);
+  }
+  .intro h1 {
+    font-size: 2rem;
+  }
   .search {
     grid-template-columns: minmax(0, 1fr) 13.75rem;
   }
@@ -156,6 +210,7 @@
   .search button {
     grid-column: 1 / -1;
     justify-self: start;
+    width: auto;
   }
 
   .cards {
@@ -169,6 +224,17 @@
 
   .rows :global([data-job-card]) > :last-child {
     grid-column: 1 / -1;
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .rows :global([data-job-card]) > :last-child > :first-child {
+    min-width: 160px;
+  }
+  .rows :global([data-job-card]) > :last-child > :last-child {
+    flex: 1;
+    flex-direction: row;
   }
 }
 
@@ -217,8 +283,17 @@
     display: flex;
   }
 
+  .jobs :global([data-job-card]) h3 {
+    font-size: 1.125rem;
+    line-height: 1.4;
+  }
+
+  .rows :global([data-job-card]) > :last-child > :last-child {
+    flex-direction: row;
+  }
+
   .empty {
     margin-top: var(--space-3);
-    padding: var(--space-6) var(--space-5);
+    padding: var(--space-5);
   }
 }

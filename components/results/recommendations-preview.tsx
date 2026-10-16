@@ -1,6 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
+import {
+  useDesignReview,
+  defaultReviewView,
+  type ReviewListView,
+} from '@/components/jobs/design-review-state';
 import { JobCard, type PublicJobItem } from '@/components/jobs/job-card';
 import styles from './recommendations-preview.module.css';
 
@@ -33,7 +39,7 @@ const previewRecommendations: PreviewRecommendation[] = [
     postName: 'Technical Assistant — Physics and Electronics',
     organization: 'Example Public Research Institute',
     applicationLastDate: '2026-11-30',
-    educationRequired: 'BSc in Physics or Diploma in Electronics',
+    educationRequired: 'BSc Physics or Diploma in Electronics',
     vacancies: 120,
     payLevel: 'Level 4',
     level: 'DIPLOMA',
@@ -67,21 +73,58 @@ const qualificationLabels = {
   BACHELORS: 'Bachelor’s degree',
 };
 
-export function RecommendationsPreview() {
-  const [search, setSearch] = useState('');
-  const [qualification, setQualification] =
-    useState<keyof typeof qualificationLabels>('');
-  const [sort, setSort] = useState<'soonest' | 'furthest'>('soonest');
-  const [layout, setLayout] = useState<'rows' | 'cards'>('rows');
-  const [hidden, setHidden] = useState<string[]>([]);
-  const [showingHidden, setShowingHidden] = useState(false);
-  const [saved, setSaved] = useState<string[]>([]);
+export function RecommendationsPreview({
+  savedJobs,
+}: {
+  savedJobs?: PublicJobItem[];
+}) {
+  const savedView = savedJobs !== undefined;
+  const review = useDesignReview();
+  const scope = savedView ? 'saved' : 'recommendations';
+  const [localView, setLocalView] = useState(defaultReviewView);
+  const { search, qualification, sort, layout, showingHidden } =
+    review?.views[scope] ?? localView;
+  function updateView(patch: Partial<ReviewListView>) {
+    if (review)
+      review.setViews((current) => ({
+        ...current,
+        [scope]: { ...current[scope], ...patch },
+      }));
+    else setLocalView((current) => ({ ...current, ...patch }));
+  }
+  const setSearch = (search: string) => updateView({ search });
+  const setQualification = (qualification: ReviewListView['qualification']) =>
+    updateView({ qualification });
+  const setSort = (sort: ReviewListView['sort']) => updateView({ sort });
+  const setLayout = (layout: ReviewListView['layout']) =>
+    updateView({ layout });
+  const [localHidden, setLocalHidden] = useState<string[]>([]);
+  const [localSaved, setLocalSaved] = useState<string[]>([]);
+  const { saved, setSaved, hidden, setHidden } = review ?? {
+    saved: localSaved,
+    setSaved: setLocalSaved,
+    hidden: localHidden,
+    setHidden: setLocalHidden,
+  };
+  const sourceJobs: (PublicJobItem & Partial<PreviewRecommendation>)[] =
+    savedView
+      ? savedJobs
+          .filter((job) => saved.includes(job.id))
+          .map((job) => ({
+            ...job,
+            educationRequired:
+              previewRecommendations.find((example) => example.id === job.id)
+                ?.educationRequired ?? job.educationRequired,
+          }))
+      : previewRecommendations;
 
-  const visible = useMemo(() => {
+  const visible = (() => {
     const query = search.trim().toLocaleLowerCase();
-    return previewRecommendations
-      .filter((job) =>
-        showingHidden ? hidden.includes(job.id) : !hidden.includes(job.id),
+    return sourceJobs
+      .filter(
+        (job) =>
+          savedView ||
+          (showingHidden ? hidden.includes(job.id) : !hidden.includes(job.id)),
       )
       .filter(
         (job) =>
@@ -90,7 +133,16 @@ export function RecommendationsPreview() {
             .toLocaleLowerCase()
             .includes(query),
       )
-      .filter((job) => !qualification || job.level === qualification)
+      .filter((job) => {
+        if (!qualification) return true;
+        // Discovery labels for fictional review jobs, never eligibility rules.
+        const patterns = {
+          TWELFTH: /12th/i,
+          DIPLOMA: /diploma/i,
+          BACHELORS: /btech|bsc|bachelor/i,
+        };
+        return patterns[qualification].test(job.educationRequired);
+      })
       .sort((a, b) => {
         if (!a.applicationLastDate) return b.applicationLastDate ? 1 : 0;
         if (!b.applicationLastDate) return -1;
@@ -99,7 +151,7 @@ export function RecommendationsPreview() {
         );
         return sort === 'soonest' ? comparison : -comparison;
       });
-  }, [hidden, qualification, search, showingHidden, sort]);
+  })();
 
   const filtered = Boolean(search.trim() || qualification);
 
@@ -108,19 +160,51 @@ export function RecommendationsPreview() {
     setQualification('');
   }
 
+  if (savedView && !sourceJobs.length)
+    return (
+      <section className={styles.page} aria-labelledby="saved-title">
+        <header className={styles.intro}>
+          <p className="eyebrow">YOUR SHORTLIST</p>
+          <h1 id="saved-title">Saved jobs</h1>
+          <p className="muted">
+            Save interesting jobs to take a closer look later.
+          </p>
+        </header>
+        <div className={`panel ${styles.empty}`}>
+          <h2>Your shortlist starts here</h2>
+          <p>Use Save on any job. You’ll find it here when you return.</p>
+          <Link
+            className="button button-primary"
+            href="/?reviewProfile=ready#jobs"
+          >
+            Explore jobs
+          </Link>
+        </div>
+      </section>
+    );
+
   return (
     <section className={styles.page} aria-labelledby="recommendations-title">
+      {!savedView && (
+        <Link className={styles.back} href="/?reviewProfile=ready">
+          ‹ Home
+        </Link>
+      )}
       <header className={styles.intro}>
+        {savedView && <p className="eyebrow">YOUR SHORTLIST</p>}
         <h1 id="recommendations-title">
-          {showingHidden ? 'Hidden recommendations' : 'Recommended for you'}
+          {savedView
+            ? 'Saved jobs'
+            : showingHidden
+              ? 'Hidden recommendations'
+              : 'Recommended for you'}
         </h1>
         <p className="muted">
-          {showingHidden
-            ? 'Restore a job whenever you want. It stays available under All jobs.'
-            : 'Search within your recommendations. Remaining requirements still need checking.'}
-        </p>
-        <p className={styles.previewNote}>
-          Fictional design preview · no account data is saved.
+          {savedView
+            ? 'Jobs you kept from recommendations and browsing. Saving doesn’t apply for a job.'
+            : showingHidden
+              ? 'Restore a job whenever you want. It stays available under All jobs.'
+              : 'Search within your recommendations. Remaining requirements still need checking.'}
         </p>
       </header>
 
@@ -130,7 +214,7 @@ export function RecommendationsPreview() {
           onSubmit={(event) => event.preventDefault()}
         >
           <label>
-            Search recommended jobs
+            {savedView ? 'Search saved jobs' : 'Search recommended jobs'}
             <input
               type="search"
               placeholder="Exam, role or organization"
@@ -170,7 +254,9 @@ export function RecommendationsPreview() {
             <label className={styles.sort}>
               <span>Sort</span>
               <select
-                aria-label="Sort recommendations"
+                aria-label={
+                  savedView ? 'Sort saved jobs' : 'Sort recommendations'
+                }
                 value={sort}
                 onChange={(event) =>
                   setSort(event.target.value as 'soonest' | 'furthest')
@@ -182,7 +268,12 @@ export function RecommendationsPreview() {
             </label>
           ) : null}
           {!showingHidden ? (
-            <div className={styles.layout} aria-label="Recommendation layout">
+            <div
+              className={styles.layout}
+              aria-label={
+                savedView ? 'Saved jobs layout' : 'Recommendation layout'
+              }
+            >
               <button
                 type="button"
                 aria-pressed={layout === 'rows'}
@@ -199,15 +290,17 @@ export function RecommendationsPreview() {
               </button>
             </div>
           ) : null}
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => setShowingHidden((value) => !value)}
-          >
-            {showingHidden
-              ? 'Back to recommendations'
-              : `Hidden jobs (${hidden.length})`}
-          </button>
+          {!savedView && (
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => updateView({ showingHidden: !showingHidden })}
+            >
+              {showingHidden
+                ? 'Back to recommendations'
+                : `Hidden jobs (${hidden.length})`}
+            </button>
+          )}
         </div>
       </div>
 
@@ -219,21 +312,34 @@ export function RecommendationsPreview() {
               <JobCard
                 key={job.id}
                 job={job}
-                recommended
+                recommended={!savedView}
                 matchSummary={
-                  <div className={styles.matchSummary}>
-                    <p>
-                      <strong>{job.matchReason}</strong>
-                    </p>
-                    <p className="muted">{job.remainingChecks}</p>
-                    <details>
-                      <summary>See match details</summary>
-                      <p>{job.matchDetails}</p>
-                    </details>
-                  </div>
+                  !savedView && (
+                    <div className={styles.matchSummary}>
+                      <p>
+                        <strong>{job.matchReason}</strong>
+                      </p>
+                      <p className="muted">{job.remainingChecks}</p>
+                      <details>
+                        <summary>See match details</summary>
+                        <p>{job.matchDetails}</p>
+                      </details>
+                    </div>
+                  )
                 }
                 actions={
-                  showingHidden ? (
+                  savedView ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSaved((current) =>
+                          current.filter((id) => id !== job.id),
+                        )
+                      }
+                    >
+                      Remove from saved
+                    </button>
+                  ) : showingHidden ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -257,7 +363,7 @@ export function RecommendationsPreview() {
                           )
                         }
                       >
-                        {isSaved ? 'Saved for preview' : 'Save'}
+                        {isSaved ? 'Saved ✓' : 'Save'}
                       </button>
                       <button
                         type="button"
@@ -277,11 +383,13 @@ export function RecommendationsPreview() {
       ) : (
         <section className={`panel ${styles.empty}`}>
           <h2>
-            {showingHidden
-              ? 'No hidden jobs'
-              : filtered
-                ? 'No recommendations match this search'
-                : 'You’re all caught up'}
+            {savedView
+              ? 'No saved jobs match this search'
+              : showingHidden
+                ? 'No hidden jobs'
+                : filtered
+                  ? 'No recommendations match this search'
+                  : 'You’re all caught up'}
           </h2>
           <p>
             {showingHidden
@@ -301,6 +409,9 @@ export function RecommendationsPreview() {
           ) : null}
         </section>
       )}
+      <p className={styles.previewNote}>
+        Fictional design preview · no account data is saved.
+      </p>
     </section>
   );
 }

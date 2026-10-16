@@ -3,6 +3,7 @@ import { WorkspaceProvider } from '@/components/providers/workspace-provider';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { SkipLink } from '@/components/layout/skip-link';
+import { DesignReviewProvider } from '@/components/jobs/design-review-state';
 
 import '@/public/css/tokens.css';
 import '@/public/css/base.css';
@@ -27,16 +28,28 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const review =
+    process.env.APTUS_LOCAL_REVIEW === '1' &&
+    process.env.NODE_ENV === 'development';
+  const content = (
+    <>
+      <Header />
+      <main id="main" tabIndex={-1} className="page-width">
+        {children}
+      </main>
+      <Footer />
+    </>
+  );
   return (
     <html lang="en-IN">
       <body>
         <SkipLink />
         <WorkspaceProvider>
-          <Header />
-          <main id="main" tabIndex={-1} className="page-width">
-            {children}
-          </main>
-          <Footer />
+          {review ? (
+            <DesignReviewProvider>{content}</DesignReviewProvider>
+          ) : (
+            content
+          )}
         </WorkspaceProvider>
       </body>
     </html>

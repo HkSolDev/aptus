@@ -224,7 +224,7 @@ export function JobDetailContent({ job }: { job: JobDetailData }) {
         <Link href="/#jobs" className="button button-secondary">
           ← Back to all jobs
         </Link>
-        {job.designReview ? <JobPreviewSaveButton /> : null}
+        {job.designReview ? <JobPreviewSaveButton id={job.id} /> : null}
       </nav>
 
       <header className={styles.header}>
