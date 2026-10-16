@@ -15,5 +15,9 @@ export const metadata: Metadata = {
 };
 
 export default function ResultsPage() {
-  return <ResultsView />;
+  const designReview =
+    process.env.APTUS_LOCAL_REVIEW === '1' &&
+    process.env.NODE_ENV === 'development';
+
+  return <ResultsView designReview={designReview} />;
 }

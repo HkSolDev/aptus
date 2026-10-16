@@ -1,0 +1,224 @@
+.page {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--page-gutter) var(--space-8);
+}
+
+.intro {
+  margin-bottom: var(--space-6);
+}
+
+.intro h1 {
+  margin: 0;
+}
+
+.intro > p:not(.previewNote) {
+  margin-top: var(--space-3);
+  max-width: 65ch;
+}
+
+.previewNote {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  margin-top: var(--space-3);
+}
+
+.search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 15rem auto;
+  gap: var(--space-3);
+  align-items: end;
+  margin-bottom: var(--space-6);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--job-radius);
+  background: var(--surface);
+}
+
+.search label,
+.sort {
+  display: grid;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.search input,
+.search select,
+.sort select {
+  margin: 0;
+}
+
+.search button {
+  min-width: 7rem;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.controls,
+.layout {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.layout {
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--small-radius);
+  background: var(--soft);
+}
+
+.layout button {
+  min-height: 2.25rem;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: calc(var(--small-radius) - 2px);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.layout button[aria-pressed='true'] {
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.jobs {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cards :global([data-job-card]) {
+  height: 100%;
+}
+
+.rows :global([data-job-card]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 10.25rem;
+  gap: 1.75rem;
+}
+
+.rows :global([data-job-card]) > :last-child {
+  align-self: center;
+}
+
+.matchSummary {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+
+.matchSummary > p + p,
+.matchSummary details p {
+  margin-top: var(--space-2);
+}
+
+.matchSummary summary {
+  min-height: var(--target);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.empty {
+  max-width: 37.5rem;
+  margin: var(--space-6) auto;
+  padding: var(--space-7);
+  text-align: center;
+}
+
+.empty p {
+  margin: var(--space-3) 0 var(--space-5);
+}
+
+@media (min-width: 641px) and (max-width: 1049px) {
+  .search {
+    grid-template-columns: minmax(0, 1fr) 13.75rem;
+  }
+
+  .search button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rows :global([data-job-card]) {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .rows :global([data-job-card]) > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding-top: var(--space-5);
+  }
+
+  .search {
+    grid-template-columns: 1fr;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .search button {
+    width: 100%;
+  }
+
+  .toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .controls {
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .sort select {
+    max-width: 13.5rem;
+  }
+
+  .layout {
+    display: none;
+  }
+
+  .cards,
+  .rows {
+    grid-template-columns: 1fr;
+  }
+
+  .rows :global([data-job-card]) {
+    display: flex;
+  }
+
+  .empty {
+    margin-top: var(--space-3);
+    padding: var(--space-6) var(--space-5);
+  }
+}
