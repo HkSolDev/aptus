@@ -124,6 +124,19 @@
           "minLength": 1,
           "pattern": "\\S"
         },
+        "recruiting_body": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Recruiting organization named verbatim in the notice; null if unclear. Never the source website.",
+          "title": "Recruiting Body"
+        },
         "vacancies": {
           "anyOf": [
             {
@@ -277,17 +290,6 @@
         },
         "eligibility_rules": {
           "$ref": "#/$defs/EligibilityRules"
-        },
-        "recruiting_body": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Recruiting Body"
         },
         "advertisement_number": {
           "anyOf": [
@@ -453,6 +455,7 @@
       },
       "required": [
         "post_name",
+        "recruiting_body",
         "vacancies",
         "application_last_date",
         "age_as_on_date",
@@ -466,7 +469,6 @@
         "category_relaxation_applies",
         "category_relaxation_rules",
         "eligibility_rules",
-        "recruiting_body",
         "advertisement_number",
         "application_start_date",
         "fee_payment_last_date",

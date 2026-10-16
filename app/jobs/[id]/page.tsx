@@ -1,29 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-
-interface JobDetailData {
-  id: string;
-  postName: string;
-  postGroup?: string | null;
-  payLevel?: string | null;
-  vacancies?: number | null;
-  applicationLastDate?: string | null;
-  ageAsOnDate?: string | null;
-  minAge?: number | null;
-  maxAge?: number | null;
-  educationRequired?: string;
-  minEducationLevel?: string | null;
-  minMarksPercent?: number | null;
-  categoryRelaxationApplies?: boolean | null;
-  source: {
-    name: string;
-    url?: string;
-    notificationPdfUrl?: string | null;
-    officialSiteUrl?: string | null;
-    applyUrl?: string | null;
-    fetchedAt?: string;
-  };
-}
+import {
+  JobDetailContent,
+  type JobDetailData,
+} from '../../../components/jobs/job-detail-content';
 
 async function fetchJobDetail(id: string): Promise<JobDetailData | null> {
   const backendUrl =
@@ -55,7 +35,9 @@ export async function generateMetadata(props: {
   }
   return {
     title: `${job.postName} | Aptus`,
-    description: `${job.postName} notification from ${job.source.name}. Education: ${job.educationRequired ?? 'Not specified'}.`,
+    description: job.educationRequired
+      ? `${job.postName}. Education: ${job.educationRequired}.`
+      : `View the ${job.postName} recruitment notice on Aptus.`,
   };
 }
 
@@ -88,82 +70,5 @@ export default async function JobDetailPage(props: {
     );
   }
 
-  return (
-    <article className="job-detail">
-      <nav aria-label="Breadcrumb">
-        <Link href="/#jobs" className="button button-secondary">
-          ← Back to all jobs
-        </Link>
-      </nav>
-      <h1>{job.postName}</h1>
-      <p className="small muted">
-        {job.source.name}
-        {job.source.fetchedAt && ` · Collected ${job.source.fetchedAt}`}
-      </p>
-      <p className="notice">
-        Stored notification details, not an eligibility guarantee. Missing
-        fields need manual verification. Check the official source for updates.
-      </p>
-
-      <div className="job-detail-grid">
-        <section className="panel">
-          <h2>At a glance</h2>
-          <dl className="job-facts">
-            <div>
-              <dt>Application deadline</dt>
-              <dd>{job.applicationLastDate ?? 'Not specified'}</dd>
-            </div>
-            <div>
-              <dt>Vacancies</dt>
-              <dd>{job.vacancies ?? 'Not specified'}</dd>
-            </div>
-            <div>
-              <dt>Pay level</dt>
-              <dd>{job.payLevel ?? 'Not specified'}</dd>
-            </div>
-            <div>
-              <dt>Post group</dt>
-              <dd>{job.postGroup ?? 'Not specified'}</dd>
-            </div>
-            <div>
-              <dt>Age criteria</dt>
-              <dd>
-                {job.minAge && job.maxAge
-                  ? `${job.minAge}–${job.maxAge} years`
-                  : 'Not specified'}
-              </dd>
-            </div>
-          </dl>
-        </section>
-
-        <section className="panel">
-          <h2>Qualification</h2>
-          <p className="qualification-text">
-            {job.educationRequired ?? 'Not specified'}
-          </p>
-          <dl className="job-facts">
-            <div>
-              <dt>Minimum level</dt>
-              <dd>{job.minEducationLevel ?? 'Not specified'}</dd>
-            </div>
-            <div>
-              <dt>Minimum marks</dt>
-              <dd>
-                {job.minMarksPercent !== null &&
-                job.minMarksPercent !== undefined
-                  ? `${job.minMarksPercent}%`
-                  : 'Not specified'}
-              </dd>
-            </div>
-          </dl>
-        </section>
-      </div>
-
-      <p className="job-detail-section">
-        <Link className="button button-primary" href="/profile">
-          Check matches with my profile →
-        </Link>
-      </p>
-    </article>
-  );
+  return <JobDetailContent job={job} />;
 }

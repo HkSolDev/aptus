@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  devIndicators: process.env.APTUS_LOCAL_REVIEW === '1' ? false : undefined,
+  distDir:
+    process.env.APTUS_LOCAL_REVIEW === '1' ? '.next-design-review' : '.next',
   typescript: {
     tsconfigPath: 'tsconfig.next.json',
   },

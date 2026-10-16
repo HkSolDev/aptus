@@ -49,6 +49,12 @@ await test('public jobs HTTP contract', async (t) => {
         'pageSize=abc',
         'page=',
         'page=1&page=2',
+        'q=a&q=b',
+        `q=${'a'.repeat(101)}`,
+        'qualification=ITI',
+        'qualification=DIPLOMA&qualification=PHD',
+        'sort=salary',
+        'sort=soonest&sort=furthest',
       ]) {
         const response = await fetch(`${origin}/api/jobs?${query}`);
         assert.equal(response.status, 400, query);
@@ -114,7 +120,10 @@ await test('public jobs HTTP contract', async (t) => {
         });
         assert.equal(query.skip, 20);
         assert.equal(query.take, 20);
-        assert.deepEqual(query.orderBy, [{ postName: 'asc' }, { id: 'asc' }]);
+        assert.deepEqual(query.orderBy, [
+          { applicationLastDate: { sort: 'asc', nulls: 'last' } },
+          { id: 'asc' },
+        ]);
         const selection = JSON.stringify(query.select);
         assert(!selection.includes('rawHash'));
         assert(!selection.includes('user'));

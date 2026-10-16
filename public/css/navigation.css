@@ -1,0 +1,92 @@
+.app-header {
+  background: var(--surface);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.app-header .site-header {
+  min-height: 76px;
+  padding-block: var(--space-2);
+  border: 0;
+}
+.primary-navigation {
+  flex-wrap: nowrap;
+  gap: 18px;
+}
+.primary-navigation a {
+  padding-inline: var(--space-1);
+  white-space: nowrap;
+}
+.header-signin {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  padding-inline: var(--space-1);
+  font-size: 0.875rem;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+  white-space: nowrap;
+}
+.primary-navigation svg {
+  display: none;
+}
+.primary-navigation a[aria-current='page'] {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: var(--space-2);
+}
+@media (min-width: 1050px) {
+  .primary-navigation {
+    gap: 28px;
+  }
+}
+@media (max-width: 759px) {
+  html:has(.primary-navigation) {
+    scroll-padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  }
+  body:has(.primary-navigation) {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  }
+  .app-header .site-header {
+    min-height: 68px;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+  .app-header .header-actions {
+    width: auto;
+    justify-content: flex-end;
+  }
+  .primary-navigation {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 35;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+    padding: var(--space-2) max(var(--space-3), env(safe-area-inset-right, 0px))
+      max(var(--space-2), env(safe-area-inset-bottom, 0px))
+      max(var(--space-3), env(safe-area-inset-left, 0px));
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+  .primary-navigation a {
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-1);
+    min-height: 54px;
+    padding: var(--space-1) var(--space-2);
+    font-size: 0.75rem;
+  }
+  .primary-navigation a[aria-current='page'] {
+    background: var(--soft);
+    text-decoration: none;
+  }
+  .primary-navigation svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+  }
+  .navigation-wide-label {
+    display: none;
+  }
+}

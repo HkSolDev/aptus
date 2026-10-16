@@ -2,6 +2,71 @@
   margin-bottom: var(--space-8);
   scroll-margin-top: var(--space-5);
 }
+.job-search {
+  display: grid;
+  gap: var(--space-4);
+  align-items: end;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.job-search label {
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.job-search-submit {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.job-search-submit:hover {
+  background: var(--accent-hover);
+}
+.job-search-note {
+  margin-block: var(--space-3);
+  max-width: 75ch;
+}
+.job-search-clear {
+  display: inline-flex;
+  min-height: var(--target);
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+.job-sort label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+}
+.job-sort select {
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: var(--space-2);
+}
+.catalogue-header {
+  margin-top: var(--space-5);
+}
+@media (min-width: 760px) {
+  .job-search {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: var(--space-3);
+  }
+}
+@media (min-width: 1050px) {
+  .job-search {
+    grid-template-columns: minmax(0, 1fr) 240px auto;
+  }
+}
+@media (max-width: 759px) {
+  .intro-copy {
+    display: none;
+  }
+  .job-search {
+    padding: var(--page-gutter);
+  }
+}
 .catalogue > p {
   margin-block: var(--space-2) var(--space-3);
   max-width: 65ch;
@@ -28,41 +93,23 @@
 }
 .catalogue-grid {
   display: grid;
-  gap: var(--space-5);
+  align-items: start;
+  gap: var(--space-4);
   margin-block: var(--space-5);
 }
 .catalogue-card {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--page-gutter);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--job-radius);
   padding: var(--space-5);
-  box-shadow: var(--shadow-xs);
-  transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast),
-    transform var(--transition-fast);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .catalogue-card:hover {
-    border-color: var(--accent);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-  }
-}
-.catalogue-card .job-source {
-  font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent);
 }
 .catalogue-card .job-title {
-  font: 1.35rem/1.25 var(--serif);
-  letter-spacing: -0.02em;
+  font: 650 1.25rem/1.4 var(--sans);
+  letter-spacing: -0.025em;
   overflow-wrap: anywhere;
   margin: 0;
 }
@@ -71,79 +118,40 @@
   text-decoration: none;
 }
 .catalogue-card .job-title a:hover {
-  color: var(--accent);
   text-decoration: underline;
-  text-underline-offset: 0.2em;
 }
-.catalogue-card .job-facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: var(--space-2) var(--space-3);
-  margin: 0;
-  padding: var(--space-3);
-  background: var(--soft);
-  border-radius: var(--small-radius);
-  border: 1px solid var(--line-subtle);
-}
-.catalogue-card .job-facts div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-.catalogue-card .job-facts dt {
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-}
-.catalogue-card .job-facts dd {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--ink);
-  margin: 0;
+.catalogue-deadline {
+  font-weight: 650;
 }
 .catalogue-qualification {
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--muted);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
-  margin-block: var(--space-1);
+  overflow-wrap: anywhere;
+}
+.catalogue-qualification > p + p {
+  margin-top: var(--space-1);
+}
+.catalogue-extra {
+  overflow-wrap: anywhere;
 }
 .catalogue-open {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--space-2);
   min-height: var(--target);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--ink);
   text-decoration: none;
   border-radius: var(--small-radius);
-  background: var(--soft);
-  border: 1px solid var(--line);
-  transition:
-    background-color var(--transition-fast),
-    border-color var(--transition-fast),
-    color var(--transition-fast);
+  border: 1px solid var(--control-line);
 }
 .catalogue-card .catalogue-open {
   margin-top: auto;
 }
 .catalogue-open:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-  text-decoration: none;
-}
-.catalogue-open:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+  background: var(--soft);
+  color: var(--ink);
 }
 .catalogue-pagination {
   display: flex;
@@ -211,8 +219,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (min-width: 1050px) {
-  .catalogue-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+@media (max-width: 759px) {
+  .catalogue-card {
+    padding: var(--page-gutter);
+    gap: var(--space-4);
+  }
+  .catalogue-card .job-title {
+    font-size: 1.125rem;
   }
 }

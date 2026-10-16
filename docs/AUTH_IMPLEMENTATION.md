@@ -1,5 +1,49 @@
 # Aptus login implementation and review map
 
+## Home presentation / review isolation — 15 October 2026
+
+Home public layout and wider view controls updated; authentication/session and
+account storage logic are unchanged. Example ready/setup profiles require an
+explicit development-only flag plus the fictional API marker. They never create
+real sessions, persist jobs or call matching providers. Existing production
+sign-in/passkey/logout regressions pass alongside the Home checks. Real automatic
+Home recommendations and account-owned saves remain backend gaps; see the
+[Home scope and evidence](UI_REDESIGN_IMPLEMENTATION.md).
+
+## Shared navigation presentation — 15 October 2026
+
+Implemented the approved responsive navigation and guest header Sign in link
+styling. Existing session checks, provider calls, passkey management and logout
+logic are unchanged. All five production Next browser checks pass, including
+sign-in errors/retry, signed-in management/logout, three navigation sizes,
+keyboard/no-JavaScript access and public Home behavior. Saved currently has an
+explicit unavailable page; no private persistence or account access was added.
+See [scope and comparison artifacts](UI_REDESIGN_IMPLEMENTATION.md).
+
+## Approved sign-in page presentation — 15 October 2026
+
+User caught old Google/passkey controls remaining in the header. Moved those
+controls into the approved `/sign-in` card via AuthBar presentation mode;
+existing request, renewal, URL checks, logout and passkey ceremony code remain.
+Header guests get Sign in; account holders retain Manage sign-in and sign-out.
+The page has Google/passkey icons, explanations and a public browse link.
+Provider errors stay inside the card. Server page shell, existing client auth
+controls; no dependency or backend security/config change.
+
+Production browser checks pass for three widths, Google failure/loading/retry,
+passkey status and option-fetch failure, management access and logout. These use
+isolated mocked provider responses, not live OAuth or hardware credential proof.
+See [design fidelity and checks](UI_REDESIGN_IMPLEMENTATION.md).
+
+## Frontend redesign foundation — 15 October 2026
+
+Shared presentation and public cards updated locally; authentication logic,
+cookies, session ownership and private caching are unchanged. Production build,
+type/lint, card rendering and focused public browsing checks pass; a new Next.js
+keyboard skip → details → Back regression check passes. A small client skip-link
+control preserves focus/history while catalogue content remains server-rendered.
+See [scope, file map, checks and remaining gaps](UI_REDESIGN_IMPLEMENTATION.md).
+
 Updated: 6 October 2026
 
 ## Status

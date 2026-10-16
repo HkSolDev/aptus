@@ -27,7 +27,9 @@
     "app/**/*",
     "components/**/*",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-design-review/types/**/*.ts",
+    ".next-design-review/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules", "src", "scripts", "services"]
 }
