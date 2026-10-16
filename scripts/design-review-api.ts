@@ -3,16 +3,99 @@ import { pathToFileURL } from 'node:url';
 import { readJobFilters } from '../frontend/public-job-filters.js';
 
 // Matches the four fictional jobs in the approved HTML reference. No database.
+const completeReviewSource = {
+  name: 'Fictional design example',
+  fetchedAt: '14 Oct 2026, 2:00 PM',
+};
+
 const jobs = [
   {
     id: 'review-technical-assistant',
     postName: 'Technical Assistant — Physics and Electronics',
     organization: 'Example Public Research Institute',
     applicationLastDate: '2026-11-30',
-    educationRequired: 'BSc Physics or Diploma in Electronics',
+    educationRequired:
+      'BSc in Physics with 60% marks OR Diploma in Electronics with 50% marks and 3 years of relevant experience.',
     levels: ['BACHELORS', 'DIPLOMA'],
     vacancies: 120,
     payLevel: 'Level 4',
+    postGroup: 'Group C',
+    ageAsOnDate: '2026-11-01',
+    minAge: 18,
+    maxAge: 30,
+    minEducationLevel: 'DIPLOMA',
+    minMarksPercent: null,
+    categoryRelaxationApplies: true,
+    categoryRelaxationRules: { SC: 5, ST: 5, OBC: 3, EWS: 0, PwBD: 10 },
+    eligibilityRules: {
+      gender_requirement: 'Applicants of all genders can apply.',
+      category_requirement: ['General / UR', 'SC', 'ST', 'OBC', 'EWS'],
+      education_options: [
+        {
+          minimum_level: 'BACHELOR',
+          minimum_marks_percent: 60,
+          qualification: 'BSc in Physics',
+          subject_requirement: 'Physics as a main subject',
+          conditions:
+            'Degree from a recognized university. Final results must be declared by the application deadline.',
+        },
+        {
+          minimum_level: 'DIPLOMA',
+          minimum_marks_percent: 50,
+          qualification: 'Diploma in Electronics',
+          subject_requirement: 'Electronics or Electronics and Communication',
+          conditions:
+            'Diploma from a recognized institution, plus 3 years of relevant laboratory experience after completing the diploma.',
+        },
+      ],
+      age_rules: [
+        {
+          category: 'General / UR or EWS',
+          gender: null,
+          min_age: 18,
+          max_age: 30,
+          relaxation_years: 0,
+          conditions: 'Base age limit.',
+        },
+        {
+          category: 'SC or ST',
+          gender: null,
+          min_age: 18,
+          max_age: 35,
+          relaxation_years: 5,
+          conditions: 'Valid category certificate required.',
+        },
+        {
+          category: 'OBC',
+          gender: null,
+          min_age: 18,
+          max_age: 33,
+          relaxation_years: 3,
+          conditions:
+            'Non-creamy-layer certificate required under the notice conditions.',
+        },
+        {
+          category: 'PwBD',
+          gender: null,
+          min_age: null,
+          max_age: 40,
+          relaxation_years: 10,
+          conditions:
+            'Maximum-only rule. Disability documentation must satisfy the notice.',
+        },
+        {
+          category: null,
+          gender: 'Women',
+          min_age: null,
+          max_age: 32,
+          relaxation_years: 2,
+          conditions:
+            'Maximum-only rule for women applicants, as stated in this fictional notice.',
+        },
+      ],
+      relaxation_combination_rule:
+        'Use the single applicable relaxation. Do not add category, disability and gender relaxations together.',
+    },
   },
   {
     id: 'review-laboratory-assistant',
@@ -93,7 +176,14 @@ export function createDesignReviewApi() {
       send(
         job ? 200 : 404,
         job
-          ? { ...job, source: { name: 'Fictional design example' } }
+          ? {
+              ...job,
+              designReview: true,
+              source:
+                job.id === 'review-technical-assistant'
+                  ? completeReviewSource
+                  : { name: 'Fictional design example' },
+            }
           : { error: 'Example not found' },
       );
       return;

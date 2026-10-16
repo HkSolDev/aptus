@@ -4,6 +4,7 @@ import Form from 'next/form';
 import { useRouter } from 'next/navigation';
 import { homeSearchParams, type HomeView } from '@/frontend/home-view';
 import type { JobFilters } from '@/frontend/public-job-filters';
+import styles from './home-layout-controls.module.css';
 
 export function HomeViewFields({
   view,
@@ -49,7 +50,7 @@ export function HomeLayoutControls({
         nextParams.set(key, submitter.value);
         router.push(`/?${nextParams}`, { scroll: false });
       }}
-      className="home-layout-switch"
+      className={styles.switch}
       aria-label={scope === 'all' ? 'All jobs layout' : 'Recommendation layout'}
     >
       {Array.from(params, ([name, value]) => (

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import styles from './job-card.module.css';
 
 export interface PublicJobItem {
   id: string;
@@ -44,29 +45,30 @@ export function JobCard({
 
   return (
     <article
-      className={`job-card catalogue-card${recommended ? ' home-recommended-card' : ''}`}
+      className={`${styles.card}${recommended ? ` ${styles.recommended}` : ''}`}
+      data-job-card
     >
-      <div className="catalogue-identity">
-        <h3 className="job-title">
+      <div>
+        <h3 className={styles.title}>
           <Link href={`/jobs/${encodeURIComponent(job.id)}`}>
             {job.postName}
           </Link>
         </h3>
         {job.organization?.trim() && (
-          <p className="muted">{job.organization}</p>
+          <p className={`muted ${styles.organization}`}>{job.organization}</p>
         )}
-        {applyBy && <p className="catalogue-deadline">Apply by {applyBy}</p>}
+        {applyBy && <p className={styles.deadline}>Apply by {applyBy}</p>}
         {matchSummary}
       </div>
-      <div className="catalogue-facts">
+      <div className={styles.facts}>
         {hasQualification && (
-          <div className="catalogue-qualification">
+          <div className={styles.qualification}>
             <p className="small muted">Qualification</p>
             <p>{qualification}</p>
           </div>
         )}
         {(job.vacancies != null || job.payLevel) && (
-          <p className="small catalogue-extra">
+          <p className={`small ${styles.extra}`}>
             {job.vacancies != null &&
               `${job.vacancies.toLocaleString('en-IN')} vacancies`}
             {job.vacancies != null && job.payLevel && ' · '}
@@ -74,19 +76,15 @@ export function JobCard({
           </p>
         )}
       </div>
-      <div className="catalogue-actions">
+      <div className={styles.actions}>
         <Link
-          className="catalogue-open"
+          className={styles.open}
           href={`/jobs/${encodeURIComponent(job.id)}`}
         >
           View details
         </Link>
-        <div className="home-job-actions">
-          {actions ?? (
-            <Link className="home-save" href="/sign-in">
-              Save
-            </Link>
-          )}
+        <div className={styles.secondaryActions}>
+          {actions ?? <Link href="/sign-in">Save</Link>}
         </div>
       </div>
     </article>
