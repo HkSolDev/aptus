@@ -72,3 +72,25 @@ jobs:
       - name: Build and browser tests
         if: ${{ !cancelled() }}
         run: pnpm test:web
+
+  api-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API runtime image
+        run: docker build -f deployment/api.Dockerfile -t aptus-api:ci .
+      - name: Check API container startup
+        run: |
+          docker run -d --name aptus-api-smoke --network none -e AUTH_ENABLED=false aptus-api:ci
+          for attempt in $(seq 1 30); do
+            if docker exec aptus-api-smoke node -e "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs aptus-api-smoke
+          exit 1
+      - name: Remove smoke container
+        if: always()
+        run: docker rm -f aptus-api-smoke || true
