@@ -26,8 +26,8 @@ The frontend Dockerfile runs `pnpm next:build --webpack`, the locally verified
 build command. It copies `app`, `components`, `frontend`, and `public/css`, then
 copies standalone output, static chunks and public assets into the runtime.
 The API copies all `src` modules, both runtime script dependencies (`match.ts`
-and `validate-post.ts`), generated Prisma client, production dependencies, and
-compiled legacy browser assets. The worker copies Python modules plus provider
+and `validate-post.ts`), shared `frontend` filter helpers, generated Prisma
+client, production dependencies, and compiled legacy browser assets. The worker copies Python modules plus provider
 and source adapters, including the collector and scheduler entrypoints. The
 migration image includes the complete Prisma migration directory and config.
 No Dockerfile uses a broad `COPY .`; runtime credentials are never build inputs.
@@ -105,3 +105,23 @@ unavailable. Host builds do not verify Alpine/Linux dependency installation,
 the pinned worker base image/dependencies, container startup, healthchecks, or
 volume permissions. No server connection, migration, registry image push, or
 deployment took place.
+
+## API runtime packaging fix — 16 October 2026
+
+The first `2463e23` API rollout failed because `src/routes/jobs.ts` imports
+`frontend/public-job-filters.js` through tsx, but the final image omitted the
+`frontend` directory. Coolify restored the previous healthy API. The runtime
+now copies that directory and imports the helper during image construction
+as the non-root runtime user, so this missing-module failure stops the build.
+
+Build and deploy a fresh commit-tagged API image; do not overwrite `2463e23`.
+The production organization migration was already applied during the previous
+rollout; inspect migration status rather than repeating it. Continue frontend
+and worker deployment only after the updated API passes its healthcheck.
+
+Verification for this fix: runtime helper import, all six focused public-jobs
+checks, project type checking, lint and changed-file formatting passed locally.
+CI now also builds the API image and checks `/health` inside a container with
+external networking disabled and authentication disabled, without production
+configuration. This checks startup only, not database connectivity or sign-in.
+Local container verification is unavailable because no Docker daemon is running.
