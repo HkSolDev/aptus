@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import httpx
 from extract import extract_posts
@@ -10,7 +11,25 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 
 def push_to_ts(payload: dict) -> dict:
     """Send extracted JSON to the application for persistence, not extraction."""
-    res = httpx.post(f"{BASE_URL}/api/internal/ingest", json=payload)
+    token = os.getenv("INGEST_TOKEN") or None
+    token_file = os.getenv("INGEST_TOKEN_FILE")
+    if token_file:
+        if token is not None:
+            raise RuntimeError("Configure only one ingestion credential source.")
+        try:
+            token = Path(token_file).read_text(encoding="utf-8").strip()
+        except OSError:
+            raise RuntimeError("Could not load the ingestion credential file.") from None
+    if not token or not 32 <= len(token) <= 512 or any(
+        char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+        for char in token
+    ):
+        raise RuntimeError("Configure a valid ingestion credential before sending posts.")
+    res = httpx.post(
+        f"{BASE_URL}/api/internal/ingest", json=payload,
+        headers={"Authorization": f"Bearer {token}"}, follow_redirects=False,
+        timeout=30,
+    )
     res.raise_for_status()
     return res.json()
 
