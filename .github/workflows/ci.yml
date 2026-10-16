@@ -94,3 +94,13 @@ jobs:
       - name: Remove smoke container
         if: always()
         run: docker rm -f aptus-api-smoke || true
+
+  worker-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build worker runtime image
+        run: docker build -f deployment/worker.Dockerfile -t aptus-worker:ci .
+      - name: Check worker help without running the pipeline
+        run: docker run --rm --network none --read-only aptus-worker:ci --help
