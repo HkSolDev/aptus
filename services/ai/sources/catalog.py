@@ -27,7 +27,6 @@ DISABLED_SOURCES = {
     'uksssc': {'listing_url': 'https://sssc.uk.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'hppsc': {'listing_url': 'https://hppsc.hp.gov.in/Home/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     # Third-party discovery leads
-    'mysarkarinaukri': {'listing_url': 'https://www.mysarkarinaukri.com/', 'kind': 'third_party', 'reason': 'adapter_not_verified'},
     'testbook_notifications': {'listing_url': 'https://testbook.com/news/notification/', 'kind': 'third_party', 'reason': 'adapter_not_verified'},
     'jobyaari': {'listing_url': 'https://www.jobyaari.com/', 'kind': 'third_party', 'reason': 'adapter_not_verified'},
     'sarkari_job_selection': {'listing_url': 'https://sarkarijobselection.com/', 'kind': 'third_party', 'reason': 'listing_not_verified'},

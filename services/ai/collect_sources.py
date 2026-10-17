@@ -13,6 +13,7 @@ from sources.upsc import LISTING_URL as UPSC_LISTING_URL, discover_listings as d
 from sources.uppsc import LISTING_URL as UPPSC_LISTING_URL, discover_listings as discover_uppsc_listings
 from sources.hssc import LISTING_URL as HSSC_LISTING_URL, discover_listings as discover_hssc_listings
 from sources.jkssb import LISTING_URL as JKSSB_LISTING_URL, discover_listings as discover_jkssb_listings
+from sources.mysarkarinaukri import LISTING_URL as MYSARKARINAUKRI_LISTING_URL, discover_listings as discover_mysarkarinaukri_listings
 
 ACCEPTED = {'changed', 'identical', 'revalidated'}
 LISTINGS = {
@@ -22,6 +23,7 @@ LISTINGS = {
     'uppsc': (UPPSC_LISTING_URL, None),
     'hssc': (HSSC_LISTING_URL, None),
     'jkssb': (JKSSB_LISTING_URL, None),
+    'mysarkarinaukri': (MYSARKARINAUKRI_LISTING_URL, None),
 }
 
 DISABLED_LISTINGS = DISABLED_SOURCES
@@ -75,6 +77,12 @@ def collect(root, capture_document=capture):
                     if kind != 'html':
                         raise ValueError('listing_not_html')
                     jobs = discover_jkssb_listings(
+                        Path(listing['body_path']).read_text(encoding='utf-8', errors='replace')
+                    )
+                elif source == 'mysarkarinaukri':
+                    if kind != 'html':
+                        raise ValueError('listing_not_html')
+                    jobs = discover_mysarkarinaukri_listings(
                         Path(listing['body_path']).read_text(encoding='utf-8', errors='replace')
                     )
                 else:

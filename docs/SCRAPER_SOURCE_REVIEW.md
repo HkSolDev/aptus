@@ -33,6 +33,12 @@ Its public Advertisement page contains direct JKSSB-hosted PDF links, which
 are captured through a dedicated adapter and remain evidence-gated before
 publication.
 
+MySarkariNaukri is active for bounded third-party discovery only when a job
+card labels a direct external PDF as its official notification. The adapter
+captures that PDF, carries the stated recruiting body and deadline where
+available, and does not crawl publisher article pages. Documents remain
+evidence-gated before publication.
+
 Rajasthan Recruitment Portal is registered as a **disabled** candidate only.
 The public vacancy page supplies a title, department, deadline and a JavaScript
 detail id, but no stable public notice URL. It cannot enter the capture,
@@ -50,7 +56,7 @@ are separately verified.
 | Punjab Recruitments | Official | Searchable recruitment page available | Not yet verified | Medium | Not assessed | Research later |
 | UKPSC | Official | Recruitment notices available | Not yet verified | Medium | Not assessed | Research later |
 | HPPSC | Official | Recruitment advertisements available | Not yet verified | Medium | Not assessed | Research later |
-| MySarkariNaukri | Third-party | Public job cards found | `robots.txt` permits public paths with a two-second crawl delay | High | One listing + at most three verified official notices | Candidate; verify outbound official links first |
+| MySarkariNaukri | Third-party | Job cards with labelled external official PDFs | `robots.txt` permits public paths with a two-second crawl delay | High | One listing + at most three labelled official PDFs | Active discovery/capture; publication remains gated |
 | Testbook | Third-party | Public notification articles found; mixes jobs and exam content | Listing path was reachable; published rules did not block it | High | One listing + at most three verified official notices | Candidate; strict recruitment and official-link filters required |
 | JobYaari | Third-party | Not confirmed | Listing request timed out | High | Not assessed | Keep disabled |
 | SarkariJobSelection | Third-party | Not confirmed | Listing request timed out | High | Not assessed | Keep disabled |
