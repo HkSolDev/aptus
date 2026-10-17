@@ -1,9 +1,38 @@
 {
   "statusCode": "200",
   "data": [
-    {"headline": "NOTIFICATION FOR RECRUITMENT OF ENROLLED PERSONS IN THE INDIAN COAST GUARD", "attachments": [{"type": "application/pdf", "path": "uploads\\masterData\\NoticeBoards\\advertisement.pdf"}]},
-    {"headline": "Combined Graduate Level Examination, 2026: Declaration of Final Result", "attachments": [{"type": "application/pdf", "path": "uploads\\masterData\\NoticeBoards\\result.pdf"}]},
-    {"headline": "Selection Posts Examination, 2026: Uploading of Tentative Answer Keys", "attachments": [{"type": "application/pdf", "path": "uploads\\masterData\\NoticeBoards\\answer-key.pdf"}]},
-    {"headline": "Recruitment notice", "attachments": [{"type": "application/pdf", "path": "../not-a-notice.pdf"}]}
+    {
+      "headline": "NOTIFICATION FOR RECRUITMENT OF ENROLLED PERSONS IN THE INDIAN COAST GUARD",
+      "attachments": [
+        {
+          "type": "application/pdf",
+          "path": "uploads\\masterData\\NoticeBoards\\advertisement.pdf"
+        }
+      ]
+    },
+    {
+      "headline": "Combined Graduate Level Examination, 2026: Declaration of Final Result",
+      "attachments": [
+        {
+          "type": "application/pdf",
+          "path": "uploads\\masterData\\NoticeBoards\\result.pdf"
+        }
+      ]
+    },
+    {
+      "headline": "Selection Posts Examination, 2026: Uploading of Tentative Answer Keys",
+      "attachments": [
+        {
+          "type": "application/pdf",
+          "path": "uploads\\masterData\\NoticeBoards\\answer-key.pdf"
+        }
+      ]
+    },
+    {
+      "headline": "Recruitment notice",
+      "attachments": [
+        { "type": "application/pdf", "path": "../not-a-notice.pdf" }
+      ]
+    }
   ]
 }
