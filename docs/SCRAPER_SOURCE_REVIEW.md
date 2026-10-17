@@ -50,16 +50,16 @@ are separately verified.
 | Punjab Recruitments | Official | Searchable recruitment page available | Not yet verified | Medium | Not assessed | Research later |
 | UKPSC | Official | Recruitment notices available | Not yet verified | Medium | Not assessed | Research later |
 | HPPSC | Official | Recruitment advertisements available | Not yet verified | Medium | Not assessed | Research later |
-| MySarkariNaukri | Third-party | State-wise vacancy listings found | Not yet verified | High | Not assessed | Research later |
-| Testbook | Third-party | Job news listing found; mixes results and notices | Not yet verified | High | Not assessed | Research later |
-| JobYaari | Third-party | Job listings found | Not yet verified | High | Not assessed | Research later |
-| SarkariJobSelection | Third-party | Search surfaced stored PDFs, not a verified listing page | Not yet verified | High | Not assessed | Do not implement |
-| Jagran Josh | Third-party | Job news listing found; mixes notices, results and exam content | Not yet verified | High | Not assessed | Research later |
-| SarkariResultNext | Third-party | No usable listing page confirmed | Not yet verified | High | Not assessed | Do not implement |
-| GovtJobGuru | Third-party | Active-jobs table found | Not yet verified | High | Not assessed | Research later |
-| Amar Ujala | Third-party | Jobs news listing found; mixes notices and admit cards | Not yet verified | High | Not assessed | Research later |
-| Hindustan Times | Third-party | Employment-news listing found | Not yet verified | High | Not assessed | Research later |
-| Times of India | Third-party | Education jobs news listing found | Not yet verified | High | Not assessed | Research later |
+| MySarkariNaukri | Third-party | Public job cards found | `robots.txt` permits public paths with a two-second crawl delay | High | One listing + at most three verified official notices | Candidate; verify outbound official links first |
+| Testbook | Third-party | Public notification articles found; mixes jobs and exam content | Listing path was reachable; published rules did not block it | High | One listing + at most three verified official notices | Candidate; strict recruitment and official-link filters required |
+| JobYaari | Third-party | Not confirmed | Listing request timed out | High | Not assessed | Keep disabled |
+| SarkariJobSelection | Third-party | Not confirmed | Listing request timed out | High | Not assessed | Keep disabled |
+| Jagran Josh | Third-party | Public landing page mixes jobs, results and broad education content | `robots.txt` disallows `/government-jobs/*` detail paths | High | Not applicable | Do not implement |
+| SarkariResultNext | Third-party | Not confirmed | Listing request timed out | High | Not assessed | Keep disabled |
+| GovtJobGuru | Third-party | Public page mixes jobs, results, admit cards and answer keys | `robots.txt` disallows uploaded PDFs | High | Not applicable | Do not implement |
+| Amar Ujala | Third-party | Public jobs-news listing mixes jobs and results | Listing path reachable; no relevant path restriction found | High | One listing + at most three verified official notices | Candidate; strict filters and official links required |
+| Hindustan Times | Third-party | Public employment-news listing mixes jobs and results | Listing path reachable; no relevant path restriction found | High | One listing + at most three verified official notices | Candidate; strict filters and official links required |
+| Times of India | Third-party | Public education-jobs listing mixes jobs and results | Listing path reachable; no relevant path restriction found | High | One listing + at most three verified official notices | Candidate; strict filters and official links required |
 
 Official Uttar Pradesh, Haryana, Delhi, Jammu and Kashmir, central SSC/RRB,
 BSSC, PSSSB and UKSSSC portals remain research candidates. None are registered
