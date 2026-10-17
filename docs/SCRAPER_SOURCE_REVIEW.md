@@ -5,9 +5,15 @@
 FreeJobAlert is removed from active scheduled discovery. Its existing collected
 records and capture state are untouched.
 
-All 31 unique sources requested by the developer are now registered in
+Thirty requested sources are registered in
 `services/ai/sources/catalog.py` as disabled candidates. This catalog is a
 review queue, not an instruction for the worker to fetch every site.
+
+UPSC is active for bounded official-advertisement discovery and PDF capture.
+Its direct, UPSC-hosted PDF links are tested with an offline fixture and a
+current public advertisement. The current PDF is a readable native-text
+candidate, but it remains behind Aptus's PDF evidence-review gate rather than
+being automatically published as a job.
 
 Rajasthan Recruitment Portal is registered as a **disabled** candidate only.
 The public vacancy page supplies a title, department, deadline and a JavaScript
@@ -20,7 +26,7 @@ are separately verified.
 | Source | Type | Listing status | Access/robots status | Duplicate risk | Request estimate | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
 | Rajasthan Recruitment Portal | Official | Public vacancy cards available | Public page captured once; `robots.txt` request timed out | Medium; it overlaps other Rajasthan publishers | One listing request when enabled | Disabled candidate |
-| UPSC | Official | Recruitment advertisements available | Not yet verified | Low | Not assessed | Research later |
+| UPSC | Official | Direct recruitment-advertisement PDFs | Current public listing and PDF captured; robots endpoint did not provide a usable policy document | Low | One listing + at most three PDF requests per run | Active discovery/capture; publication remains gated |
 | BPSC | Official | Recruitment page available | Not yet verified | Medium | Not assessed | Research later |
 | Punjab Recruitments | Official | Searchable recruitment page available | Not yet verified | Medium | Not assessed | Research later |
 | UKPSC | Official | Recruitment notices available | Not yet verified | Medium | Not assessed | Research later |

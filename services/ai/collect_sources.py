@@ -8,9 +8,10 @@ from capture import capture
 from capture_store import atomic_write, now, read_state
 from sources.catalog import DISABLED_SOURCES
 from sources.sarkariresult import RSS_URL, discover_feed
+from sources.upsc import LISTING_URL as UPSC_LISTING_URL, discover_listings as discover_upsc_listings
 
 ACCEPTED = {'changed', 'identical', 'revalidated'}
-LISTINGS = {'sarkariresult': (RSS_URL, None)}
+LISTINGS = {'sarkariresult': (RSS_URL, None), 'upsc': (UPSC_LISTING_URL, None)}
 
 DISABLED_LISTINGS = DISABLED_SOURCES
 
@@ -35,6 +36,14 @@ def collect(root, capture_document=capture):
                     if kind != 'xml':
                         raise ValueError('listing_not_xml')
                     jobs = discover_feed(Path(listing['body_path']).read_bytes())
+                elif source == 'upsc':
+                    if kind != 'html':
+                        raise ValueError('listing_not_html')
+                    jobs = discover_upsc_listings(
+                        Path(listing['body_path']).read_text(encoding='utf-8', errors='replace')
+                    )
+                else:
+                    raise ValueError('source_dispatch_missing')
                 atomic_write(source_root / 'discovered.json', json.dumps(jobs).encode())
                 documents = source_root / 'documents'
                 # Revisit least recently attempted URLs first; one failure cannot starve others.

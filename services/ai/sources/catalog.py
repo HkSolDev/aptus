@@ -6,7 +6,6 @@ URL policy and offline fixtures have been reviewed.
 
 DISABLED_SOURCES = {
     # Central government
-    'upsc': {'listing_url': 'https://www.upsc.gov.in/recruitment/recruitment-advertisement', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'ssc': {'listing_url': 'https://ssc.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'rrb_chandigarh': {'listing_url': 'https://www.rrbcdg.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     # Uttar Pradesh
