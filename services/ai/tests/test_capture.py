@@ -82,6 +82,14 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(result["outcome"], "rejected")
         self.assertEqual(result["reason"], "invalid_xml")
 
+    def test_json_listing_response_is_stored_for_source_adapters(self):
+        response = httpx.Response(
+            200, content=b'{"statusCode":"200","data":[]}',
+            headers={"content-type": "application/json"},
+        )
+        result, _ = self.run_capture([response])
+        self.assertEqual(result["snapshot"]["document_kind"], "json")
+
     def test_failures_keep_last_good(self):
         first, _ = self.run_capture([self.html()])
         for response in [httpx.Response(500), httpx.ReadTimeout("test timeout"),
