@@ -10,12 +10,14 @@ from sources.catalog import DISABLED_SOURCES
 from sources.sarkariresult import RSS_URL, discover_feed
 from sources.ssc import NOTICE_BOARD_URL as SSC_NOTICE_BOARD_URL, discover_listings as discover_ssc_listings
 from sources.upsc import LISTING_URL as UPSC_LISTING_URL, discover_listings as discover_upsc_listings
+from sources.uppsc import LISTING_URL as UPPSC_LISTING_URL, discover_listings as discover_uppsc_listings
 
 ACCEPTED = {'changed', 'identical', 'revalidated'}
 LISTINGS = {
     'sarkariresult': (RSS_URL, None),
     'ssc': (SSC_NOTICE_BOARD_URL, None),
     'upsc': (UPSC_LISTING_URL, None),
+    'uppsc': (UPPSC_LISTING_URL, None),
 }
 
 DISABLED_LISTINGS = DISABLED_SOURCES
@@ -53,6 +55,12 @@ def collect(root, capture_document=capture):
                     jobs = discover_ssc_listings(json.loads(
                         Path(listing['body_path']).read_text(encoding='utf-8')
                     ))
+                elif source == 'uppsc':
+                    if kind != 'html':
+                        raise ValueError('listing_not_html')
+                    jobs = discover_uppsc_listings(
+                        Path(listing['body_path']).read_text(encoding='utf-8', errors='replace')
+                    )
                 else:
                     raise ValueError('source_dispatch_missing')
                 atomic_write(source_root / 'discovered.json', json.dumps(jobs).encode())

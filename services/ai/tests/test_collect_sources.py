@@ -7,6 +7,7 @@ from pathlib import Path
 from collect_sources import DISABLED_LISTINGS, LISTINGS, collect
 from sources.ssc import NOTICE_BOARD_URL as SSC_NOTICE_BOARD_URL
 from sources.upsc import LISTING_URL as UPSC_LISTING_URL
+from sources.uppsc import LISTING_URL as UPPSC_LISTING_URL
 
 
 class CollectionTests(unittest.TestCase):
@@ -52,6 +53,21 @@ class CollectionTests(unittest.TestCase):
                     pdf.write_bytes(b'%PDF-1.4 fixture')
                     return {'outcome': 'changed', 'body_path': str(pdf),
                             'snapshot': {'document_kind': 'pdf'}}
+                if url == UPPSC_LISTING_URL:
+                    listing = Path(directory) / 'uppsc.html'
+                    listing.write_text(
+                        '<table id="ctl00_MainContent_GridView1"><tr><td>'
+                        '<span id="x_Lbl_Adv_number">D-1/E-1/2026</span>'
+                        '<a href="../OuterPages/View_Advertisement.aspx?ID=1&amp;flag=E">'
+                        'View Advertisement</a></td></tr></table>'
+                    )
+                    return {'outcome': 'changed', 'body_path': str(listing),
+                            'snapshot': {'document_kind': 'html'}}
+                if 'uppsc.up.nic.in/OuterPages/View_Advertisement.aspx' in url:
+                    notice = Path(directory) / 'uppsc-notice.html'
+                    notice.write_text('<html><body>Official recruitment notice</body></html>')
+                    return {'outcome': 'changed', 'body_path': str(notice),
+                            'snapshot': {'document_kind': 'html'}}
                 self.fail(f'unexpected active source: {url}')
             result = collect(Path(directory) / 'store', capture)
             self.assertEqual(result['status'], 'completed')
@@ -61,11 +77,13 @@ class CollectionTests(unittest.TestCase):
             self.assertEqual(result['sources']['ssc']['captured'], 1)
             self.assertEqual(result['sources']['upsc']['discovered'], 1)
             self.assertEqual(result['sources']['upsc']['captured'], 1)
-            self.assertEqual(len(calls), 6)
-            self.assertEqual(set(LISTINGS), {'sarkariresult', 'ssc', 'upsc'})
-            self.assertEqual(len(DISABLED_LISTINGS), 29)
+            self.assertEqual(result['sources']['uppsc']['discovered'], 1)
+            self.assertEqual(result['sources']['uppsc']['captured'], 1)
+            self.assertEqual(len(calls), 8)
+            self.assertEqual(set(LISTINGS), {'sarkariresult', 'ssc', 'upsc', 'uppsc'})
+            self.assertEqual(len(DISABLED_LISTINGS), 28)
             self.assertTrue({
-                'uppsc', 'hpsc', 'dsssb', 'jkssb',
+                'hpsc', 'dsssb', 'jkssb',
                 'rajasthan_recruitment', 'mysarkarinaukri', 'times_of_india_jobs',
             }.issubset(DISABLED_LISTINGS))
             self.assertEqual(

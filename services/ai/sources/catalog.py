@@ -8,7 +8,6 @@ DISABLED_SOURCES = {
     # Central government
     'rrb_chandigarh': {'listing_url': 'https://www.rrbcdg.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     # Uttar Pradesh
-    'uppsc': {'listing_url': 'https://uppsc.up.nic.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'upsssc': {'listing_url': 'https://upsssc.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'uppbpb': {'listing_url': 'http://uppbpb.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'rojgaar_sangam_up': {'listing_url': 'https://rojgaarsangam.up.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
