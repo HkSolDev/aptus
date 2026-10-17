@@ -125,3 +125,17 @@ CI now also builds the API image and checks `/health` inside a container with
 external networking disabled and authentication disabled, without production
 configuration. This checks startup only, not database connectivity or sign-in.
 Local container verification is unavailable because no Docker daemon is running.
+
+## Worker runtime packaging fix — 17 October 2026
+
+The `0d1994c` worker image flattened Python modules into `/app`. Importing
+`hash_cache.py` then failed because its repository-relative cache path assumes
+`services/ai` beneath the project root. The image now retains that source
+hierarchy at `/app/services/ai`, with the matching Python path and entrypoint.
+The scheduler and `/work` persistent-storage configuration are unchanged.
+
+Image construction now runs scheduler `--help` as the worker user. CI also runs
+the built image with `--help`, external networking disabled and a read-only
+filesystem. This checks startup/imports without collection, extraction, ingestion
+or production configuration. Build a new commit-tagged worker image; preserve
+the existing `/work` volume when later deploying it.
