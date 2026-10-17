@@ -4,22 +4,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from collect_sources import collect
+from collect_sources import DISABLED_LISTINGS, LISTINGS, collect
 
 
 class CollectionTests(unittest.TestCase):
-    def test_failed_source_does_not_stop_other_source_and_caps_captures(self):
+    def test_collects_only_active_sources_and_keeps_rajasthan_disabled(self):
         with tempfile.TemporaryDirectory() as directory:
-            html = Path(directory) / 'listing.html'
-            rows = ''.join(f'<tr><td><a href="/articles/job-{i}">Post {i}</a></td>'
-                           '<td>Unknown</td></tr>' for i in range(8))
-            html.write_text('<h2>Latest Government Jobs in Rajasthan</h2><table>'
-                            '<tr><th>Job Title</th><th>Last Date</th></tr>'+rows+'</table>')
             calls = []
             def capture(url, root):
                 calls.append(url)
-                if url.endswith('/government-jobs/'):
-                    return {'outcome': 'failed'}
                 if 'sarkariresult.com' in url:
                     rss = Path(directory) / 'feed.xml'
                     rss.write_text(
@@ -29,14 +22,17 @@ class CollectionTests(unittest.TestCase):
                     )
                     return {'outcome': 'changed', 'body_path': str(rss),
                             'snapshot': {'document_kind': 'xml'}}
-                return {'outcome': 'changed', 'body_path': str(html),
-                        'snapshot': {'document_kind': 'html'}}
+                self.fail(f'unexpected active source: {url}')
             result = collect(Path(directory) / 'store', capture)
-            self.assertEqual(result['status'], 'partial_failure')
-            self.assertEqual(result['sources']['rajasthan']['captured'], 3)
+            self.assertEqual(result['status'], 'completed')
             self.assertEqual(result['sources']['sarkariresult']['discovered'], 1)
             self.assertEqual(result['sources']['sarkariresult']['captured'], 1)
-            self.assertEqual(len(calls), 7)
+            self.assertEqual(len(calls), 2)
+            self.assertEqual(set(LISTINGS), {'sarkariresult'})
+            self.assertEqual(
+                DISABLED_LISTINGS['rajasthan_recruitment']['reason'],
+                'public_detail_url_not_verified',
+            )
             self.assertEqual(json.loads((Path(directory)/'store/latest-run.json').read_text()), result)
 
     def test_overlap_skips_without_fetching(self):

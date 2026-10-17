@@ -2,16 +2,24 @@
 
 import fcntl
 import json
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from capture import capture
 from capture_store import atomic_write, now, read_state
-from sources.freejobalert import SOURCES, discover
 from sources.sarkariresult import RSS_URL, discover_feed
+from sources.rajasthan_recruitment import LISTING_URL as RAJASTHAN_LISTING_URL
 
 ACCEPTED = {'changed', 'identical', 'revalidated'}
-LISTINGS = {**SOURCES, 'sarkariresult': (RSS_URL, None)}
+LISTINGS = {'sarkariresult': (RSS_URL, None)}
+
+# A public Rajasthan listing exists, but it does not expose stable public notice
+# URLs. Keep it visible to operators without scheduling it for capture/extraction.
+DISABLED_LISTINGS = {
+    'rajasthan_recruitment': {
+        'listing_url': RAJASTHAN_LISTING_URL,
+        'reason': 'public_detail_url_not_verified',
+    },
+}
 
 
 def collect(root, capture_document=capture):
@@ -23,7 +31,6 @@ def collect(root, capture_document=capture):
         except BlockingIOError:
             return {'status': 'already_running'}
         report = {'checked_at': now(), 'status': 'completed', 'sources': {}}
-        today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
         for source, (url, _) in LISTINGS.items():
             source_root = root / source
             try:
@@ -35,12 +42,6 @@ def collect(root, capture_document=capture):
                     if kind != 'xml':
                         raise ValueError('listing_not_xml')
                     jobs = discover_feed(Path(listing['body_path']).read_bytes())
-                else:
-                    if kind != 'html':
-                        raise ValueError('listing_not_html')
-                    jobs = discover(
-                        Path(listing['body_path']).read_text(encoding='utf-8'), source, today
-                    )
                 atomic_write(source_root / 'discovered.json', json.dumps(jobs).encode())
                 documents = source_root / 'documents'
                 # Revisit least recently attempted URLs first; one failure cannot starve others.
@@ -69,7 +70,7 @@ def collect(root, capture_document=capture):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(
-        description='Collect SSC/Rajasthan/SarkariResult documents, without AI calls'
+        description='Collect active public job documents, without AI calls'
     )
     parser.add_argument('storage_dir')
     args = parser.parse_args()
