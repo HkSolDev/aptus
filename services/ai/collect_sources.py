@@ -12,6 +12,7 @@ from sources.ssc import NOTICE_BOARD_URL as SSC_NOTICE_BOARD_URL, discover_listi
 from sources.upsc import LISTING_URL as UPSC_LISTING_URL, discover_listings as discover_upsc_listings
 from sources.uppsc import LISTING_URL as UPPSC_LISTING_URL, discover_listings as discover_uppsc_listings
 from sources.hssc import LISTING_URL as HSSC_LISTING_URL, discover_listings as discover_hssc_listings
+from sources.jkssb import LISTING_URL as JKSSB_LISTING_URL, discover_listings as discover_jkssb_listings
 
 ACCEPTED = {'changed', 'identical', 'revalidated'}
 LISTINGS = {
@@ -20,6 +21,7 @@ LISTINGS = {
     'upsc': (UPSC_LISTING_URL, None),
     'uppsc': (UPPSC_LISTING_URL, None),
     'hssc': (HSSC_LISTING_URL, None),
+    'jkssb': (JKSSB_LISTING_URL, None),
 }
 
 DISABLED_LISTINGS = DISABLED_SOURCES
@@ -67,6 +69,12 @@ def collect(root, capture_document=capture):
                     if kind != 'html':
                         raise ValueError('listing_not_html')
                     jobs = discover_hssc_listings(
+                        Path(listing['body_path']).read_text(encoding='utf-8', errors='replace')
+                    )
+                elif source == 'jkssb':
+                    if kind != 'html':
+                        raise ValueError('listing_not_html')
+                    jobs = discover_jkssb_listings(
                         Path(listing['body_path']).read_text(encoding='utf-8', errors='replace')
                     )
                 else:

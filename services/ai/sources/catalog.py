@@ -16,7 +16,6 @@ DISABLED_SOURCES = {
     'dsssb': {'listing_url': 'https://dsssb.delhi.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'dsssb_online': {'listing_url': 'https://dsssbonline.nic.in/', 'kind': 'official', 'reason': 'application_portal_not_listing'},
     # Jammu and Kashmir
-    'jkssb': {'listing_url': 'https://jkssb.nic.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'jkpsc': {'listing_url': 'https://jkpsc.nic.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     # Other northern states
     'rajasthan_recruitment': {'listing_url': 'https://recruitment.rajasthan.gov.in/', 'kind': 'official', 'reason': 'public_detail_url_not_verified'},
