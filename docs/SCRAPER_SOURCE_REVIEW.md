@@ -22,6 +22,12 @@ exam updates. Each selected PDF remains behind the same evidence-review gate.
 The current CGEPT recruitment PDF exceeds the 30-page automatic diagnostic
 budget, so it is correctly retained for review rather than extracted.
 
+HSSC is active for bounded official-advertisement discovery and PDF capture.
+The public table provides direct HSSC-hosted PDF documents. Its adapter accepts
+original numbered advertisements and excludes extensions, corrigenda,
+additional-post notices and withdrawals. Captured documents remain behind the
+same evidence-review gate before publication.
+
 Rajasthan Recruitment Portal is registered as a **disabled** candidate only.
 The public vacancy page supplies a title, department, deadline and a JavaScript
 detail id, but no stable public notice URL. It cannot enter the capture,

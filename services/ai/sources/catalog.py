@@ -12,7 +12,6 @@ DISABLED_SOURCES = {
     'uppbpb': {'listing_url': 'http://uppbpb.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'rojgaar_sangam_up': {'listing_url': 'https://rojgaarsangam.up.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     # Haryana and Delhi
-    'hssc': {'listing_url': 'https://hssc.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'hpsc': {'listing_url': 'https://hpsc.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'dsssb': {'listing_url': 'https://dsssb.delhi.gov.in/', 'kind': 'official', 'reason': 'adapter_not_verified'},
     'dsssb_online': {'listing_url': 'https://dsssbonline.nic.in/', 'kind': 'official', 'reason': 'application_portal_not_listing'},
