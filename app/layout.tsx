@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { WorkspaceProvider } from '@/components/providers/workspace-provider';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -13,6 +13,11 @@ import '@/public/css/components.css';
 import '@/public/css/catalogue.css';
 import '@/public/css/sign-in.css';
 import '@/public/css/home.css';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   title: {

@@ -176,6 +176,11 @@
 }
 
 @media (max-width: 759px) {
+  :global(.home-page) .card {
+    display: flex;
+    flex-direction: column;
+  }
+
   .card {
     gap: var(--space-4);
     padding: 20px;
