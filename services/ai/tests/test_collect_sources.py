@@ -29,6 +29,11 @@ class CollectionTests(unittest.TestCase):
             self.assertEqual(result['sources']['sarkariresult']['captured'], 1)
             self.assertEqual(len(calls), 2)
             self.assertEqual(set(LISTINGS), {'sarkariresult'})
+            self.assertEqual(len(DISABLED_LISTINGS), 31)
+            self.assertTrue({
+                'upsc', 'uppsc', 'hpsc', 'dsssb', 'jkssb',
+                'rajasthan_recruitment', 'mysarkarinaukri', 'times_of_india_jobs',
+            }.issubset(DISABLED_LISTINGS))
             self.assertEqual(
                 DISABLED_LISTINGS['rajasthan_recruitment']['reason'],
                 'public_detail_url_not_verified',

@@ -6,20 +6,13 @@ from pathlib import Path
 
 from capture import capture
 from capture_store import atomic_write, now, read_state
+from sources.catalog import DISABLED_SOURCES
 from sources.sarkariresult import RSS_URL, discover_feed
-from sources.rajasthan_recruitment import LISTING_URL as RAJASTHAN_LISTING_URL
 
 ACCEPTED = {'changed', 'identical', 'revalidated'}
 LISTINGS = {'sarkariresult': (RSS_URL, None)}
 
-# A public Rajasthan listing exists, but it does not expose stable public notice
-# URLs. Keep it visible to operators without scheduling it for capture/extraction.
-DISABLED_LISTINGS = {
-    'rajasthan_recruitment': {
-        'listing_url': RAJASTHAN_LISTING_URL,
-        'reason': 'public_detail_url_not_verified',
-    },
-}
+DISABLED_LISTINGS = DISABLED_SOURCES
 
 
 def collect(root, capture_document=capture):

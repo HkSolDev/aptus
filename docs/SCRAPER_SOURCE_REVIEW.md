@@ -5,6 +5,10 @@
 FreeJobAlert is removed from active scheduled discovery. Its existing collected
 records and capture state are untouched.
 
+All 31 unique sources requested by the developer are now registered in
+`services/ai/sources/catalog.py` as disabled candidates. This catalog is a
+review queue, not an instruction for the worker to fetch every site.
+
 Rajasthan Recruitment Portal is registered as a **disabled** candidate only.
 The public vacancy page supplies a title, department, deadline and a JavaScript
 detail id, but no stable public notice URL. It cannot enter the capture,
