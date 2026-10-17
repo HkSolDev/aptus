@@ -8,10 +8,15 @@ from capture import capture
 from capture_store import atomic_write, now, read_state
 from sources.catalog import DISABLED_SOURCES
 from sources.sarkariresult import RSS_URL, discover_feed
+from sources.ssc import NOTICE_BOARD_URL as SSC_NOTICE_BOARD_URL, discover_listings as discover_ssc_listings
 from sources.upsc import LISTING_URL as UPSC_LISTING_URL, discover_listings as discover_upsc_listings
 
 ACCEPTED = {'changed', 'identical', 'revalidated'}
-LISTINGS = {'sarkariresult': (RSS_URL, None), 'upsc': (UPSC_LISTING_URL, None)}
+LISTINGS = {
+    'sarkariresult': (RSS_URL, None),
+    'ssc': (SSC_NOTICE_BOARD_URL, None),
+    'upsc': (UPSC_LISTING_URL, None),
+}
 
 DISABLED_LISTINGS = DISABLED_SOURCES
 
@@ -42,6 +47,12 @@ def collect(root, capture_document=capture):
                     jobs = discover_upsc_listings(
                         Path(listing['body_path']).read_text(encoding='utf-8', errors='replace')
                     )
+                elif source == 'ssc':
+                    if kind != 'json':
+                        raise ValueError('listing_not_json')
+                    jobs = discover_ssc_listings(json.loads(
+                        Path(listing['body_path']).read_text(encoding='utf-8')
+                    ))
                 else:
                     raise ValueError('source_dispatch_missing')
                 atomic_write(source_root / 'discovered.json', json.dumps(jobs).encode())

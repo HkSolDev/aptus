@@ -5,7 +5,7 @@
 FreeJobAlert is removed from active scheduled discovery. Its existing collected
 records and capture state are untouched.
 
-Thirty requested sources are registered in
+Twenty-nine requested sources are registered in
 `services/ai/sources/catalog.py` as disabled candidates. This catalog is a
 review queue, not an instruction for the worker to fetch every site.
 
@@ -14,6 +14,13 @@ Its direct, UPSC-hosted PDF links are tested with an offline fixture and a
 current public advertisement. The current PDF is a readable native-text
 candidate, but it remains behind Aptus's PDF evidence-review gate rather than
 being automatically published as a job.
+
+SSC is active for bounded notice-board discovery and official PDF capture. Its
+public JSON endpoint is filtered to original recruitment notices, excluding
+results, answer keys, marks, admit cards, vacancies, cancellations and similar
+exam updates. Each selected PDF remains behind the same evidence-review gate.
+The current CGEPT recruitment PDF exceeds the 30-page automatic diagnostic
+budget, so it is correctly retained for review rather than extracted.
 
 Rajasthan Recruitment Portal is registered as a **disabled** candidate only.
 The public vacancy page supplies a title, department, deadline and a JavaScript
@@ -27,6 +34,7 @@ are separately verified.
 | --- | --- | --- | --- | --- | --- | --- |
 | Rajasthan Recruitment Portal | Official | Public vacancy cards available | Public page captured once; `robots.txt` request timed out | Medium; it overlaps other Rajasthan publishers | One listing request when enabled | Disabled candidate |
 | UPSC | Official | Direct recruitment-advertisement PDFs | Current public listing and PDF captured; robots endpoint did not provide a usable policy document | Low | One listing + at most three PDF requests per run | Active discovery/capture; publication remains gated |
+| SSC | Official | Public notice-board JSON with official PDF attachments | Public endpoint captured; recruitment filter verified with fixture and live response | Medium; SSC carries notices for other recruiting bodies | One API listing + at most three PDF requests per run | Active discovery/capture; publication remains gated |
 | BPSC | Official | Recruitment page available | Not yet verified | Medium | Not assessed | Research later |
 | Punjab Recruitments | Official | Searchable recruitment page available | Not yet verified | Medium | Not assessed | Research later |
 | UKPSC | Official | Recruitment notices available | Not yet verified | Medium | Not assessed | Research later |

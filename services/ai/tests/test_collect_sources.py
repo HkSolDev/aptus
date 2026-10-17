@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from collect_sources import DISABLED_LISTINGS, LISTINGS, collect
+from sources.ssc import NOTICE_BOARD_URL as SSC_NOTICE_BOARD_URL
 from sources.upsc import LISTING_URL as UPSC_LISTING_URL
 
 
@@ -23,6 +24,20 @@ class CollectionTests(unittest.TestCase):
                     )
                     return {'outcome': 'changed', 'body_path': str(rss),
                             'snapshot': {'document_kind': 'xml'}}
+                if url == SSC_NOTICE_BOARD_URL:
+                    listing = Path(directory) / 'ssc.json'
+                    listing.write_text(json.dumps({'statusCode': '200', 'data': [{
+                        'headline': 'Notification for recruitment of officers',
+                        'attachments': [{'type': 'application/pdf',
+                                         'path': 'uploads\\masterData\\NoticeBoards\\notice.pdf'}],
+                    }]}))
+                    return {'outcome': 'changed', 'body_path': str(listing),
+                            'snapshot': {'document_kind': 'json'}}
+                if 'ssc.gov.in/api/attachment/' in url:
+                    pdf = Path(directory) / 'ssc.pdf'
+                    pdf.write_bytes(b'%PDF-1.4 fixture')
+                    return {'outcome': 'changed', 'body_path': str(pdf),
+                            'snapshot': {'document_kind': 'pdf'}}
                 if url == UPSC_LISTING_URL:
                     listing = Path(directory) / 'upsc.html'
                     listing.write_text(
@@ -42,11 +57,13 @@ class CollectionTests(unittest.TestCase):
             self.assertEqual(result['status'], 'completed')
             self.assertEqual(result['sources']['sarkariresult']['discovered'], 1)
             self.assertEqual(result['sources']['sarkariresult']['captured'], 1)
+            self.assertEqual(result['sources']['ssc']['discovered'], 1)
+            self.assertEqual(result['sources']['ssc']['captured'], 1)
             self.assertEqual(result['sources']['upsc']['discovered'], 1)
             self.assertEqual(result['sources']['upsc']['captured'], 1)
-            self.assertEqual(len(calls), 4)
-            self.assertEqual(set(LISTINGS), {'sarkariresult', 'upsc'})
-            self.assertEqual(len(DISABLED_LISTINGS), 30)
+            self.assertEqual(len(calls), 6)
+            self.assertEqual(set(LISTINGS), {'sarkariresult', 'ssc', 'upsc'})
+            self.assertEqual(len(DISABLED_LISTINGS), 29)
             self.assertTrue({
                 'uppsc', 'hpsc', 'dsssb', 'jkssb',
                 'rajasthan_recruitment', 'mysarkarinaukri', 'times_of_india_jobs',
