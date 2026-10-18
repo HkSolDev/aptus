@@ -64,7 +64,7 @@ export function HomeLayoutControls({
           value={mode}
           aria-pressed={view[key] === mode}
         >
-          {mode === 'rows' ? 'Rows' : 'Cards'}
+          {mode === 'rows' ? 'List' : 'Cards'}
         </button>
       ))}
     </form>

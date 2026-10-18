@@ -193,94 +193,24 @@ test('Next.js frontend: server-rendered SEO, private caching, in-memory workspac
   );
 
   await t.test(
-    'Browser flow: Profile submission -> In-memory results -> Zero browser storage',
+    'Browser flow: signed-out profile remains private without browser storage',
     async () => {
       const page = await browser.newPage({
         viewport: { width: 1280, height: 900 },
       });
 
       try {
-        // Route match API to fixture
-        await page.route('**/api/match', async (route) => {
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            json: {
-              userId: 'test-user',
-              sourcesChecked: ['Fixture source'],
-              matches: [
-                {
-                  id: 'match-1',
-                  postName: 'Junior Scientific Officer',
-                  sourceName: 'SSC Phase XII',
-                  sourceUrl: 'https://example.org/ssc',
-                  payLevel: 'Level 6',
-                  ageComparison: 'Age 26 (Allowed: 18–30)',
-                  categoryRelaxationApplied: null,
-                },
-              ],
-              needsManualCheck: [],
-            },
-          });
-        });
-
         await page.goto(`${nextOrigin}/profile`);
-
-        // Check accessibility and title
         await expect(
-          page.getByRole('heading', { name: 'Find jobs for you' }),
+          page.getByRole('heading', { name: 'Sign in to view your profile' }),
         ).toBeVisible();
-
-        // Fill DOB
-        await page.fill('input[name="dob"]', '1998-05-15');
-
-        // Select Category
-        await page.selectOption('select[name="category"]', 'General');
-
-        // Select Education Level
-        await page.selectOption('select[name="eduLevel"]', 'MASTERS');
-
-        // Verify storage is completely empty before submit
-        const storageBefore = await page.evaluate(() => ({
+        await expect(page.locator('#profile-fields')).toHaveCount(0);
+        const storage = await page.evaluate(() => ({
           localStorageCount: window.localStorage.length,
           sessionStorageCount: window.sessionStorage.length,
         }));
-        assert.equal(storageBefore.localStorageCount, 0);
-        assert.equal(storageBefore.sessionStorageCount, 0);
-
-        // Submit profile form
-        await page.click('#submit-profile');
-
-        // Navigation to /results
-        await page.waitForURL(`${nextOrigin}/results`);
-        await expect(
-          page.getByRole('heading', { name: 'Your next steps, clearer.' }),
-        ).toBeVisible();
-
-        // Verify matches are shown from match response
-        await expect(page.locator('#result-count')).toBeVisible();
-
-        // Verify storage remains completely empty after matching
-        const storageAfter = await page.evaluate(() => ({
-          localStorageCount: window.localStorage.length,
-          sessionStorageCount: window.sessionStorage.length,
-        }));
-        assert.equal(storageAfter.localStorageCount, 0);
-        assert.equal(storageAfter.sessionStorageCount, 0);
-
-        // Navigate back to /profile using header navigation
-        await page.click('header nav a[href="/profile"]');
-        await page.waitForURL(`${nextOrigin}/profile`);
-
-        // In-memory values should be preserved
-        await expect(page.locator('input[name="dob"]')).toHaveValue(
-          '1998-05-15',
-        );
-
-        // Results are reached from the profile flow; browser Back retains memory.
-        await page.goBack();
-        await page.waitForURL(`${nextOrigin}/results`);
-        await expect(page.locator('#result-count')).toBeVisible();
+        assert.equal(storage.localStorageCount, 0);
+        assert.equal(storage.sessionStorageCount, 0);
       } finally {
         await page.close();
       }

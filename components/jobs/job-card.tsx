@@ -49,7 +49,7 @@ export function JobCard({
       data-job-card
     >
       <div>
-        <h3 className={styles.title}>
+        <h3 className={styles.title} data-job-title>
           <Link href={`/jobs/${encodeURIComponent(job.id)}`}>
             {job.postName}
           </Link>
@@ -68,7 +68,7 @@ export function JobCard({
           </div>
         )}
         {(job.vacancies != null || job.payLevel) && (
-          <p className={`small ${styles.extra}`}>
+          <p className={`small ${styles.extra}`} data-job-extra>
             {job.vacancies != null &&
               `${job.vacancies.toLocaleString('en-IN')} vacancies`}
             {job.vacancies != null && job.payLevel && ' · '}

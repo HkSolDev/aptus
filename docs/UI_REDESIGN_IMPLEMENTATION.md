@@ -1,5 +1,46 @@
 # Aptus frontend redesign implementation
 
+## Frontend merge with main — 18 October 2026
+
+Merged main `ebcd060` into `codex/aptus-frontend-20261018`. Resolved overlapping
+frontend history by retaining main CSS modules, review flows, viewport, organization
+search, deployment and worker files, alongside frontend account menu, production
+profile access checks, mobile List/Cards and active-deadline queries. Mobile list
+styles now live in the corresponding CSS modules. Worker branch remains `12d4bf6`;
+no worker files differ from main.
+
+Verification: production webpack build, frontend TypeScript, focused ESLint,
+changed-file formatting, eight navigation/review browser checks, five focused
+Node checks and 229 offline Python tests passed. One database deadline test
+was skipped because no disposable test database was supplied. Repository-wide
+typecheck/lint remain blocked by missing local openai/pdf-parse dependencies;
+the separate next-frontend browser suite could not start on occupied port 8081.
+The build reported standalone tracing warnings from shared worktree dependencies;
+this was not a deployment-image check. No deployment or main update performed.
+
+## Mobile List/Cards and active application deadlines — 18 October
+
+Mobile now exposes the existing layout switch as List / Cards. List uses
+separated rows with title, available organization/deadline, qualification
+(two-line preview), and existing details/save actions; Cards keeps fuller facts.
+No smaller title text or change to desktop layout; existing `layout=rows|cards`
+URLs, filters, pagination and Back behavior remain compatible. Saving is still
+subject to the existing production/fixture limitations.
+
+The public catalogue and matching query share a deadline condition before rows
+and counts are fetched: date before today's India calendar date is excluded;
+today/future/null deadlines remain. No records are deleted and existing detail
+links remain readable. Public Next listing fetches no longer reuse a cached
+response across date changes. Already-open pages update on the next navigation
+or reload. This uses stored deadline dates, not an inferred closing time.
+
+Verification: build, typecheck and lint pass. Nine focused browser/deadline
+checks pass, including real PostgreSQL filtering/counts/pagination/matching in
+an isolated schema, IST midnight rollover, mobile layout height difference,
+Cards → detail → Back, no-JavaScript switching and existing auth/navigation.
+Jobs API and matching-access regressions also pass. Mobile light/dark List
+screenshots inspected; backend restarted on 8081 with the updated query.
+
 ## Remaining pages — local review complete · 16 October
 
 Recommendations and Saved now share development-only in-memory saves, hidden

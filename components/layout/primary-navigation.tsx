@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useWorkspace } from '@/components/providers/workspace-provider';
 
 const destinations = [
   {
@@ -29,42 +30,54 @@ const destinations = [
 
 export function PrimaryNavigation() {
   const pathname = usePathname();
+  const { accountName } = useWorkspace();
+  const signedIn = accountName !== null;
   const active =
-    pathname === '/' || pathname.startsWith('/jobs/') || pathname === '/results'
-      ? '/'
-      : destinations.find(
-          ({ href }) =>
-            href !== '/' &&
-            (pathname === href || pathname.startsWith(`${href}/`)),
-        )?.href;
+    pathname === '/sign-in'
+      ? '/sign-in'
+      : pathname === '/' ||
+          pathname.startsWith('/jobs/') ||
+          pathname === '/results'
+        ? '/'
+        : destinations.find(
+            ({ href }) =>
+              href !== '/' &&
+              (pathname === href || pathname.startsWith(`${href}/`)),
+          )?.href;
 
   return (
     <nav className="primary-navigation" aria-label="Main navigation">
-      {destinations.map(({ href, label, icon }) => (
-        <Link
-          key={href}
-          href={href}
-          aria-current={active === href ? 'page' : undefined}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+      {destinations.map(({ href: destination, label: title, icon }) => {
+        const href =
+          destination === '/profile' && !signedIn ? '/sign-in' : destination;
+        const label =
+          destination === '/profile' && !signedIn ? 'Sign in' : title;
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-current={active === href ? 'page' : undefined}
           >
-            {icon}
-          </svg>
-          <span>
-            {label}
-            {href === '/saved' && (
-              <span className="navigation-wide-label"> jobs</span>
-            )}
-          </span>
-        </Link>
-      ))}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              {icon}
+            </svg>
+            <span>
+              {label}
+              {href === '/saved' && (
+                <span className="navigation-wide-label"> jobs</span>
+              )}
+            </span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

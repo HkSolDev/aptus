@@ -23,6 +23,13 @@
 
 @media (max-width: 759px) {
   .switch {
-    display: none;
+    display: flex;
+  }
+}
+
+@media (max-width: 759px) {
+  .switch button {
+    min-height: var(--target);
+    padding: var(--space-2) var(--space-3);
   }
 }

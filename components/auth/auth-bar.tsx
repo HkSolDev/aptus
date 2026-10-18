@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useWorkspace } from '@/components/providers/workspace-provider';
 import { Passkeys } from './passkeys';
 import { GoogleIcon } from './auth-icons';
+import { AccountMenu } from './account-menu';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -63,11 +64,15 @@ export function AuthBar({
 }: {
   presentation?: 'header' | 'signin';
 }) {
-  const hiddenHeader =
-    usePathname() === '/sign-in' && presentation === 'header';
+  const pathname = usePathname();
+  const hiddenHeader = pathname === '/sign-in' && presentation === 'header';
   const errorId = `${presentation}-auth-error`;
-  const { clearWorkspace } = useWorkspace();
-  const [userName, setUserName] = useState<string | null>(null);
+  const {
+    clearWorkspace,
+    accountName: userName,
+    setAccountName: setUserName,
+    setSessionChecked,
+  } = useWorkspace();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,13 +93,15 @@ export function AuthBar({
     } catch {
       setUserName(null);
       clearWorkspace();
+    } finally {
+      setSessionChecked(true);
     }
-  }, [clearWorkspace]);
+  }, [clearWorkspace, setUserName, setSessionChecked]);
 
   useEffect(() => {
     if (hiddenHeader) return;
     void checkSession();
-  }, [checkSession, hiddenHeader]);
+  }, [checkSession, hiddenHeader, pathname]);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -169,6 +176,13 @@ export function AuthBar({
       if (status === 200 || status === 401) {
         setUserName(null);
         clearWorkspace();
+        if (presentation === 'header') {
+          requestAnimationFrame(() =>
+            document
+              .querySelector<HTMLAnchorElement>('.header-signin')
+              ?.focus(),
+          );
+        }
       }
     } catch (err) {
       setError(
@@ -192,7 +206,14 @@ export function AuthBar({
 
   return (
     <div className={presentation === 'signin' ? 'signin-actions' : 'auth-bar'}>
-      {userName !== null ? (
+      {userName !== null && presentation === 'header' ? (
+        <AccountMenu
+          name={userName}
+          loading={loading}
+          onSignOut={handleSignOut}
+          errorId={error ? errorId : undefined}
+        />
+      ) : userName !== null ? (
         <div id="auth-user">
           <span id="auth-user-name" className="small">
             {userName ? `Signed in as ${userName}` : 'Signed in'}
@@ -221,10 +242,6 @@ export function AuthBar({
           <GoogleIcon />
           {loading ? 'Connecting…' : 'Continue with Google'}
         </button>
-      )}
-
-      {presentation === 'header' && userName !== null && (
-        <Link href="/sign-in">Manage sign-in</Link>
       )}
 
       {presentation === 'signin' && (
