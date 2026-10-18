@@ -11,6 +11,10 @@ DEFAULT_SOURCES_PATH = Path(__file__).with_name('sources.json')
 
 def load_sources(path=DEFAULT_SOURCES_PATH):
     rows = json.loads(Path(path).read_text(encoding='utf-8'))
+    return validate_sources(rows)
+
+
+def validate_sources(rows):
     if not isinstance(rows, list) or len(rows) > 100:
         raise ValueError('source_registry_requires_at_most_100_entries')
     seen = set()
