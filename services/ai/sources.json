@@ -222,5 +222,47 @@
     "enabled": false,
     "kind": "third_party",
     "reason": "adapter_not_verified"
+  },
+  {
+    "id": "ncs",
+    "url": "https://ncs.gov.in/latest-update",
+    "enabled": true,
+    "kind": "official",
+    "reason": null
+  },
+  {
+    "id": "employment_news",
+    "url": "https://employmentnews.gov.in/newemp/AllJobs.aspx?k=All",
+    "enabled": true,
+    "kind": "official",
+    "reason": null
+  },
+  {
+    "id": "ibps",
+    "url": "https://www.ibps.in/",
+    "enabled": true,
+    "kind": "official",
+    "reason": null
+  },
+  {
+    "id": "india_post",
+    "url": "https://www.indiapost.gov.in/vacancies/recruitments",
+    "enabled": true,
+    "kind": "official",
+    "reason": null
+  },
+  {
+    "id": "drdo",
+    "url": "https://www.drdo.gov.in/drdo/offerings/vacancies/",
+    "enabled": true,
+    "kind": "official",
+    "reason": null
+  },
+  {
+    "id": "isro",
+    "url": "https://www.isro.gov.in/CurrentOpportunities.html",
+    "enabled": true,
+    "kind": "official",
+    "reason": null
   }
 ]

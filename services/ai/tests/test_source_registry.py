@@ -66,7 +66,8 @@ class SourceRegistryTests(unittest.TestCase):
     def test_default_registry_preserves_existing_source_selection(self):
         sources = load_sources()
         self.assertEqual({row['id'] for row in sources if row['enabled']},
-                         {'sarkariresult', 'ssc', 'upsc', 'uppsc', 'hssc', 'jkssb', 'mysarkarinaukri'})
+                         {'sarkariresult', 'ssc', 'upsc', 'uppsc', 'hssc', 'jkssb', 'mysarkarinaukri',
+                          'ncs', 'employment_news', 'ibps', 'india_post', 'drdo', 'isro'})
         self.assertEqual(sum(not row['enabled'] for row in sources), 25)
 
     def test_new_source_reports_missing_discovery_without_fetching(self):
