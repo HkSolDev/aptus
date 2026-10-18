@@ -1,5 +1,28 @@
 # Aptus frontend redesign implementation
 
+## Mobile List/Cards and active application deadlines — 18 October
+
+Mobile now exposes the existing layout switch as List / Cards. List uses
+separated rows with title, available organization/deadline, qualification
+(two-line preview), and existing details/save actions; Cards keeps fuller facts.
+No smaller title text or change to desktop layout; existing `layout=rows|cards`
+URLs, filters, pagination and Back behavior remain compatible. Saving is still
+subject to the existing production/fixture limitations.
+
+The public catalogue and matching query share a deadline condition before rows
+and counts are fetched: date before today's India calendar date is excluded;
+today/future/null deadlines remain. No records are deleted and existing detail
+links remain readable. Public Next listing fetches no longer reuse a cached
+response across date changes. Already-open pages update on the next navigation
+or reload. This uses stored deadline dates, not an inferred closing time.
+
+Verification: build, typecheck and lint pass. Nine focused browser/deadline
+checks pass, including real PostgreSQL filtering/counts/pagination/matching in
+an isolated schema, IST midnight rollover, mobile layout height difference,
+Cards → detail → Back, no-JavaScript switching and existing auth/navigation.
+Jobs API and matching-access regressions also pass. Mobile light/dark List
+screenshots inspected; backend restarted on 8081 with the updated query.
+
 ## Home presentation — implemented and verified · 15 October
 
 User authorized Home only, followed by code-driven comparison to the latest

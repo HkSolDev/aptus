@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import type { Prisma } from '../../generated/prisma/index.js';
 import type { JobFilters } from '../../frontend/public-job-filters.js';
+import { activeApplicationWhere } from './application-deadline.js';
 
 // Shared by the JSON API and HTML catalogue; never select user/profile data.
 const publicFields = {
@@ -35,7 +36,7 @@ export function listPublicJobs(
   pageSize: number,
   filters?: JobFilters,
 ) {
-  const conditions: Prisma.PostWhereInput[] = [];
+  const conditions: Prisma.PostWhereInput[] = [activeApplicationWhere()];
   if (filters?.q) {
     const keyword = filters.q.replace(/[\\%_]/g, '\\$&');
     conditions.push({

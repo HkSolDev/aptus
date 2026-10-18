@@ -32,7 +32,7 @@ export async function fetchPublicJobs(
     const params = jobSearchParams(filters, page);
     params.set('pageSize', '6');
     const res = await fetch(`${backendUrl}/api/jobs?${params}`, {
-      next: { revalidate: 60 },
+      cache: 'no-store',
     });
     if (!res.ok) return null;
     return (await res.json()) as JobsApiResponse;
@@ -154,9 +154,9 @@ export function CatalogueGrid({
         <summary>About search and deadlines</summary>
         <p>
           Search checks job titles and qualification text. Organization names
-          are found only when included in that text. Some deadlines may have
-          passed or be unavailable. Check the recruitment notice for current
-          dates.
+          are found only when included in that text. Jobs with past application
+          deadlines are hidden using India time. Jobs without a deadline remain
+          listed. Check the recruitment notice for current dates.
         </p>
       </details>
     </section>

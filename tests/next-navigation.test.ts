@@ -14,7 +14,8 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
     postName: 'Example Technical Assistant',
     educationRequired: 'Diploma',
     applicationLastDate: null,
-    vacancies: null,
+    vacancies: 10,
+    payLevel: 'Level 6',
     source: { name: 'Example source' },
   };
   const api = createServer((request, response) => {
@@ -432,6 +433,73 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
       profileSessionStatus = 401;
       await page.goto(`${origin}/profile`);
       await expect(page.locator('#profile-fields')).toHaveCount(0);
+    },
+  );
+
+  await t.test(
+    'mobile List is shorter than Cards and preserves the chosen view',
+    async () => {
+      await page.setViewportSize({ width: 390, height: 900 });
+      await page.goto(origin);
+      const layouts = page.getByRole('form', { name: 'All jobs layout' });
+      const list = layouts.getByRole('button', { name: 'List', exact: true });
+      await expect(list).toBeVisible();
+      await expect(list).toHaveAttribute('aria-pressed', 'true');
+      const row = page.locator('.catalogue-card').first();
+      const rowHeight = await row.evaluate(
+        (element) => element.getBoundingClientRect().height,
+      );
+      await expect(row.locator('.catalogue-extra')).toBeHidden();
+      for (const colorScheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme });
+        await expect(row.locator('.job-title a')).toHaveCSS(
+          'color',
+          colorScheme === 'dark' ? 'rgb(245, 245, 247)' : 'rgb(29, 29, 31)',
+        );
+        await page.screenshot({
+          path: `/private/tmp/aptus-mobile-list-${colorScheme}.png`,
+          fullPage: true,
+        });
+      }
+      await layouts.getByRole('button', { name: 'Cards', exact: true }).click();
+      await expect(page).toHaveURL(/layout=cards/);
+      await expect(row.locator('.catalogue-extra')).toBeVisible();
+      const cardHeight = await row.evaluate(
+        (element) => element.getBoundingClientRect().height,
+      );
+      assert(
+        cardHeight > rowHeight + 24,
+        `Cards ${cardHeight}px should be taller than List ${rowHeight}px`,
+      );
+      await page
+        .getByRole('link', { name: 'View details', exact: true })
+        .click();
+      await expect(page.locator('.job-detail h1')).toHaveText(job.postName);
+      await page.goBack();
+      await expect(
+        layouts.getByRole('button', { name: 'Cards', exact: true }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      const plain = await browser.newContext({
+        javaScriptEnabled: false,
+        viewport: { width: 390, height: 900 },
+      });
+      try {
+        const noJs = await plain.newPage();
+        await noJs.goto(origin);
+        const controls = noJs.getByRole('form', { name: 'All jobs layout' });
+        await controls
+          .getByRole('button', { name: 'Cards', exact: true })
+          .click();
+        await expect(noJs).toHaveURL(/layout=cards/);
+        await controls
+          .getByRole('button', { name: 'List', exact: true })
+          .click();
+        await expect(noJs).toHaveURL(/layout=rows/);
+      } finally {
+        await plain.close();
+      }
+      await page.emulateMedia({ colorScheme: 'light' });
+      await page.setViewportSize({ width: 1440, height: 900 });
     },
   );
 

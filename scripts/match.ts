@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { prisma } from '../src/db.js';
 import type { Post, User, Education } from '../generated/prisma/index.js';
+import { activeApplicationWhere } from '../src/lib/application-deadline.js';
 
 const EDUCATION_ORDER = [
   'TENTH',
@@ -97,7 +98,10 @@ export async function getMatchesForUser(userId: string) {
     where: { id: userId },
     include: { educations: true },
   });
-  const posts = await prisma.post.findMany({ include: { source: true } });
+  const posts = await prisma.post.findMany({
+    where: activeApplicationWhere(),
+    include: { source: true },
+  });
   return posts.filter((post) => {
     const { ageOk, educationOk, marksOk } = getPostChecks(post, user);
     return ageOk && educationOk && marksOk;
