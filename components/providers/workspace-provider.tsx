@@ -10,6 +10,10 @@ import React, {
 import type { Profile, MatchResponse } from '@/frontend/types';
 
 interface WorkspaceContextValue {
+  accountName: string | null;
+  setAccountName: (name: string | null) => void;
+  sessionChecked: boolean;
+  setSessionChecked: (checked: boolean) => void;
   profile: Profile | null;
   results: MatchResponse | null;
   isStale: boolean;
@@ -22,6 +26,8 @@ interface WorkspaceContextValue {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const [accountName, setAccountName] = useState<string | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [profile, setProfileState] = useState<Profile | null>(null);
   const [results, setResultsState] = useState<MatchResponse | null>(null);
   const [isStale, setIsStale] = useState<boolean>(false);
@@ -49,6 +55,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   return (
     <WorkspaceContext.Provider
       value={{
+        accountName,
+        setAccountName,
+        sessionChecked,
+        setSessionChecked,
         profile,
         results,
         isStale,

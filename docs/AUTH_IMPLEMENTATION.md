@@ -1,5 +1,62 @@
 # Aptus login implementation and review map
 
+## Profile route access and local sign-in recovery — 18 October 2026
+
+Requirement: signed-out navigation must offer Sign in instead of Profile, and
+direct profile visits must not reveal the form. `app/profile/page.tsx` now
+forwards the request cookie only to the configured backend's authoritative
+session endpoint, without caching or following redirects. Missing/invalid
+sessions, timeouts and backend errors deny the form. The page keeps its existing
+private/no-store and noindex headers. `components/profile/profile-access.tsx`
+also removes an already-open form after logout. Shared workspace account state
+keeps AuthBar and navigation consistent; route changes recheck the session.
+Matching API ownership/session checks are unchanged. No backend auth bypass,
+credential handling change, dependency or database migration was introduced.
+
+Local sign-in failure: PostgreSQL refused connections because Docker was stopped.
+Started Docker Desktop and only the existing Compose postgres service, preserving
+its volume. A frontend-origin Google sign-in start now returns 200 with a Google
+authorization redirect. No human Google login was completed by the assistant.
+
+Verification: production build, typecheck and lint passed; all six focused Next
+browser checks passed (anonymous navigation at three widths, direct server HTML
+denial, verification failure, no-JavaScript denial, signed-in form access,
+immediate removal after logout, and previous navigation/auth regressions).
+Seventeen existing database-backed session tests passed with fictional identities
+and isolated temporary schemas, including tampered/expired cookies, storage
+failure and logout revocation. Seven config/route/guard checks also passed.
+Live localhost Home and anonymous Profile return 200, Profile includes the
+sign-in prompt without form fields, and backend health returns 200. Full live
+OAuth/hardware-passkey testing and independent security review remain unperformed;
+no subagents were used, as requested.
+
+## Shared account menu — 18 October 2026
+
+Replaced the signed-in header's name/logout/Manage sign-in controls with an
+initials avatar and disclosure containing Your profile, Sign-in & security
+and Sign out. `components/auth/account-menu.tsx` owns dismissal/focus behavior;
+AuthBar retains existing session, renewal and logout requests. Navigation CSS
+hides the duplicate desktop Profile link only while the account menu exists;
+mobile Home/Saved/Profile stays unchanged. No session API fields, external
+photo requests, dependencies or backend access rules changed.
+
+Verification: production build, typecheck and lint passed. All five focused
+`tests/next-navigation.test.ts` browser checks passed using fictional API/auth
+responses, including 390/834/1440 layouts, menu bounds, keyboard/Escape,
+outside click, profile navigation, sign-out failure/retry and focus after
+success, and existing passkey management access. Screenshots in
+`/private/tmp/aptus-account-{390,834,1440}.png`; mobile and desktop inspected.
+Existing no-JavaScript public navigation checks passed. Live OAuth, hardware
+passkeys, real-device testing and a full screen redesign were not performed.
+
+Presentation follow-up: identity label/name is a shaded, non-clickable section
+above the action links, with a separate Sign out divider. Theme tokens supply
+light/dark colors, shadow and hover/focus/open feedback. The duplicate initials
+circle inside the dropdown was removed; the header account trigger remains.
+Six live-browser width/theme combinations passed using a fictional identity;
+light/dark mobile screenshots were inspected. Final removal passes focused
+lint, formatting and Next TypeScript checks.
+
 ## Home presentation / review isolation — 15 October 2026
 
 Home public layout and wider view controls updated; authentication/session and

@@ -29,6 +29,101 @@
 .primary-navigation svg {
   display: none;
 }
+.account-menu {
+  position: relative;
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--ink);
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.account-avatar::-webkit-details-marker {
+  display: none;
+}
+.account-avatar:hover,
+.account-avatar:focus-visible,
+.account-menu[open] > .account-avatar {
+  background: var(--soft-hover);
+  border-color: var(--control-line);
+}
+.account-avatar svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+.account-popover {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 40;
+  width: min(260px, calc(100vw - 32px));
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.account-identity {
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--small-radius);
+  background: var(--soft);
+}
+.account-name {
+  margin: 0;
+  padding: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.account-popover a,
+.account-popover button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--small-radius);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: none;
+  text-align: left;
+  cursor: pointer;
+}
+.account-popover button {
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  margin-top: var(--space-2);
+}
+.account-popover button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.account-popover a:hover,
+.account-popover button:hover,
+.account-popover a:focus-visible,
+.account-popover button:focus-visible {
+  background: var(--soft-hover);
+}
+@media (min-width: 760px) {
+  .primary-navigation a[href='/sign-in'] {
+    display: none;
+  }
+  .header-actions:has(.account-menu) .primary-navigation a[href='/profile'] {
+    display: none;
+  }
+}
 .primary-navigation a[aria-current='page'] {
   color: var(--ink);
   font-weight: 700;

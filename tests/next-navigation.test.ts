@@ -8,6 +8,7 @@ import { setTimeout } from 'node:timers/promises';
 import { chromium, expect } from 'playwright/test';
 
 test('Next.js keyboard skip, detail navigation and Back preserve the public list', async (t) => {
+  let profileSessionStatus = 401;
   const job = {
     id: 'navigation-fixture',
     postName: 'Example Technical Assistant',
@@ -17,6 +18,23 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
     source: { name: 'Example source' },
   };
   const api = createServer((request, response) => {
+    if (request.url === '/api/auth/get-session') {
+      response.setHeader('Content-Type', 'application/json');
+      const status = request.headers.cookie?.includes(
+        'aptus-test-session=fictional-session',
+      )
+        ? profileSessionStatus
+        : 401;
+      response.statusCode = status;
+      response.end(
+        JSON.stringify(
+          status === 200
+            ? { user: { id: 'fictional-account', name: 'Example User' } }
+            : { error: 'Please sign in again.' },
+        ),
+      );
+      return;
+    }
     const params = new URL(request.url ?? '/', 'http://localhost').searchParams;
     const matching =
       params.get('q') === 'Technical'
@@ -117,11 +135,13 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
       for (const width of [390, 834, 1440]) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(origin);
-        await expect(navigation.getByRole('link')).toHaveCount(3);
+        await expect(
+          navigation.getByRole('link', { name: 'Profile', exact: true }),
+        ).toHaveCount(0);
         await expect(
           navigation.getByRole('link', { name: 'Home', exact: true }),
         ).toHaveAttribute('aria-current', 'page');
-        await expect(page.locator('header a[href="/sign-in"]')).toHaveCount(1);
+        await expect(page.locator('.header-signin')).toHaveCount(1);
         const metrics = await navigation.evaluate((element) => {
           const bounds = element.getBoundingClientRect();
           return {
@@ -164,14 +184,21 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
           'aria-current',
           'page',
         );
-        await navigation
-          .getByRole('link', { name: 'Profile', exact: true })
-          .click();
+        if (width < 760) {
+          await navigation
+            .getByRole('link', { name: 'Sign in', exact: true })
+            .click();
+          await expect(page).toHaveURL(`${origin}/sign-in`);
+          await expect(
+            navigation.locator('a[href="/sign-in"]'),
+          ).toHaveAttribute('aria-current', 'page');
+        }
+        await page.goto(`${origin}/profile`);
         await expect(page).toHaveURL(`${origin}/profile`);
-        await expect(navigation.locator('a[href="/profile"]')).toHaveAttribute(
-          'aria-current',
-          'page',
-        );
+        await expect(
+          page.getByRole('heading', { name: 'Sign in to view your profile' }),
+        ).toBeVisible();
+        await expect(page.locator('#profile-fields')).toHaveCount(0);
         await navigation
           .getByRole('link', { name: 'Home', exact: true })
           .click();
@@ -207,6 +234,11 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
             navBounds &&
             footerBounds.y + footerBounds.height <= navBounds.y,
         );
+        await noJs.goto(`${origin}/profile`);
+        await expect(
+          noJs.getByRole('heading', { name: 'Sign in to view your profile' }),
+        ).toBeVisible();
+        await expect(noJs.locator('#profile-fields')).toHaveCount(0);
       } finally {
         await plain.close();
       }
@@ -214,10 +246,27 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
   );
 
   await t.test(
+    'profile is denied in server HTML without a valid session or when verification fails',
+    async () => {
+      for (const status of [401, 503]) {
+        profileSessionStatus = status;
+        const response = await fetch(`${origin}/profile`, {
+          headers: { cookie: 'aptus-test-session=fictional-session' },
+        });
+        const html = await response.text();
+        assert(html.includes('Sign in to view your profile'));
+        assert(!html.includes('id="profile-fields"'));
+        assert.match(response.headers.get('cache-control') ?? '', /no-store/);
+      }
+      profileSessionStatus = 401;
+    },
+  );
+
+  await t.test(
     'sign-in uses its own responsive page and keeps provider errors out of the header',
     async () => {
       await expect(page.locator('header #google-sign-in')).toHaveCount(0);
-      await page.getByRole('link', { name: 'Sign in', exact: true }).click();
+      await page.locator('.header-signin').click();
       await expect(
         page.getByRole('heading', { name: 'Sign in to Aptus' }),
       ).toBeVisible();
@@ -295,6 +344,14 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
   await t.test(
     'signed-in people can still reach passkey management and sign out',
     async () => {
+      profileSessionStatus = 200;
+      await page.context().addCookies([
+        {
+          name: 'aptus-test-session',
+          value: 'fictional-session',
+          url: origin,
+        },
+      ]);
       await page.route('**/api/auth/get-session', (route) =>
         route.fulfill({ json: { user: { name: 'Example User' } } }),
       );
@@ -308,7 +365,63 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
         route.fulfill({ json: { ok: true } }),
       );
       await page.goto(origin);
-      await page.getByRole('link', { name: 'Manage sign-in' }).click();
+      for (const width of [390, 834, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        await expect(page.locator('.account-avatar')).toBeVisible();
+        await page.locator('.account-avatar').focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('.account-name')).toHaveText('Example User');
+        await expect(
+          page.getByRole('link', { name: 'Your profile', exact: true }),
+        ).toBeVisible();
+        const popover = await page.locator('.account-popover').boundingBox();
+        assert(popover && popover.x >= 0 && popover.x + popover.width <= width);
+        await page.screenshot({
+          path: `/private/tmp/aptus-account-${width}.png`,
+        });
+        assert.equal(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth > innerWidth,
+          ),
+          false,
+        );
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.account-menu')).not.toHaveAttribute('open');
+        await expect(page.locator('.account-avatar')).toBeFocused();
+      }
+      await page.locator('.account-avatar').click();
+      await page.locator('h1').click();
+      await expect(page.locator('.account-menu')).not.toHaveAttribute('open');
+      await page.locator('.account-avatar').click();
+      await page
+        .getByRole('link', { name: 'Your profile', exact: true })
+        .click();
+      await expect(page).toHaveURL(`${origin}/profile`);
+      await expect(page.locator('#profile-fields')).toBeVisible();
+      await expect(page.locator('.account-menu')).not.toHaveAttribute('open');
+      await page.locator('.account-avatar').click();
+      await page.route('**/api/auth/sign-out', (route) =>
+        route.fulfill({ status: 503, json: {} }),
+      );
+      await page.locator('#sign-out').click();
+      await expect(page.locator('#header-auth-error')).toBeVisible();
+      await expect(page.locator('#sign-out')).toBeEnabled();
+      await expect(page.locator('.account-avatar')).toBeVisible();
+      await page.route('**/api/auth/sign-out', (route) =>
+        route.fulfill({ json: { ok: true } }),
+      );
+      await page.locator('#sign-out').click();
+      await expect(page.locator('.header-signin')).toBeFocused();
+      await expect(page.locator('.account-menu')).toHaveCount(0);
+      await expect(page.locator('#profile-fields')).toHaveCount(0);
+      await expect(
+        page.getByRole('heading', { name: 'Sign in to view your profile' }),
+      ).toBeVisible();
+      await page.reload();
+      await page.locator('.account-avatar').click();
+      await page
+        .getByRole('link', { name: 'Sign-in & security', exact: true })
+        .click();
       await expect(
         page.getByRole('button', { name: 'Add a passkey' }),
       ).toBeVisible();
@@ -316,6 +429,9 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
       await expect(
         page.getByRole('button', { name: 'Continue with Google' }),
       ).toBeVisible();
+      profileSessionStatus = 401;
+      await page.goto(`${origin}/profile`);
+      await expect(page.locator('#profile-fields')).toHaveCount(0);
     },
   );
 
