@@ -6,30 +6,26 @@ from pathlib import Path
 
 from capture import capture
 from capture_store import atomic_write, now, read_state
-from sources.catalog import DISABLED_SOURCES
-from sources.sarkariresult import RSS_URL, discover_feed
-from sources.ssc import NOTICE_BOARD_URL as SSC_NOTICE_BOARD_URL, discover_listings as discover_ssc_listings
-from sources.upsc import LISTING_URL as UPSC_LISTING_URL, discover_listings as discover_upsc_listings
-from sources.uppsc import LISTING_URL as UPPSC_LISTING_URL, discover_listings as discover_uppsc_listings
-from sources.hssc import LISTING_URL as HSSC_LISTING_URL, discover_listings as discover_hssc_listings
-from sources.jkssb import LISTING_URL as JKSSB_LISTING_URL, discover_listings as discover_jkssb_listings
-from sources.mysarkarinaukri import LISTING_URL as MYSARKARINAUKRI_LISTING_URL, discover_listings as discover_mysarkarinaukri_listings
+from source_registry import DEFAULT_SOURCES_PATH, load_sources
+from sources.sarkariresult import discover_feed
+from sources.ssc import discover_listings as discover_ssc_listings
+from sources.upsc import discover_listings as discover_upsc_listings
+from sources.uppsc import discover_listings as discover_uppsc_listings
+from sources.hssc import discover_listings as discover_hssc_listings
+from sources.jkssb import discover_listings as discover_jkssb_listings
+from sources.mysarkarinaukri import discover_listings as discover_mysarkarinaukri_listings
 
 ACCEPTED = {'changed', 'identical', 'revalidated'}
-LISTINGS = {
-    'sarkariresult': (RSS_URL, None),
-    'ssc': (SSC_NOTICE_BOARD_URL, None),
-    'upsc': (UPSC_LISTING_URL, None),
-    'uppsc': (UPPSC_LISTING_URL, None),
-    'hssc': (HSSC_LISTING_URL, None),
-    'jkssb': (JKSSB_LISTING_URL, None),
-    'mysarkarinaukri': (MYSARKARINAUKRI_LISTING_URL, None),
-}
-
-DISABLED_LISTINGS = DISABLED_SOURCES
+CONNECTED_DISCOVERY = {'sarkariresult', 'ssc', 'upsc', 'uppsc', 'hssc', 'jkssb', 'mysarkarinaukri'}
+# Compatibility views for callers inspecting the default configuration.
+LISTINGS = {row['id']: (row['url'], None) for row in load_sources() if row['enabled']}
+DISABLED_LISTINGS = {row['id']: {'listing_url': row['url'], 'kind': row['kind'],
+                                'reason': row['reason']}
+                     for row in load_sources() if not row['enabled']}
 
 
-def collect(root, capture_document=capture):
+def collect(root, capture_document=capture, *, sources_path=DEFAULT_SOURCES_PATH):
+    sources = load_sources(sources_path)
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     with (root / 'collection.lock').open('a') as lock:
@@ -38,7 +34,14 @@ def collect(root, capture_document=capture):
         except BlockingIOError:
             return {'status': 'already_running'}
         report = {'checked_at': now(), 'status': 'completed', 'sources': {}}
-        for source, (url, _) in LISTINGS.items():
+        for entry in sources:
+            if not entry['enabled']:
+                continue
+            source, url = entry['id'], entry['url']
+            if source not in CONNECTED_DISCOVERY:
+                report['sources'][source] = {'status': 'blocked', 'reason': 'discovery_not_connected'}
+                report['status'] = 'partial_failure'
+                continue
             source_root = root / source
             try:
                 listing = capture_document(url, source_root / 'listing')
@@ -118,7 +121,8 @@ if __name__ == '__main__':
         description='Collect active public job documents, without AI calls'
     )
     parser.add_argument('storage_dir')
+    parser.add_argument('--sources', type=Path, default=DEFAULT_SOURCES_PATH)
     args = parser.parse_args()
-    result = collect(args.storage_dir)
+    result = collect(args.storage_dir, sources_path=args.sources)
     print(json.dumps(result))
     raise SystemExit(1 if result['status'] == 'partial_failure' else 0)

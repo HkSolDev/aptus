@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from run_scheduled_pipeline import run_pipeline
+from shared_pipeline import prepare_sources
+from source_registry import DEFAULT_SOURCES_PATH
 
 INDIA = timezone(timedelta(hours=5, minutes=30))
 
@@ -24,10 +26,21 @@ def main():
     parser = argparse.ArgumentParser(description='Aptus six-hour pipeline scheduler')
     parser.add_argument('--storage-dir', default='/work')
     parser.add_argument('--once', action='store_true')
+    parser.add_argument('--prepare-only', action='store_true', help='Shared pipeline pilot; no AI or publication')
+    parser.add_argument('--sources', type=Path, default=DEFAULT_SOURCES_PATH)
+    parser.add_argument('--source', help='One registry source ID, only with --prepare-only')
+    parser.add_argument('--max-fetches', type=int, default=12)
+    parser.add_argument('--max-depth', type=int, default=3)
     args = parser.parse_args()
+    if (args.source or args.sources != DEFAULT_SOURCES_PATH) and not args.prepare_only:
+        parser.error('--source/--sources require --prepare-only')
     while True:
         try:
-            print(json.dumps(run_pipeline(Path(args.storage_dir))), flush=True)
+            result = (prepare_sources(Path(args.storage_dir) / 'shared', sources_path=args.sources,
+                                      source_id=args.source, max_fetches=args.max_fetches,
+                                      max_depth=args.max_depth) if args.prepare_only
+                      else run_pipeline(Path(args.storage_dir)))
+            print(json.dumps(result), flush=True)
         except (OSError, RuntimeError, TypeError, ValueError):
             print(json.dumps({'status': 'failed', 'reason': 'pipeline_run_failed'}), flush=True)
         if args.once:

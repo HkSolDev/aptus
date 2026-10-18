@@ -115,7 +115,11 @@ class CollectionTests(unittest.TestCase):
                             'snapshot': {'document_kind': 'pdf'}}
                 self.fail(f'unexpected active source: {url}')
             result = collect(Path(directory) / 'store', capture)
-            self.assertEqual(result['status'], 'completed')
+            self.assertEqual(result['status'], 'partial_failure')
+            for source in ('ncs', 'employment_news', 'ibps', 'india_post', 'drdo', 'isro'):
+                self.assertEqual(result['sources'][source], {
+                    'status': 'blocked', 'reason': 'discovery_not_connected',
+                })
             self.assertEqual(result['sources']['sarkariresult']['discovered'], 1)
             self.assertEqual(result['sources']['sarkariresult']['captured'], 1)
             self.assertEqual(result['sources']['ssc']['discovered'], 1)
@@ -131,7 +135,8 @@ class CollectionTests(unittest.TestCase):
             self.assertEqual(result['sources']['mysarkarinaukri']['discovered'], 1)
             self.assertEqual(result['sources']['mysarkarinaukri']['captured'], 1)
             self.assertEqual(len(calls), 14)
-            self.assertEqual(set(LISTINGS), {'sarkariresult', 'ssc', 'upsc', 'uppsc', 'hssc', 'jkssb', 'mysarkarinaukri'})
+            self.assertEqual(set(LISTINGS), {'sarkariresult', 'ssc', 'upsc', 'uppsc', 'hssc', 'jkssb', 'mysarkarinaukri',
+                          'ncs', 'employment_news', 'ibps', 'india_post', 'drdo', 'isro'})
             self.assertEqual(len(DISABLED_LISTINGS), 25)
             self.assertTrue({
                 'hpsc', 'dsssb',

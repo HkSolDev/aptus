@@ -1,5 +1,13 @@
 # Aptus — start here
 
+**Worker integration — 18 October:** local branch `codex/worker-pipeline-integration`
+starts from GitHub main `e7ddbd0`. Single validated source registry is connected.
+An opt-in shared prepare-only pilot passes 229 offline tests; live HSSC confirms
+PDF text normalization but campaign grouping still needs work. Default worker
+publication remains unchanged. Read
+[failure evidence, ordered slices and checks](WORKER_PIPELINE_INTEGRATION.md)
+before continuing worker changes. No server edits or deployment in this slice.
+
 **Frontend review checkpoint — 16 October:** Recommendations, Saved and Profile
 now follow the saved responsive design in local review mode, including shared
 preview saves and searchable/editable qualification choices. Production data
