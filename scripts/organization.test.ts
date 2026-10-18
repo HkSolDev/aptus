@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import Fastify from 'fastify';
 import { prisma } from '../src/db.js';
 import { handleIngest } from '../src/routes/ingest.js';
+import { activeApplicationWhere } from '../src/lib/application-deadline.js';
 import { registerPublicRoutes } from '../src/routes/public.js';
 
 await test('organization crosses ingestion and public API without source fallback', async (t) => {
@@ -130,6 +131,7 @@ await test('organization crosses ingestion and public API without source fallbac
     assert.equal(Reflect.get(Object(selection), 'organization'), true);
     assert.deepEqual(search, {
       AND: [
+        activeApplicationWhere(),
         {
           OR: [
             { postName: { contains: 'Research', mode: 'insensitive' } },

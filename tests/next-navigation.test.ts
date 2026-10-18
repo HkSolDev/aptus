@@ -377,9 +377,6 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
         ).toBeVisible();
         const popover = await page.locator('.account-popover').boundingBox();
         assert(popover && popover.x >= 0 && popover.x + popover.width <= width);
-        await page.screenshot({
-          path: `/private/tmp/aptus-account-${width}.png`,
-        });
         assert.equal(
           await page.evaluate(
             () => document.documentElement.scrollWidth > innerWidth,
@@ -456,10 +453,6 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
           'color',
           colorScheme === 'dark' ? 'rgb(245, 245, 247)' : 'rgb(29, 29, 31)',
         );
-        await page.screenshot({
-          path: `/private/tmp/aptus-mobile-list-${colorScheme}.png`,
-          fullPage: true,
-        });
       }
       await layouts.getByRole('button', { name: 'Cards', exact: true }).click();
       await expect(page).toHaveURL(/layout=cards/);
