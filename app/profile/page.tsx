@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ProfileForm } from '@/components/profile/profile-form';
+import { ProfileReview } from '@/components/profile/profile-review';
 import { headers } from 'next/headers';
 import {
   ProfileAccess,
@@ -21,6 +22,11 @@ export const metadata: Metadata = {
 };
 
 export default async function ProfilePage() {
+  if (
+    process.env.APTUS_LOCAL_REVIEW === '1' &&
+    process.env.NODE_ENV === 'development'
+  )
+    return <ProfileReview />;
   const cookie = (await headers()).get('cookie');
   let signedIn = false;
   if (cookie) {

@@ -1,6 +1,13 @@
 // Source text is untrusted, even after database storage. Escape text and attributes.
 export function escapeHtml(value: unknown): string {
-  return String(value ?? 'Not specified').replace(
+  const text =
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+      ? String(value)
+      : 'Not specified';
+  return text.replace(
     /[&<>"']/g,
     (char) =>
       ({

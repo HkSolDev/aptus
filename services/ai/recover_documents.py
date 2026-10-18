@@ -14,13 +14,13 @@ from normalize_pdf import normalize_pdf
 from select_pdf_sections import complete_pdf_sections, select_pdf_sections
 
 
-def capture_and_normalize(url, root):
+def capture_and_normalize(url, root, *, capture_document=None):
     # Separate URL stores avoid races in capture's shared attempts/state files.
     root = Path(root) / hashlib.sha256(url.encode()).hexdigest()
     root.mkdir(parents=True, exist_ok=True)
     with (root / 'capture.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        result = capture(url, root)
+        result = (capture_document or capture)(url, root)
     if result['outcome'] not in {'changed', 'identical', 'revalidated'}:
         retryable = (result.get('http_status') in {408, 429, 500, 502, 503, 504}
                      or result.get('reason') in {'ConnectError', 'ConnectTimeout',
@@ -32,15 +32,18 @@ def capture_and_normalize(url, root):
         if not full['pages']:
             return None, 'pdf_requires_review', False
         content = complete_pdf_sections(select_pdf_sections(full), full)
-    else:
+    elif result['snapshot']['document_kind'] == 'html':
         full = normalize_html(body, result['final_url'], include_link_context=True)
         content = full
+    else:
+        return None, 'unsupported_document_type', False
     # Preserve the full normalized source for local coverage recovery.
     output = root / 'normalized-runs' / uuid4().hex
     for name, value in (('normalized', full), ('selected', content)):
         atomic_write(output / f'{name}.json', json.dumps(value, ensure_ascii=False).encode())
     return {'source_url': url, 'final_url': result['final_url'],
             'sha256': result['sha256'], 'snapshot_id': result['snapshot_id'],
+            'body_path': result['body_path'], 'document_kind': full['format'],
             'normalized_path': str((output / 'normalized.json').resolve()),
             'content_path': str((output / 'selected.json').resolve())}, None, False
 

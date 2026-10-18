@@ -54,15 +54,16 @@ const job = {
 };
 
 await test('anonymous public HTML pages', async (t) => {
-  const originalTransaction = prisma.$transaction;
-  const originalFind = prisma.post.findUnique;
+  const originalTransaction: unknown = Reflect.get(prisma, '$transaction');
+  const originalFind: unknown = Reflect.get(prisma.post, 'findUnique');
   let mode: 'success' | 'empty' | 'failure' = 'success';
   let missing = false;
   Object.defineProperty(prisma, '$transaction', {
     configurable: true,
-    value: async () => {
-      if (mode === 'failure') throw new Error('private database credentials');
-      return {
+    value: () => {
+      if (mode === 'failure')
+        return Promise.reject(new Error('private database credentials'));
+      return Promise.resolve({
         data: mode === 'empty' ? [] : [job],
         pagination: {
           page: 1,
@@ -70,14 +71,15 @@ await test('anonymous public HTML pages', async (t) => {
           totalItems: mode === 'empty' ? 0 : 7,
           totalPages: mode === 'empty' ? 0 : 2,
         },
-      };
+      });
     },
   });
   Object.defineProperty(prisma.post, 'findUnique', {
     configurable: true,
-    value: async () => {
-      if (mode === 'failure') throw new Error('private database credentials');
-      return missing ? null : job;
+    value: () => {
+      if (mode === 'failure')
+        return Promise.reject(new Error('private database credentials'));
+      return Promise.resolve(missing ? null : job);
     },
   });
   await server.listen({ port: 0, host: '127.0.0.1' });

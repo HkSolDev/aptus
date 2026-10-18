@@ -123,8 +123,8 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
   await page.getByRole('link', { name: 'View details' }).click();
   await expect(page.locator('.job-detail h1')).toHaveText(job.postName);
   await page.goBack();
-  await expect(page.locator('.catalogue-card')).toHaveCount(1);
-  await expect(page.locator('.job-title')).toHaveText(job.postName);
+  await expect(page.locator('[data-job-card]')).toHaveCount(1);
+  await expect(page.locator('[data-job-title]')).toHaveText(job.postName);
 
   await t.test(
     'shared navigation follows the reference at mobile, tablet and desktop sizes',
@@ -203,7 +203,7 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
         await navigation
           .getByRole('link', { name: 'Home', exact: true })
           .click();
-        await expect(page.locator('.catalogue-card')).toHaveCount(1);
+        await expect(page.locator('[data-job-card]')).toHaveCount(1);
       }
       const plain = await browser.newContext({
         javaScriptEnabled: false,
@@ -220,7 +220,7 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
           noJs.locator('.primary-navigation a[href="/saved"]'),
         ).toHaveAttribute('aria-current', 'page');
         await noJs.locator('.primary-navigation a[href="/"]').click();
-        await expect(noJs.locator('.catalogue-card')).toHaveCount(1);
+        await expect(noJs.locator('[data-job-card]')).toHaveCount(1);
         const footerLink = noJs.getByRole('link', {
           name: 'How Aptus works',
           exact: true,
@@ -338,7 +338,7 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
       );
       await expect(passkey).toBeEnabled();
       await page.getByRole('link', { name: 'Continue browsing jobs' }).click();
-      await expect(page.locator('.catalogue-card')).toHaveCount(1);
+      await expect(page.locator('[data-job-card]')).toHaveCount(1);
     },
   );
 
@@ -445,14 +445,14 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
       const list = layouts.getByRole('button', { name: 'List', exact: true });
       await expect(list).toBeVisible();
       await expect(list).toHaveAttribute('aria-pressed', 'true');
-      const row = page.locator('.catalogue-card').first();
+      const row = page.locator('[data-job-card]').first();
       const rowHeight = await row.evaluate(
         (element) => element.getBoundingClientRect().height,
       );
-      await expect(row.locator('.catalogue-extra')).toBeHidden();
+      await expect(row.locator('[data-job-extra]')).toBeHidden();
       for (const colorScheme of ['light', 'dark'] as const) {
         await page.emulateMedia({ colorScheme });
-        await expect(row.locator('.job-title a')).toHaveCSS(
+        await expect(row.locator('[data-job-title] a')).toHaveCSS(
           'color',
           colorScheme === 'dark' ? 'rgb(245, 245, 247)' : 'rgb(29, 29, 31)',
         );
@@ -463,7 +463,7 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
       }
       await layouts.getByRole('button', { name: 'Cards', exact: true }).click();
       await expect(page).toHaveURL(/layout=cards/);
-      await expect(row.locator('.catalogue-extra')).toBeVisible();
+      await expect(row.locator('[data-job-extra]')).toBeVisible();
       const cardHeight = await row.evaluate(
         (element) => element.getBoundingClientRect().height,
       );
@@ -511,7 +511,7 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
         .getByRole('searchbox', { name: 'Search all jobs' })
         .fill('Technical');
       await page.getByRole('button', { name: 'Search', exact: true }).click();
-      await expect(page.locator('.catalogue-card')).toHaveCount(6);
+      await expect(page.locator('[data-job-card]')).toHaveCount(6);
       const layouts = page.getByRole('form', { name: 'All jobs layout' });
       await layouts.getByRole('button', { name: 'Cards', exact: true }).click();
       await expect(page).toHaveURL(/layout=cards/);
@@ -525,7 +525,7 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
       await expect(page).toHaveURL(/sort=furthest/);
       await page.getByRole('link', { name: 'Next page' }).click();
       await expect(page).toHaveURL(/page=2/);
-      await expect(page.locator('.catalogue-card')).toHaveCount(1);
+      await expect(page.locator('[data-job-card]')).toHaveCount(1);
       const params = new URL(page.url()).searchParams;
       assert.equal(params.get('q'), 'Technical');
       assert.equal(params.get('qualification'), 'DIPLOMA');
@@ -550,7 +550,7 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
         .getByRole('link', { name: 'Clear search and filter' })
         .first()
         .click();
-      await expect(page.locator('.catalogue-card')).toHaveCount(1);
+      await expect(page.locator('[data-job-card]')).toHaveCount(1);
       for (const width of [390, 834, 1440]) {
         await page.setViewportSize({ width, height: 900 });
         assert.equal(
@@ -569,7 +569,7 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
           .getByRole('combobox', { name: 'Qualification', exact: true })
           .selectOption('DIPLOMA');
         await noJs.getByRole('button', { name: 'Search', exact: true }).click();
-        await expect(noJs.locator('.catalogue-card')).toHaveCount(6);
+        await expect(noJs.locator('[data-job-card]')).toHaveCount(6);
         await noJs
           .getByRole('combobox', { name: 'Sort all jobs' })
           .selectOption('furthest');
@@ -581,7 +581,7 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
           .getByRole('button', { name: 'Cards', exact: true })
           .click();
         await expect(noJs).toHaveURL(/layout=cards/);
-        await expect(noJs.locator('.catalogue-card')).toHaveCount(6);
+        await expect(noJs.locator('[data-job-card]')).toHaveCount(6);
       } finally {
         await plain.close();
       }

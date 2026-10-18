@@ -2,8 +2,21 @@ import type { FastifyInstance } from 'fastify';
 import { servePublicFile } from '../lib/static.js';
 import { renderJob } from '../lib/render-job.js';
 import { handleJobs } from './jobs.js';
+import { handleJobDetail } from './job-detail.js';
 
 export function registerPublicRoutes(app: FastifyInstance) {
+  app.all<{ Params: { id: string } }>('/api/jobs/:id', {
+    onRequest: async (request, reply) => {
+      if (request.method !== 'GET') {
+        return reply
+          .header('Allow', 'GET')
+          .code(405)
+          .send({ error: 'Method Not Allowed' });
+      }
+    },
+    handler: (request, reply) => handleJobDetail(request.params.id, reply),
+  });
+
   app.all('/api/jobs', {
     onRequest: async (request, reply) => {
       if (request.method !== 'GET') {

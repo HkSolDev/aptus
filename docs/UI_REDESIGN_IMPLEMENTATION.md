@@ -1,5 +1,23 @@
 # Aptus frontend redesign implementation
 
+## Frontend merge with main — 18 October 2026
+
+Merged main `ebcd060` into `codex/aptus-frontend-20261018`. Resolved overlapping
+frontend history by retaining main CSS modules, review flows, viewport, organization
+search, deployment and worker files, alongside frontend account menu, production
+profile access checks, mobile List/Cards and active-deadline queries. Mobile list
+styles now live in the corresponding CSS modules. Worker branch remains `12d4bf6`;
+no worker files differ from main.
+
+Verification: production webpack build, frontend TypeScript, focused ESLint,
+changed-file formatting, eight navigation/review browser checks, five focused
+Node checks and 229 offline Python tests passed. One database deadline test
+was skipped because no disposable test database was supplied. Repository-wide
+typecheck/lint remain blocked by missing local openai/pdf-parse dependencies;
+the separate next-frontend browser suite could not start on occupied port 8081.
+The build reported standalone tracing warnings from shared worktree dependencies;
+this was not a deployment-image check. No deployment or main update performed.
+
 ## Mobile List/Cards and active application deadlines — 18 October
 
 Mobile now exposes the existing layout switch as List / Cards. List uses
@@ -22,6 +40,51 @@ an isolated schema, IST midnight rollover, mobile layout height difference,
 Cards → detail → Back, no-JavaScript switching and existing auth/navigation.
 Jobs API and matching-access regressions also pass. Mobile light/dark List
 screenshots inspected; backend restarted on 8081 with the updated query.
+
+## Remaining pages — local review complete · 16 October
+
+Recommendations and Saved now share development-only in-memory saves, hidden
+jobs and list preferences across Next navigation. Home and Job Details use the
+same preview shortlist. Saved has search, qualification filtering, deadline
+sorting, wider Rows/Cards, removal and the approved empty state. The Profile
+review has editable qualification routes, searchable sample degree/subject
+choices, common BTech/BSc aliases, DOB/category and no marks input. Its submit
+only navigates to fictional recommendations; it does not calculate eligibility.
+
+These flows require `APTUS_LOCAL_REVIEW=1` and development mode; Saved also
+requires the fictional API marker. Preview state is not written to browser
+storage or an account. Production retains its existing profile/matching flow
+and truthful Saved dependency notice. No backend/schema/auth/dependency change.
+
+Compared Recommendations, Saved empty state and Profile at 390/834/1440 against
+the saved reference. Headings, mobile card title sizes, card padding/radii and
+wider card columns agree; row actions stack on desktop and share a row on tablet.
+Artifacts: `/private/tmp/aptus-final-review/`. The header still reflects the real
+session, while the review profile is fictional. This is a responsive browser
+comparison, not testing on physical devices or a claim of pixel identity.
+
+Passed: `next build --webpack`, frontend TypeScript, changed-file formatting and
+lint, focused rendering/fixture tests, the three-width cross-page browser flow,
+and existing production frontend/navigation browser tests. Browser coverage
+includes saving/removing, search/empty states, both deadline directions,
+details/Back retaining search, hidden/restore, keyboard focus and degree aliases.
+Older browser assertions were aligned with the approved removal of scraper
+names from cards, the Profile heading, browser Back, and dedicated sign-in page.
+
+Repository-wide checks remain separate blockers: `pnpm typecheck` reports
+missing legacy `openai` and `pdf-parse` packages in this checkout's shared
+dependency tree; `pnpm lint` reports legacy backend/script errors. No errors
+were suppressed or unrelated legacy files rewritten. The Prisma client was
+generated locally with a temporary config and no database connection.
+
+Backend follow-up: integrate the separately implemented job-details endpoint,
+recruiting organization across extraction/storage/API, ITI and degree/subject
+profile storage (including multiple degrees at one level), account-owned Saved
+and Hidden persistence, and recommendation reads/match reasons in the new card
+contract. Inspect the existing job-details worktree before duplicating its work.
+
+User authorized committing/pushing the frontend branch, then starting a new
+backend branch from that saved frontend checkpoint. Work in small backend slices.
 
 ## Home presentation — implemented and verified · 15 October
 

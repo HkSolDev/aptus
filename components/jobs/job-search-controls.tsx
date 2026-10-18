@@ -4,6 +4,7 @@ import Form from 'next/form';
 import Link from 'next/link';
 import { type HomeView, homeSearchParams } from '@/frontend/home-view';
 import { HomeViewFields } from './home-layout-controls';
+import styles from './job-search-controls.module.css';
 import {
   JOB_QUALIFICATIONS,
   type JobFilters,
@@ -21,7 +22,7 @@ export function JobSearchControls({
       <Form
         action="/"
         scroll={false}
-        className="job-search"
+        className={styles.search}
         key={`${filters.q}:${filters.qualification}`}
       >
         <input type="hidden" name="sort" value={filters.sort} />
@@ -29,6 +30,7 @@ export function JobSearchControls({
         <label>
           Search all jobs
           <input
+            className={styles.input}
             name="q"
             type="search"
             defaultValue={filters.q}
@@ -39,6 +41,7 @@ export function JobSearchControls({
         <label>
           Qualification
           <select
+            className={styles.select}
             name="qualification"
             defaultValue={filters.qualification}
             onChange={(event) => event.currentTarget.form?.requestSubmit()}
@@ -54,15 +57,15 @@ export function JobSearchControls({
             </option>
           </select>
         </label>
-        <button className="button job-search-submit" type="submit">
+        <button className={`button ${styles.submit}`} type="submit">
           Search
         </button>
       </Form>
       {(filters.q || filters.qualification) && (
-        <div className="home-search-feedback">
+        <div className={styles.feedback}>
           <p>Searching all jobs. Clear your search to return to browsing.</p>
           <Link
-            className="job-search-clear"
+            className={styles.clear}
             href={`/?${homeSearchParams({ ...filters, q: '', qualification: '' }, 1, view)}`}
           >
             Clear search and filter
@@ -81,13 +84,14 @@ export function JobSortControl({
   view: HomeView;
 }) {
   return (
-    <Form action="/" scroll={false} className="job-sort">
+    <Form action="/" scroll={false} className={styles.sort}>
       <input type="hidden" name="q" value={filters.q} />
       <input type="hidden" name="qualification" value={filters.qualification} />
       <HomeViewFields view={view} />
       <label>
         Sort
         <select
+          className={styles.sortSelect}
           name="sort"
           aria-label="Sort all jobs"
           value={filters.sort}

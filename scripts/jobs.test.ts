@@ -5,7 +5,7 @@ import { server } from '../src/server.js';
 
 // Prisma is a Proxy, so node:test mock.method cannot find its method descriptor.
 function replaceTransaction(run: unknown) {
-  const original = prisma.$transaction;
+  const original: unknown = Reflect.get(prisma, '$transaction');
   Object.defineProperty(prisma, '$transaction', {
     value: run,
     configurable: true,
@@ -58,7 +58,9 @@ await test('public jobs HTTP contract', async (t) => {
       ]) {
         const response = await fetch(`${origin}/api/jobs?${query}`);
         assert.equal(response.status, 400, query);
-        assert.equal(typeof (await response.json()).error, 'string');
+        const body: unknown = await response.json();
+        assert.ok(body && typeof body === 'object' && 'error' in body);
+        assert.equal(typeof body.error, 'string');
       }
     },
   );
@@ -76,16 +78,16 @@ await test('public jobs HTTP contract', async (t) => {
       const transaction = replaceTransaction(async (run: RunQuery) =>
         run({
           post: {
-            count: async () => 21,
-            findMany: async (args: Record<string, unknown>) => {
+            count: () => Promise.resolve(21),
+            findMany: (args: Record<string, unknown>) => {
               query = args;
-              return [
+              return Promise.resolve([
                 {
                   id: 'job-21',
                   postName: 'Assistant',
                   applicationLastDate: null,
                 },
-              ];
+              ]);
             },
           },
         }),
@@ -93,9 +95,23 @@ await test('public jobs HTTP contract', async (t) => {
       try {
         const response = await fetch(`${origin}/api/jobs?page=2&pageSize=20`);
         assert.equal(response.status, 200);
-        const body = await response.json();
-        assert.equal(body.data[0].id, 'job-21');
-        assert.equal(body.data[0].applicationLastDate, null);
+        const body: unknown = await response.json();
+        assert.ok(
+          body &&
+            typeof body === 'object' &&
+            'data' in body &&
+            'pagination' in body,
+        );
+        assert.ok(Array.isArray(body.data));
+        const item: unknown = body.data[0];
+        assert.ok(
+          item &&
+            typeof item === 'object' &&
+            'id' in item &&
+            'applicationLastDate' in item,
+        );
+        assert.equal(item.id, 'job-21');
+        assert.equal(item.applicationLastDate, null);
         assert.deepEqual(body.pagination, {
           page: 2,
           pageSize: 20,
@@ -123,7 +139,10 @@ await test('public jobs HTTP contract', async (t) => {
     async () => {
       const transaction = replaceTransaction(async (run: RunQuery) =>
         run({
-          post: { count: async () => 0, findMany: async () => [] },
+          post: {
+            count: () => Promise.resolve(0),
+            findMany: () => Promise.resolve([]),
+          },
         }),
       );
       try {
@@ -142,9 +161,9 @@ await test('public jobs HTTP contract', async (t) => {
   await t.test(
     'database errors return 503 without leaking connection details',
     async () => {
-      const transaction = replaceTransaction(async () => {
-        throw new Error('private connection details');
-      });
+      const transaction = replaceTransaction(() =>
+        Promise.reject(new Error('private connection details')),
+      );
       try {
         const response = await fetch(`${origin}/api/jobs`);
         assert.equal(response.status, 503);

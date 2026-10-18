@@ -7,7 +7,7 @@ import httpx
 
 from build_extraction_input import BundleFacts, CandidatePost, prepare_extraction
 from extract_bundle import check_evidence, extract_bundle
-from inline_extraction import decode_inline, inline_schema
+from inline_extraction import InlineFactError, decode_inline, inline_schema
 from compact_inline import compact_schema, decode_compact
 from services.ai.tests.test_extraction_input import sample_bundle
 
@@ -99,6 +99,19 @@ class InlineExtractionTests(unittest.TestCase):
         reason = next(item['reason'] for item in facts['missing_fields'] if item['field_path'] == 'posts.0.vacancies')
         self.assertTrue(reason.startswith('missing_document:'))
 
+    def test_unresolved_errors_identify_field_and_condition_without_values(self):
+        for value, reason, check in ((12, 'Not located.', 'unresolved_value_not_null'),
+                                    (None, None, 'unresolved_explanation_missing')):
+            with self.subTest(check=check):
+                wire = response()
+                wire['posts'][0]['vacancies'].update(value=value, reason=reason)
+                before = copy.deepcopy(wire)
+                with self.assertRaises(InlineFactError) as caught:
+                    decode_inline(wire, self.source())
+                self.assertEqual(caught.exception.field_path, 'posts.0.vacancies')
+                self.assertEqual(caught.exception.check, check)
+                self.assertEqual(wire, before)
+
     def test_numeric_string_is_not_silently_accepted(self):
         wire = response()
         wire['posts'][0]['vacancies'] = fact('12')
@@ -131,6 +144,28 @@ class InlineExtractionTests(unittest.TestCase):
         self.assertEqual(result['evidence_check']['errors'], [])
         self.assertEqual(result['output_format'], 'compact-inline-facts-v1')
         self.assertEqual(result['status'], 'candidate_needs_review')
+
+    def test_email_application_and_document_limits_keep_separate_citations(self):
+        bundle = sample_bundle()
+        instruction = 'Email a resume to recruitment@example.gov.in by 12 October 2026.'
+        statement = 'Include relevant experience and a 600-word contribution statement on one page.'
+        bundle['documents'][0]['content']['sections'][0]['text'] += '\n' + instruction + '\n' + statement
+        wire = response()
+        steps = [instruction]
+        documents = ['Resume', statement]
+        wire['posts'][0]['application_steps'] = [fact(instruction, quote=instruction)]
+        wire['posts'][0]['documents_required'] = [
+            fact('Resume', quote=instruction), fact(statement, quote=statement)]
+        with patch('extract_bundle.request_structured', return_value=(compact_response(wire), {})):
+            result = extract_bundle(prepare_extraction(bundle))
+        post = result['facts']['posts'][0]
+        self.assertIsNone(post['apply_url'])
+        self.assertEqual(post['application_steps'], steps)
+        self.assertEqual(post['documents_required'], documents)
+        paths = {entry['field_path'] for entry in result['facts']['evidence']}
+        self.assertTrue({'posts.0.application_steps.0', 'posts.0.documents_required.0',
+                         'posts.0.documents_required.1'} <= paths)
+        self.assertEqual(result['validation']['errors'], [])
 
     def test_compact_converter_matches_nested_facts_without_loosening_types(self):
         wire = response()

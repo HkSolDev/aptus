@@ -10,6 +10,12 @@ CITATION = {'type': 'object', 'additionalProperties': False,
             'required': ['evidence_id', 'quote']}
 
 
+class InlineFactError(ValueError):
+    def __init__(self, field_path, check):
+        super().__init__('Unresolved fact needs null and an explanation')
+        self.field_path, self.check = field_path, check
+
+
 def inline_schema(schema):
     """Reuse the typed application contract, wrapping each scalar rather than duplicating it."""
     schema = copy.deepcopy(schema)
@@ -98,8 +104,10 @@ def decode_inline(response, source):
         if status == 'found':
             if value is None or not node['evidence']:
                 raise ValueError('Found fact needs a value and evidence')
-        elif value is not None or not isinstance(reason, str) or not reason.strip():
-            raise ValueError('Unresolved fact needs null and an explanation')
+        elif value is not None:
+            raise InlineFactError(path, 'unresolved_value_not_null')
+        elif not isinstance(reason, str) or not reason.strip():
+            raise InlineFactError(path, 'unresolved_explanation_missing')
         citations = validate_quotes(node['evidence'], path, 'fact')
         scope = validate_quotes(node['scope_evidence'], path, 'scope')
         if status == 'found':

@@ -9,6 +9,7 @@ import { HomeLayoutControls } from './home-layout-controls';
 import { homeSearchParams, type HomeView } from '@/frontend/home-view';
 import type { ReviewRecommendation } from './home-recommendations';
 import { HomeSaveAction } from './home-review-state';
+import styles from './catalogue-grid.module.css';
 
 export interface JobsApiResponse {
   designReview?: boolean;
@@ -58,14 +59,14 @@ export function CatalogueGrid({
   return (
     <section
       id="jobs"
-      className={`catalogue${view.reviewProfile === 'ready' && !hasFilters ? ' home-all-after-recommendations' : ''}`}
+      className={`${styles.catalogue}${view.reviewProfile === 'ready' && !hasFilters ? ' home-all-after-recommendations' : ''}`}
       aria-labelledby="jobs-title"
     >
-      <div className="results-heading catalogue-header">
+      <div className={`results-heading ${styles.header}`}>
         <div>
           <h2 id="jobs-title">{hasFilters ? 'Search results' : 'All jobs'}</h2>
           {result && (
-            <p className="catalogue-count muted">
+            <p className={`muted ${styles.count}`}>
               {result.pagination.totalItems}{' '}
               {result.designReview ? 'example jobs' : 'jobs'}
             </p>
@@ -109,7 +110,7 @@ export function CatalogueGrid({
       ) : (
         <>
           <div
-            className={`catalogue-grid home-job-list home-layout-${view.layout}`}
+            className={`${styles.grid} home-job-list home-layout-${view.layout}`}
           >
             {result.data.map((job) => (
               <JobCard
@@ -124,7 +125,7 @@ export function CatalogueGrid({
             ))}
           </div>
           {result.pagination.totalPages > 1 && (
-            <nav className="catalogue-pagination" aria-label="Job pages">
+            <nav className={styles.pagination} aria-label="Job pages">
               {result.pagination.page > 1 && (
                 <Link
                   className="button button-secondary"
@@ -153,10 +154,10 @@ export function CatalogueGrid({
       <details className="home-browsing-help">
         <summary>About search and deadlines</summary>
         <p>
-          Search checks job titles and qualification text. Organization names
-          are found only when included in that text. Jobs with past application
-          deadlines are hidden using India time. Jobs without a deadline remain
-          listed. Check the recruitment notice for current dates.
+          Search checks job titles, organization names and qualification text.
+          Jobs with past application deadlines are hidden using India time. Jobs
+          without a deadline remain listed. Check the recruitment notice for
+          current dates.
         </p>
       </details>
     </section>

@@ -4,12 +4,12 @@ Branch: `codex/discovery-links`. Checked: 7 October 2026.
 
 ## Files
 
-| File | Purpose |
-| --- | --- |
-| [capture.py](../services/ai/capture.py) | Conditional GET, bounded HTML/PDF download, redirects, acceptance checks, hash comparison, local command. |
-| [capture_store.py](../services/ai/capture_store.py) | Saved byte blobs, immutable snapshot records, current URL state, and attempt history. |
-| [test_capture.py](../services/ai/tests/test_capture.py) | Controlled HTTP responses and storage-failure checks. |
-| [Live results](../outputs/capture/check.json) | Four observations from one HTML page and one official PDF. |
+| File                                                    | Purpose                                                                                                   |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [capture.py](../services/ai/capture.py)                 | Conditional GET, bounded HTML/PDF download, redirects, acceptance checks, hash comparison, local command. |
+| [capture_store.py](../services/ai/capture_store.py)     | Saved byte blobs, immutable snapshot records, current URL state, and attempt history.                     |
+| [test_capture.py](../services/ai/tests/test_capture.py) | Controlled HTTP responses and storage-failure checks.                                                     |
+| [Live results](../outputs/capture/check.json)           | Four observations from one HTML page and one official PDF.                                                |
 
 No new dependencies. This callable component is separate from the existing extraction pipeline and public HTTP routes.
 
@@ -26,10 +26,10 @@ Each URL has its own snapshot provenance; identical byte blobs can be shared bet
 
 ## Actual live results
 
-| Document | First check | Second check | Result |
-| --- | --- | --- | --- |
-| Sarkari Result homepage HTML | `changed` | `identical` | Same snapshot and hash reused after downloading. |
-| RPSC official PDF | `changed` | `revalidated` | Same snapshot reused after HTTP 304. |
+| Document                     | First check | Second check  | Result                                           |
+| ---------------------------- | ----------- | ------------- | ------------------------------------------------ |
+| Sarkari Result homepage HTML | `changed`   | `identical`   | Same snapshot and hash reused after downloading. |
+| RPSC official PDF            | `changed`   | `revalidated` | Same snapshot reused after HTTP 304.             |
 
 Original bodies and archive state for this check are in `/private/tmp/aptus-capture-check`; these temporary files are not deployment storage or committed PDF fixtures. The small JSON report is in the repository.
 

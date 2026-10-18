@@ -64,6 +64,32 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(rejected["reason"], "invalid_pdf")
         self.assertEqual(rejected["snapshot_id"], updated["snapshot_id"])
 
+    def test_rss_feed_is_stored_as_xml(self):
+        body = b'<?xml version="1.0"?><rss version="2.0"><channel /></rss>'
+        response = httpx.Response(
+            200, content=body, headers={"content-type": "application/rss+xml"}
+        )
+        result, _ = self.run_capture([response])
+        self.assertEqual(result["outcome"], "changed")
+        self.assertEqual(result["snapshot"]["document_kind"], "xml")
+        self.assertEqual(Path(result["body_path"]).read_bytes(), body)
+
+    def test_non_rss_xml_is_rejected(self):
+        response = httpx.Response(
+            200, content=b'<jobs />', headers={"content-type": "application/xml"}
+        )
+        result, _ = self.run_capture([response])
+        self.assertEqual(result["outcome"], "rejected")
+        self.assertEqual(result["reason"], "invalid_xml")
+
+    def test_json_listing_response_is_stored_for_source_adapters(self):
+        response = httpx.Response(
+            200, content=b'{"statusCode":"200","data":[]}',
+            headers={"content-type": "application/json"},
+        )
+        result, _ = self.run_capture([response])
+        self.assertEqual(result["snapshot"]["document_kind"], "json")
+
     def test_failures_keep_last_good(self):
         first, _ = self.run_capture([self.html()])
         for response in [httpx.Response(500), httpx.ReadTimeout("test timeout"),

@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import { getPublicJob } from './public-jobs.js';
 import { displayDate, documentLink, escapeHtml, fact } from './job-html.js';
 import { renderJobRules } from './render-job-rules.js';
+import { renderReviewedDetails } from './render-reviewed-details.js';
 
 export async function renderJob(
   id: string,
@@ -48,6 +49,7 @@ export async function renderJob(
         ${fact('Minimum education level', job.minEducationLevel)}${fact('Minimum marks (%)', job.minMarksPercent)}
       </dl></section></div>
       <section class="panel job-detail-section"><h2>Detailed saved requirements</h2>${renderJobRules(job.eligibilityRules)}</section>
+      ${renderReviewedDetails(job.reviewedDetails)}
       ${
         job.categoryRelaxationRules
           ? `<section class="panel job-detail-section"><h2>Saved category relaxation</h2><p class="small muted">Years recorded per category. Verify applicability and conditions in the source.</p><dl class="job-facts">${

@@ -13,6 +13,9 @@ SYSTEM_PROMPT = """You extract facts from Indian government job notifications.
 
 Return only structured data matching the Post schema. Never guess missing
 values. Use null when a value is not stated clearly in the source text.
+For recruiting_body, copy the recruiting organization clearly identified in the
+notice verbatim. Never substitute the scraper, source website or source record
+name. If the recruiter is unclear or conflicting, return null.
 Extract eligibility facts only; do not decide whether a particular user is
 eligible. Preserve every alternative education route in education_options.
 Preserve exact age rules in age_rules, including separate minimum and maximum
@@ -69,4 +72,7 @@ def extract_posts(
         system_prompt=SYSTEM_PROMPT,
         user_prompt=build_user_prompt(source_text, sections),
     )
+    for post in result.posts:
+        if post.recruiting_body and post.recruiting_body not in source_text:
+            post.recruiting_body = None
     return result.posts
