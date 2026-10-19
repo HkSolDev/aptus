@@ -95,7 +95,7 @@ export function listPublicJobs(
         },
       };
     },
-    { isolationLevel: 'RepeatableRead', maxWait: 2000, timeout: 5000 },
+    { isolationLevel: 'RepeatableRead', maxWait: 10_000, timeout: 5000 },
   );
 }
 
