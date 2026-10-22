@@ -54,12 +54,15 @@ def prepare_source(source, root, **crawl_options):
             prepared_paths.append(str(path.resolve()))
             atomic_write(path,
                          json.dumps(prepared, ensure_ascii=False, indent=2).encode())
-        summary = {'source': source['id'], 'status': 'partial' if crawl['status'] == 'partial'
-                   else 'prepared_for_review', 'pages': len(crawl['pages']),
+        status = ('blocked' if crawl['status'] == 'blocked' else
+                  'partial' if crawl['status'] == 'partial' else 'prepared_for_review')
+        summary = {'source': source['id'], 'status': status, 'pages': len(crawl['pages']),
                    'documents': len(crawl['documents']), 'bundles': len(verified['bundles']),
                    'prepared_inputs': prepared_count, 'unchecked': len(crawl['unchecked']),
                    'output_dir': str(root.resolve()), 'crawl_path': str((root / 'crawl.json').resolve()),
                    'bundles_path': str(bundles_path.resolve()), 'ai_called': False, 'published': False}
+        if status == 'blocked':
+            summary['reason'] = 'unsupported_seed_type'
         summary['prepared_paths'] = prepared_paths
         atomic_write(root / 'summary.json', json.dumps(summary, indent=2).encode())
         return summary

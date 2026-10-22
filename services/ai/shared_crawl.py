@@ -18,7 +18,7 @@ def crawl_source(url, root, *, process=capture_and_normalize, max_fetches=12, ma
         raise ValueError('Invalid source URL')
     root = Path(root)
     report = {'seed_url': seed, 'status': 'scanning', 'pages': [], 'edges': [],
-              'unchecked': [], 'documents': []}
+              'unchecked': [], 'documents': [], 'seed_status': 'pending'}
     queue = [{'url': seed, 'depth': 0, 'priority': 100}]
     visited = set()
     queued = {seed}
@@ -38,9 +38,13 @@ def crawl_source(url, root, *, process=capture_and_normalize, max_fetches=12, ma
             result, reason, retryable = process(item['url'], root / 'capture')
             if result is None:
                 page.update(reason=reason, retryable=retryable)
+                if item['depth'] == 0 and reason == 'unsupported_document_type':
+                    report['seed_status'] = 'unsupported_document_type'
                 save()
                 continue
             page.update(status='normalized', result=result)
+            if item['depth'] == 0:
+                report['seed_status'] = 'normalized'
             final_url = result['final_url']
             visited.add(url_identity(final_url, final_url))
             content = json.loads(Path(result['content_path']).read_text())
@@ -71,7 +75,10 @@ def crawl_source(url, root, *, process=capture_and_normalize, max_fetches=12, ma
     report['unchecked'].extend({**item, 'reason': 'fetch_budget'} for item in queue
                                 if item['url'] not in visited)
     failed = any(page['status'] == 'failed' for page in report['pages'])
-    report['status'] = 'partial' if report['unchecked'] or failed else 'scanned'
+    if report['seed_status'] == 'unsupported_document_type':
+        report['status'] = 'blocked'
+    else:
+        report['status'] = 'partial' if report['unchecked'] or failed else 'scanned'
     # 'scanned' means the bounded positive-score frontier, never complete site coverage.
     save()
     return report

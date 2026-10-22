@@ -162,14 +162,24 @@ class SharedPipelineTests(unittest.TestCase):
                                  '--sources', str(config), '--storage-dir', str(self.root / 'worker')],
                                 cwd=self.root, capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout), [{'source': 'new_board', 'status': 'disabled'}])
+        output = json.loads(result.stdout)
+        self.assertEqual(output['route'], 'generic_shared_crawl')
+        self.assertEqual(output['sources']['new_board']['crawl_status'], 'disabled')
+        self.assertEqual(output['sources']['new_board']['extracted'], 0)
 
-    def test_non_html_non_pdf_response_is_explicitly_unsupported(self):
-        self.pages['/'] = ('json', '{"items":[]}')
-        report = self.run_source()
-        crawl = json.loads(Path(report['crawl_path']).read_text())
-        self.assertEqual(crawl['pages'][0]['reason'], 'unsupported_document_type')
-        self.assertEqual(report['prepared_inputs'], 0)
+    def test_json_and_rss_seeds_are_explicitly_unsupported(self):
+        for kind, body in (
+            ('json', '{"items":[]}'),
+            ('xml', '<rss version="2.0"><channel><title>Jobs</title></channel></rss>'),
+        ):
+            with self.subTest(kind=kind):
+                self.pages['/'] = (kind, body)
+                report = self.run_source()
+                crawl = json.loads(Path(report['crawl_path']).read_text())
+                self.assertEqual(crawl['pages'][0]['reason'], 'unsupported_document_type')
+                self.assertEqual(report['status'], 'blocked')
+                self.assertEqual(report['reason'], 'unsupported_seed_type')
+                self.assertEqual(report['prepared_inputs'], 0)
 
 
 if __name__ == '__main__':
