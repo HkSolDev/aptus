@@ -23,7 +23,9 @@ def prepare_source(source, root, **crawl_options):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return {'source': source['id'], 'status': 'already_running'}
-        crawl = crawl_source(source['url'], root, **crawl_options)
+        crawl_opts = dict(crawl_options)
+        crawl_opts.setdefault('source_id', source.get('id'))
+        crawl = crawl_source(source['url'], root, **crawl_opts)
         verified = verify_bundles(crawl['documents'])
         bundles_path = root / 'bundles.json'
         atomic_write(bundles_path, json.dumps(verified, ensure_ascii=False, indent=2).encode())

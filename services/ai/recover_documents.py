@@ -12,9 +12,10 @@ from capture_store import atomic_write
 from normalize_html import normalize_html
 from normalize_pdf import normalize_pdf
 from select_pdf_sections import complete_pdf_sections, select_pdf_sections
+from source_transport import read_listing
 
 
-def capture_and_normalize(url, root, *, capture_document=None):
+def capture_and_normalize(url, root, *, capture_document=None, source_id=None):
     # Separate URL stores avoid races in capture's shared attempts/state files.
     root = Path(root) / hashlib.sha256(url.encode()).hexdigest()
     root.mkdir(parents=True, exist_ok=True)
@@ -27,14 +28,44 @@ def capture_and_normalize(url, root, *, capture_document=None):
                          'ReadTimeout', 'ReadError', 'RemoteProtocolError', 'gaierror'})
         return None, result.get('reason', 'capture_failed'), retryable
     body = Path(result['body_path']).read_bytes()
-    if result['snapshot']['document_kind'] == 'pdf':
+    kind = result['snapshot']['document_kind']
+    if kind == 'pdf':
         full = normalize_pdf(body, result['final_url'], max_pages=100)
         if not full['pages']:
             return None, 'pdf_requires_review', False
         content = complete_pdf_sections(select_pdf_sections(full), full)
-    elif result['snapshot']['document_kind'] == 'html':
+    elif kind == 'html':
         full = normalize_html(body, result['final_url'], include_link_context=True)
         content = full
+    elif kind in {'xml', 'json'}:
+        try:
+            listing = read_listing(
+                body,
+                result['final_url'],
+                content_type=result['snapshot'].get('content_type', ''),
+                document_kind=kind,
+                source_id=source_id,
+            )
+        except ValueError as error:
+            reason = str(error) if str(error) in {
+                'invalid_rss_xml', 'rss_root_missing', 'rss_channel_missing',
+                'invalid_ssc_response', 'ssc_records_missing', 'unsupported_listing_format',
+                'invalid_json', 'empty_rss_content'
+            } else 'invalid_listing_response'
+            return None, reason, False
+        output = root / 'normalized-runs' / uuid4().hex
+        atomic_write(output / 'listing.json', json.dumps(listing, ensure_ascii=False, indent=2).encode())
+        return {
+            'source_url': url,
+            'final_url': result['final_url'],
+            'sha256': result['sha256'],
+            'snapshot_id': result['snapshot_id'],
+            'body_path': result['body_path'],
+            'document_kind': kind,
+            'is_listing': True,
+            'listing': listing,
+            'listing_path': str((output / 'listing.json').resolve()),
+        }, None, False
     else:
         return None, 'unsupported_document_type', False
     # Preserve the full normalized source for local coverage recovery.

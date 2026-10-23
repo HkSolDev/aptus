@@ -167,19 +167,23 @@ class SharedPipelineTests(unittest.TestCase):
         self.assertEqual(output['sources']['new_board']['crawl_status'], 'disabled')
         self.assertEqual(output['sources']['new_board']['extracted'], 0)
 
-    def test_json_and_rss_seeds_are_explicitly_unsupported(self):
-        for kind, body in (
-            ('json', '{"items":[]}'),
-            ('xml', '<rss version="2.0"><channel><title>Jobs</title></channel></rss>'),
-        ):
-            with self.subTest(kind=kind):
-                self.pages['/'] = (kind, body)
-                report = self.run_source()
-                crawl = json.loads(Path(report['crawl_path']).read_text())
-                self.assertEqual(crawl['pages'][0]['reason'], 'unsupported_document_type')
-                self.assertEqual(report['status'], 'blocked')
-                self.assertEqual(report['reason'], 'unsupported_seed_type')
-                self.assertEqual(report['prepared_inputs'], 0)
+    def test_unsupported_json_listing_does_not_produce_evidence(self):
+        self.pages['/'] = ('json', '{"items":[]}')
+        report = self.run_source()
+        crawl = json.loads(Path(report['crawl_path']).read_text())
+        self.assertEqual(crawl['pages'][0]['status'], 'failed')
+        self.assertEqual(crawl['pages'][0]['reason'], 'unsupported_listing_format')
+        self.assertNotEqual(crawl['status'], 'scanned')
+        self.assertEqual(crawl['documents'], [])
+        self.assertEqual(report['prepared_inputs'], 0)
+
+    def test_empty_rss_listing_is_scanned_without_preparing_job_evidence(self):
+        self.pages['/'] = ('xml', '<rss version="2.0"><channel><title>Jobs</title></channel></rss>')
+        report = self.run_source()
+        crawl = json.loads(Path(report['crawl_path']).read_text())
+        self.assertEqual(crawl['status'], 'scanned')
+        self.assertEqual(crawl['documents'], [])
+        self.assertEqual(report['prepared_inputs'], 0)
 
 
 if __name__ == '__main__':

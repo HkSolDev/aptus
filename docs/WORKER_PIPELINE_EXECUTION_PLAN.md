@@ -49,6 +49,13 @@ queue. Start with the configured SarkariResult RSS seed and SSC JSON seed.
 Done when fixture feeds enqueue only validated public notice URLs and the worker
 does not send RSS/XML or JSON directly to the HTML reader.
 
+Progress (Stage 2 implemented and independently verified offline):
+- Added `services/ai/source_transport.py` with bounded readers for SarkariResult RSS feeds and SSC JSON notice-board envelopes (bounded to 100 entries/destinations, reporting skipped/truncated counts, preserving title/date/parent provenance, avoiding main-notice-only filtering for corrigenda/extensions).
+- Updated `services/ai/recover_documents.py` to dispatch XML/JSON to `read_listing` and return distinct listing results without sending them to HTML/PDF normalization or recruitment evidence.
+- Integrated listing destinations in `services/ai/shared_crawl.py` into the bounded crawl queue, consuming depth and fetch budget while maintaining edge provenance and reporting incomplete coverage on listing truncation.
+- Propagated source identity through `services/ai/shared_pipeline.py` compatibly.
+- Independent verification: 14 Stage 2 acceptance tests and 66 relevant tests total passed after fixing the SSC exact-limit truncation boundary. Another 20 boundary scenarios passed. Live-source verification and deployment remain outstanding.
+
 ### 3. Campaign grouping reliability
 
 Improve grouping only enough to distinguish a main notice, its corrigenda and
