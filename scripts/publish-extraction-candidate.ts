@@ -87,6 +87,7 @@ export async function publishExtractionCandidate(
         const data: Prisma.PostUncheckedCreateInput = {
           sourceId: source.id,
           postName: raw.post_name,
+          organization: stringOrNull(details.recruiting_body),
           postGroup:
             Object.values(PostGroup).find((v) => v === details.post_group) ??
             null,

@@ -166,7 +166,8 @@ draft, extraction charge or published job.
 Implemented locally (24 October 2026): bounded capture/provider backoff,
 scheduled missing-document recovery, checksum-bound extraction checkpoints and
 terminal review for invalid/uncertain provider outcomes. Recovery tests include
-an actual parsed annexure and replay of the validated real DU result.
+an actual parsed annexure and replay of the validated real DU result. See
+[recovery and publication verification](WORKER_RECOVERY_AND_PUBLICATION.md).
 
 ### 7. Reviewed publication bridge
 
@@ -176,6 +177,12 @@ publication receipt so retries do not create duplicates.
 
 Done when one approved fixture reaches PostgreSQL once, a repeated publication
 is idempotent, and unapproved drafts cannot publish.
+
+Implemented and verified against isolated local PostgreSQL (24 October 2026):
+explicit byte-bound approval, protected ingestion bridge, existing transactional
+publisher, durable receipts and publication-only retries. Seven integration
+checks passed, including Python-to-HTTP delivery and lost-receipt redelivery
+with stable row IDs. Production deployment/public-job approval are not included.
 
 ## Non-goals until this plan is complete
 

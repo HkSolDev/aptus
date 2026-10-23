@@ -29,9 +29,8 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                  extraction_version=EXTRACTION_VERSION, retry_clock=None):
     """Crawl sources and process only coverage-approved evidence.
 
-    ``persist`` is deliberately injectable. The default worker writes reviewable
-    drafts locally and never turns model output into published jobs without the
-    explicit reviewed-candidate publication flow.
+    ``persist`` remains accepted for legacy callers but cannot publish. Use
+    review_publication's explicit approval/delivery flow for database writes.
     """
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -110,10 +109,8 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                             'disposition': disposition,
                             'reasons': ['unchanged_evidence_fingerprint'],
                         })
-                        if persist is not None and disposition == 'valid_recruitment_review_draft':
-                            stage = 'persistence'
-                            persist(cached_envelope)
-                            counts['published'] += 1
+                        # Publication is a separate explicit operator action;
+                        # an injected callback must not bypass draft approval.
                         continue
 
                     stage = 'extraction'
@@ -188,10 +185,6 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                         })
                         state_manager.record_outcome(bundle_id, fingerprint, extraction_version, draft_path,
                                                      disposition=disposition)
-                        if persist is not None:
-                            stage = 'persistence'
-                            persist(envelope)
-                            counts['published'] += 1
                     elif disposition == 'amendment_pending_review':
                         stage = 'amendment_review_preparation'
                         out_dir = root / 'amendments'

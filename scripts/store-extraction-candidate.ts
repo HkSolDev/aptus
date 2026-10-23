@@ -88,7 +88,16 @@ export async function storeExtractionCandidate(
   database: Pick<Prisma.TransactionClient, 'extractionCandidate'> = prisma,
 ) {
   const envelope = await validateStorageEnvelope(input);
-  const contentHash = candidateContentHash(envelope);
+  // Hash precisely the immutable fields stored in PostgreSQL. Worker metadata
+  // is not persisted here and must not make reconstruction fail at publication.
+  const contentHash = candidateContentHash({
+    bundle_id: envelope.bundle_id,
+    source_url: envelope.source_url,
+    source_name: envelope.source_name,
+    facts: envelope.facts,
+    review: envelope.review,
+    evidence_units: envelope.evidence_units,
+  });
   // Immutable, content-addressed drafts: repeat/concurrent runs share one row.
   return database.extractionCandidate.upsert({
     where: { contentHash },

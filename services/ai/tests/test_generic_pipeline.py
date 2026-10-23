@@ -20,7 +20,7 @@ class GenericPipelineTests(unittest.TestCase):
     def prepare(self, root, **_options):
         return [self.fixture.run_source()]
 
-    def test_ready_html_pdf_bundle_reaches_injected_extract_validate_and_persist(self):
+    def test_ready_html_pdf_bundle_creates_draft_without_bypassing_review(self):
         calls, pushed = [], []
         def extract(prepared):
             calls.append('extract')
@@ -37,9 +37,9 @@ class GenericPipelineTests(unittest.TestCase):
                               validate=validate, draft=draft, persist=pushed.append)
         counts = report['sources']['new_board']
         self.assertGreaterEqual(counts['extracted'], 1)
-        self.assertEqual(counts['published'], 1)
+        self.assertEqual(counts['published'], 0)
         self.assertEqual(calls, ['extract', 'validate', 'draft'])
-        self.assertEqual(len(pushed), 1)
+        self.assertEqual(len(pushed), 0)
 
     def test_partial_or_ambiguous_input_never_calls_model_or_persistence(self):
         called = []
