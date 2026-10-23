@@ -8,7 +8,7 @@ from build_extraction_input import prepare_extraction
 from capture_store import atomic_write
 from shared_crawl import crawl_source
 from source_registry import DEFAULT_SOURCES_PATH, load_sources, validate_sources
-from verify_bundle import verify_bundles
+from verify_bundle import grouping_blocking_reasons, verify_bundles
 
 
 def prepare_source(source, root, **crawl_options):
@@ -25,8 +25,9 @@ def prepare_source(source, root, **crawl_options):
             return {'source': source['id'], 'status': 'already_running'}
         crawl_opts = dict(crawl_options)
         crawl_opts.setdefault('source_id', source.get('id'))
+        issuer_hosts = crawl_opts.pop('issuer_hosts', None) or source.get('issuer_hosts') or {}
         crawl = crawl_source(source['url'], root, **crawl_opts)
-        verified = verify_bundles(crawl['documents'])
+        verified = verify_bundles(crawl['documents'], issuer_hosts=issuer_hosts, edges=crawl.get('edges'))
         bundles_path = root / 'bundles.json'
         atomic_write(bundles_path, json.dumps(verified, ensure_ascii=False, indent=2).encode())
         prepared_count = 0
@@ -36,10 +37,9 @@ def prepare_source(source, root, **crawl_options):
             reasons = set()
             if crawl['status'] != 'scanned':
                 reasons.add('crawl_incomplete')
-            if 'insufficient_campaign_identity' in bundle['review_reasons']:
-                reasons.add('insufficient_campaign_identity')
-            if 'missing_main_notice' in bundle['review_reasons']:
-                reasons.add('missing_main_notice')
+            blocking = grouping_blocking_reasons(bundle)
+            if blocking:
+                reasons.update(blocking)
             for doc in bundle['documents']:
                 if doc['format'] == 'pdf' and (
                     doc['content'].get('coverage', {}).get('unreadable_pages')
@@ -70,13 +70,16 @@ def prepare_source(source, root, **crawl_options):
         return summary
 
 
-def prepare_sources(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None, **crawl_options):
+def prepare_sources(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None, issuer_hosts=None, **crawl_options):
     sources = load_sources(sources_path)
     if source_id is not None:
         sources = [row for row in sources if row['id'] == source_id]
         if not sources:
             raise ValueError('unknown_source_id')
-    return [prepare_source(source, Path(root) / source['id'], **crawl_options) for source in sources]
+    opts = dict(crawl_options)
+    if issuer_hosts is not None:
+        opts['issuer_hosts'] = issuer_hosts
+    return [prepare_source(source, Path(root) / source['id'], **opts) for source in sources]
 
 
 if __name__ == '__main__':

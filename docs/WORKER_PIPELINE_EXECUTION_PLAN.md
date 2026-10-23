@@ -32,6 +32,7 @@ Done when an unchanged grouped fixture skips extraction, while changing one
 related document requires a new extraction.
 
 Progress (Stage 1 completed on 23 October 2026):
+
 - Implemented durable notice state and canonical grouped-evidence fingerprinting in `services/ai/notice_state.py`.
 - Integrated deduplication check, reusable draft bypass, and run-report accounting in `services/ai/generic_pipeline.py`.
 - Verified all 12 offline criteria in `services/ai/tests/test_notice_state.py` (reuse on identical fingerprint, re-extract on changed document/corrigendum, version bump invalidation, missing/corrupt draft fallback, failure/blocked isolation, prepare-only isolation, and file-lock race protection).
@@ -50,6 +51,7 @@ Done when fixture feeds enqueue only validated public notice URLs and the worker
 does not send RSS/XML or JSON directly to the HTML reader.
 
 Progress (Stage 2 implemented and independently verified offline):
+
 - Added `services/ai/source_transport.py` with bounded readers for SarkariResult RSS feeds and SSC JSON notice-board envelopes (bounded to 100 entries/destinations, reporting skipped/truncated counts, preserving title/date/parent provenance, avoiding main-notice-only filtering for corrigenda/extensions).
 - Updated `services/ai/recover_documents.py` to dispatch XML/JSON to `read_listing` and return distinct listing results without sending them to HTML/PDF normalization or recruitment evidence.
 - Integrated listing destinations in `services/ai/shared_crawl.py` into the bounded crawl queue, consuming depth and fetch budget while maintaining edge provenance and reporting incomplete coverage on listing truncation.
@@ -65,6 +67,8 @@ as `needs_review`; never merge merely because documents share a host.
 Done when fixtures prove: one HTML plus one PDF becomes one bundle; a
 corrigendum attaches to its main notice; two different recruitment campaigns
 stay separate.
+
+Progress: Stage 3 implemented and independently verified offline. All 27 campaign-grouping acceptance tests and 79 relevant regression tests passed (106 total). Verification covers recruitment boundaries, amendment association, ambiguity/conflict blocking, navigation isolation, and stable notice identities. Live-source verification and deployment remain outstanding.
 
 ### 4. Evidence gate and extraction path
 
