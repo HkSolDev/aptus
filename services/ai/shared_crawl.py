@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from capture_store import atomic_write
 from link_discovery import discover_links, url_identity
 from recover_documents import capture_and_normalize
+from capture_retry import capture_with_retry
 
 
 def crawl_source(url, root, *, process=capture_and_normalize, source_id=None, max_fetches=12, max_depth=3):
@@ -36,10 +37,7 @@ def crawl_source(url, root, *, process=capture_and_normalize, source_id=None, ma
         page = {**item, 'status': 'failed'}
         report['pages'].append(page)
         try:
-            try:
-                result, reason, retryable = process(item['url'], root / 'capture', source_id=source_id)
-            except TypeError:
-                result, reason, retryable = process(item['url'], root / 'capture')
+            result, reason, retryable = capture_with_retry(item['url'], root, process, source_id)
             if result is None:
                 page.update(reason=reason, retryable=retryable)
                 if item['depth'] == 0 and reason in ('unsupported_document_type', 'unsupported_listing_format'):

@@ -15,6 +15,13 @@ from normalize_candidate_facts import normalize_candidate_facts
 from providers.openai import _openai_schema
 
 
+class ProviderRequestError(RuntimeError):
+    def __init__(self, reason, *, retryable=False, retry_after=0):
+        super().__init__(reason)
+        self.retryable = retryable
+        self.retry_after = retry_after
+
+
 DECODE_CHECKS = {
     'Invalid compact response root': 'invalid_response_root',
     'Invalid compact post': 'invalid_post',
@@ -150,7 +157,10 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
                 raise RuntimeError('provider_credentials_rejected')
             break
         if not response.is_success:
-            raise RuntimeError(f'provider_http_{response.status_code}')
+            delay = response.headers.get('retry-after', '0')
+            raise ProviderRequestError(f'provider_http_{response.status_code}',
+                retryable=response.status_code in {408, 429, 500, 502, 503, 504},
+                retry_after=min(int(delay), 86400) if delay.isdigit() else 0)
         data = response.json()
         if provider in {'openai', 'deepseek'}:
             choice = data['choices'][0]
@@ -164,8 +174,12 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
                 raise RuntimeError('provider_incomplete_or_refused')
             text = ''.join(part.get('text', '') for part in candidate['content']['parts'])
             usage = data.get('usageMetadata', {})
+    except (httpx.ConnectError, httpx.ConnectTimeout):
+        raise ProviderRequestError('provider_network_failed', retryable=True) from None
     except httpx.HTTPError:
-        raise RuntimeError('provider_network_failed') from None
+        # A read timeout may follow a billed generation: require review instead
+        # of silently paying for the same uncertain request again.
+        raise ProviderRequestError('provider_network_failed') from None
     except (KeyError, IndexError, TypeError, ValueError):
         raise RuntimeError('provider_response_invalid') from None
     try:

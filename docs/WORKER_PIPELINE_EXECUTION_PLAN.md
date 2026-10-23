@@ -163,6 +163,11 @@ Add retry state after each prior stage has a stable input/output contract.
 Done when a failure can resume from its failed stage and does not duplicate a
 draft, extraction charge or published job.
 
+Implemented locally (24 October 2026): bounded capture/provider backoff,
+scheduled missing-document recovery, checksum-bound extraction checkpoints and
+terminal review for invalid/uncertain provider outcomes. Recovery tests include
+an actual parsed annexure and replay of the validated real DU result.
+
 ### 7. Reviewed publication bridge
 
 Connect only an explicitly approved draft to the existing protected TypeScript

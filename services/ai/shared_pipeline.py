@@ -2,6 +2,7 @@
 
 import fcntl
 import json
+import hashlib
 from pathlib import Path
 
 from build_extraction_input import prepare_extraction
@@ -9,6 +10,8 @@ from capture_store import atomic_write
 from shared_crawl import crawl_source
 from source_registry import DEFAULT_SOURCES_PATH, load_sources, validate_sources
 from verify_bundle import verify_bundles
+from recovery_queue import RecoveryQueue
+from recover_documents import recover_one
 
 
 def prepare_source(source, root, **crawl_options):
@@ -26,14 +29,34 @@ def prepare_source(source, root, **crawl_options):
         crawl_opts = dict(crawl_options)
         crawl_opts.setdefault('source_id', source.get('id'))
         issuer_hosts = crawl_opts.pop('issuer_hosts', None) or source.get('issuer_hosts') or {}
+        recovery = RecoveryQueue(root / 'recovery.sqlite3')
+        for _ in range(5):
+            if recover_one(recovery, root / 'recovery').get('status') == 'no_due_task':
+                break
         crawl = crawl_source(source['url'], root, **crawl_opts)
         verified = verify_bundles(crawl['documents'], issuer_hosts=issuer_hosts, edges=crawl.get('edges'))
+        # Only dependencies of notices in this crawl can contribute evidence.
+        recovered = []
+        for bundle in verified['bundles']:
+            for task in recovery.bundle(bundle['bundle_id'])['tasks']:
+                result = task.get('result')
+                if task['status'] != 'done' or not result or result.get('is_listing'):
+                    continue
+                try:
+                    recovered.append({'document_id': hashlib.sha256(result['final_url'].encode()).hexdigest()[:24],
+                                      'source_url': result['final_url'], 'format': result['document_kind'],
+                                      'content': json.loads(Path(result['content_path']).read_text())})
+                except (OSError, ValueError, KeyError):
+                    continue  # Missing local recovery artifacts cannot grant approval.
+        if recovered:
+            documents = {doc['document_id']: doc for doc in recovered + crawl['documents']}
+            verified = verify_bundles(list(documents.values()), issuer_hosts=issuer_hosts, edges=crawl.get('edges'))
         bundles_path = root / 'bundles.json'
         atomic_write(bundles_path, json.dumps(verified, ensure_ascii=False, indent=2).encode())
         prepared_count = 0
         prepared_paths = []
         for bundle in verified['bundles']:
-            prepared = prepare_extraction(bundle, crawl=crawl)
+            prepared = prepare_extraction(bundle, crawl=crawl, recovery_queue=recovery)
             prepared_count += prepared.get('llm_input') is not None
             path = root / f"{bundle['bundle_id']}.prepared.json"
             prepared_paths.append(str(path.resolve()))

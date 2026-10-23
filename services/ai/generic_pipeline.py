@@ -12,6 +12,8 @@ from shared_pipeline import prepare_sources
 from source_registry import DEFAULT_SOURCES_PATH
 from store_candidate import prepare_storage
 from validate_candidate import validate_candidate
+from stage_retry import StageRetries
+from extraction_checkpoint import extract_or_resume
 
 
 def _source_name(source_id, prepared):
@@ -24,7 +26,7 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                  max_fetches=12, max_depth=3, prepare=prepare_sources,
                  extract=extract_bundle, validate=validate_candidate,
                  draft=prepare_storage, persist=None, prepare_only=False,
-                 extraction_version=EXTRACTION_VERSION):
+                 extraction_version=EXTRACTION_VERSION, retry_clock=None):
     """Crawl sources and process only coverage-approved evidence.
 
     ``persist`` is deliberately injectable. The default worker writes reviewable
@@ -34,6 +36,7 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     state_manager = NoticeStateManager(root)
+    retries = StageRetries(root, retry_clock)
     prepared_root = root / 'shared'
     sources = prepare(prepared_root, sources_path=sources_path, source_id=source_id,
                       max_fetches=max_fetches, max_depth=max_depth)
@@ -114,14 +117,31 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                         continue
 
                     stage = 'extraction'
-                    extracted = extract(prepared)
-                    counts['extracted'] += 1
+                    extractor = extract
+                    if extract is extract_bundle:
+                        extractor = lambda value: extract_bundle(value, response_path=(
+                            root / 'responses' / f'{fingerprint}.json'))
+                    extracted, resumed = extract_or_resume(retries, fingerprint, prepared, extractor)
+                    if extracted is None:
+                        retry = retries.read('extraction', fingerprint)
+                        counts['blocked'] += retry['status'] == 'needs_review'
+                        if retry['status'] == 'needs_review':
+                            counts['blocked_reasons'].append(retry.get('reason') or 'extraction_needs_review')
+                        counts['bundle_outcomes'].append({
+                            'bundle_id': bundle_id, 'outcome': retry['status'],
+                            'reasons': [retry.get('reason') or 'extraction_in_progress'],
+                        })
+                        report['status'] = 'partial_failure'
+                        continue
+                    counts['extracted'] += not resumed
+                    counts['checkpoint_reused'] = counts.get('checkpoint_reused', 0) + resumed
                     if extracted.get('bundle_id') != bundle_id:
                         raise ValueError('Extracted bundle identity mismatch')
                     stage = 'validation'
                     validation = validate(extracted, source_input)
                     disposition = validation.get('disposition', 'validation_blocked')
                     if validation.get('status') == 'blocked':
+                        retries.failure('extraction', fingerprint, 'candidate_validation_blocked')
                         # Retain the rejected response and findings for review, but
                         # never record it as a reusable successful extraction.
                         atomic_write(root / 'validation' / f'{bundle_id}.json', json.dumps({
@@ -283,6 +303,10 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                         })
                         state_manager.record_outcome(bundle_id, fingerprint, extraction_version, out_path,
                                                      disposition=disposition)
+                    # Completed durable outcomes now own reuse. A checkpoint is
+                    # only for interrupted work, never an alternate integrity bypass.
+                    retries.path('extraction', fingerprint).with_suffix('.response.json').unlink(missing_ok=True)
+                    retries.path('extraction', fingerprint).unlink(missing_ok=True)
             except (KeyError, OSError, RuntimeError, TypeError, ValueError):
                 counts['failed'] += 1
                 counts['failure_stages'].append(stage)
@@ -295,6 +319,9 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                     'outcome': 'failed',
                     'reasons': [f'failed_at_{stage}'],
                 })
+                if stage == 'extraction':
+                    retry = retries.read('extraction', fingerprint)
+                    counts['bundle_outcomes'][-1]['reasons'] = [retry.get('reason') or 'extraction_failed']
         if counts['blocked'] or counts['failed']:
             report['status'] = 'partial_failure'
         counts['blocked_reasons'] = sorted(set(counts['blocked_reasons']))
