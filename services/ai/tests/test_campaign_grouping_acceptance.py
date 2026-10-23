@@ -260,12 +260,9 @@ class StableNoticeIdentityTests(unittest.TestCase):
                         extra='Vacancies have been revised for the post of Engineer.')])[0]
         self.assertEqual(before['bundle_id'], after['bundle_id'])
         def fingerprint(bundle):
-            # Reuse the real evidence conversion; compare fingerprints only when
-            # coverage permits it. Grouping review does not erase source evidence.
+            # Keep advisory reasons consistent with the grouping status; they do
+            # not prevent evidence conversion for this fingerprint comparison.
             candidate = copy.deepcopy(bundle)
-            candidate['review_reasons'] = []
-            for doc in candidate['documents']:
-                doc['review_reasons'] = []
             payload = prepare_extraction(candidate)['llm_input']['input']
             return compute_evidence_fingerprint(payload)
         self.assertNotEqual(fingerprint(before), fingerprint(after))

@@ -4,7 +4,7 @@ import json
 import re
 
 from link_discovery import url_identity
-from verify_bundle import content_units
+from verify_bundle import content_units, grouping_blocking_reasons
 
 
 FIELD_HINTS = {
@@ -86,10 +86,57 @@ def bundle_units(bundle):
     return units
 
 
-def check_coverage(bundle, *, missing_documents=None, recovery_pass=0):
+VALID_CRAWL_STATUSES = {'scanned', 'partial', 'blocked'}
+ADVISORY_REVIEW_REASONS = {
+    'authority_needs_review',
+    'amendment_or_cancellation_scope_needs_review',
+    'unresolved_document_references',
+}
+
+
+def validate_crawl_status(crawl=None, crawl_status=None):
+    """Normalize and validate crawl readiness context.
+
+    Why omitted offline context differs from explicitly malformed crawl context:
+    Direct offline testing and document preparation operate without crawl infrastructure,
+    which is an approved mode. However, when a caller explicitly passes crawl context,
+    passing non-dictionaries, missing status fields, or conflicting statuses signals
+    pipeline corruption or misconfiguration and must fail loudly rather than silently
+    granting or withholding approval.
+    """
+    if crawl is None and crawl_status is None:
+        return None
+    status_from_crawl = None
+    if crawl is not None:
+        if not isinstance(crawl, dict) or crawl.get('status') not in VALID_CRAWL_STATUSES:
+            raise ValueError('Invalid crawl context')
+        status_from_crawl = crawl['status']
+    status_from_arg = None
+    if crawl_status is not None:
+        if not isinstance(crawl_status, str) or crawl_status not in VALID_CRAWL_STATUSES:
+            raise ValueError('Invalid crawl status')
+        status_from_arg = crawl_status
+    if status_from_crawl and status_from_arg and status_from_crawl != status_from_arg:
+        raise ValueError('Contradictory crawl context')
+    return status_from_crawl or status_from_arg
+
+
+def _has_substantive_content(doc):
+    content = doc.get('content')
+    kind = doc.get('format')
+    if not isinstance(content, dict) or kind not in {'html', 'pdf'}:
+        return False
+    for text, locations in content_units(content, kind):
+        if isinstance(text, str) and text.strip() and isinstance(locations, list) and locations:
+            return True
+    return False
+
+
+def check_coverage(bundle, *, missing_documents=None, recovery_pass=0, crawl=None, crawl_status=None):
     """A missing keyword is a focus hint. Only explicit linked gaps request capture."""
     if type(recovery_pass) is not int or recovery_pass not in {0, 1}:
         raise ValueError('Only initial and post-recovery coverage passes are supported')
+    validated_crawl_status = validate_crawl_status(crawl=crawl, crawl_status=crawl_status)
     units = bundle_units(bundle)
     evidence = {}
     for field, pattern in FIELD_HINTS.items():
@@ -104,14 +151,69 @@ def check_coverage(bundle, *, missing_documents=None, recovery_pass=0):
             field = changes_to_fields.get(change, change)
             if field in FIELD_HINTS and field not in focus:
                 focus.append(field)
+
     reasons = set(bundle.get('review_reasons', []))
+
+    # A. Enforce grouping blockers and respect existing needs_review decisions
+    # Why a publication-review warning is not automatically an extraction blocker:
+    # A bundle with advisory warnings (such as unverified authority or unconfirmed
+    # amendment scope) requires human review before publication, but is safe to extract
+    # if recruitment boundaries and evidence readability are sound. Conflating pre-publication
+    # review with pre-extraction blocking prevents the worker from analyzing valid evidence.
+    grouping_blockers = grouping_blocking_reasons(bundle)
+    bundle_reasons = set(bundle.get('review_reasons', []))
+    if grouping_blockers:
+        reasons.update(grouping_blockers)
+        grouping_blocked = True
+    elif bundle.get('status') == 'needs_review':
+        unclassified = bundle_reasons - ADVISORY_REVIEW_REASONS
+        if unclassified or not bundle_reasons:
+            reasons.add('grouping_needs_review')
+            grouping_blocked = True
+        else:
+            grouping_blocked = False
+    else:
+        grouping_blocked = False
+
+    # B. Content coverage gaps, unreadable PDFs, and selection budgets
+    content_gap = False
     for document in bundle['documents']:
         reasons.update(document.get('review_reasons', []))
-        coverage = document['content'].get('coverage', {})
+        content = document.get('content') or {}
+        coverage = content.get('coverage', {}) if isinstance(content, dict) else {}
         if any(coverage.get(key) for key in ('unreadable_pages', 'unavailable_blocks', 'omitted_sections')):
             reasons.add('content_coverage_gap')
+            content_gap = True
+        if document.get('format') == 'pdf' and (
+            coverage.get('unreadable_pages') or not content.get('sections')
+        ):
+            reasons.add('pdf_requires_review')
+            content_gap = True
         if coverage.get('unresolved_references'):
             reasons.add('unresolved_document_references')
+        if (
+            (isinstance(content, dict) and content.get('status') == 'budget_exceeded')
+            or 'content_budget_exceeded' in document.get('review_reasons', [])
+        ):
+            reasons.add('content_budget_exceeded')
+            content_gap = True
+
+    # C. Main-notice substantive evidence check
+    main_documents = [doc for doc in bundle['documents'] if doc.get('role') == 'main_notice']
+    has_readable_main = False
+    if not main_documents:
+        reasons.add('missing_main_notice')
+    else:
+        has_readable_main = any(_has_substantive_content(doc) for doc in main_documents)
+        if not has_readable_main:
+            reasons.add('main_notice_unreadable')
+
+    # Usability across all units (link-only or identity-only evidence cannot satisfy this alone)
+    usable = any(unit['text'].strip() and unit['locations'] for unit in units)
+    if not usable:
+        reasons.add('no_usable_evidence')
+
+    # D. Missing referenced documents
     present = {url_identity(url, url) for document in bundle['documents']
                for url in (document['source_url'], document.get('final_url', document['source_url']))}
     documents = {item['document_id']: item for item in bundle['documents']}
@@ -144,11 +246,33 @@ def check_coverage(bundle, *, missing_documents=None, recovery_pass=0):
         focus.extend(field for field in fields if field not in focus)
     if missing:
         reasons.add('missing_referenced_document')
-    usable = any(unit['text'].strip() and unit['locations'] for unit in units)
-    status = ('needs_review' if not usable else 'waiting_for_document'
-              if missing and recovery_pass == 0 else 'ready_for_extraction')
-    if not usable:
-        reasons.add('no_usable_evidence')
+
+    # E. Crawl completeness check
+    crawl_blocked = False
+    if validated_crawl_status in {'partial', 'blocked'}:
+        reasons.add('crawl_incomplete')
+        crawl_blocked = True
+
+    # Precedence:
+    # Explicit blocking reasons force needs_review immediately.
+    # Initial recovery pass with missing documents waits.
+    # Exhausted recovery pass (pass >= 1) with missing documents stays needs_review.
+    has_blocking_condition = (
+        not usable
+        or not has_readable_main
+        or grouping_blocked
+        or content_gap
+        or crawl_blocked
+        or (bool(missing) and recovery_pass >= 1)
+    )
+
+    if has_blocking_condition:
+        status = 'needs_review'
+    elif missing and recovery_pass == 0:
+        status = 'waiting_for_document'
+    else:
+        status = 'ready_for_extraction'
+
     return {'coverage_version': 'coverage-hints-v1', 'status': status,
             'recovery_pass': recovery_pass, 'evidence': evidence, 'coverage_focus': focus,
             'missing_documents': missing,

@@ -8,7 +8,7 @@ import re
 import httpx
 from pydantic import ValidationError
 
-from build_extraction_input import BundleFacts, INSTRUCTIONS
+from build_extraction_input import BundleFacts, INSTRUCTIONS, is_extraction_approved
 from compact_inline import CompactPathError, MissingFactsError, compact_schema, decode_compact, field_catalogue
 from inline_extraction import InlineFactError
 from normalize_candidate_facts import normalize_candidate_facts
@@ -163,7 +163,7 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
 
 
 def extract_bundle(prepared, *, provider=None, model=None, client=None, response_path=None):
-    if not prepared.get('llm_input'):
+    if not is_extraction_approved(prepared):
         raise ValueError('No approved input: inspect coverage/budget first')
     source = copy.deepcopy(prepared['llm_input']['input'])
     source.pop('output_schema')

@@ -38,6 +38,7 @@ def sample_prepared(bundle_id="bnd_101", docs=None):
             "instructions": "Extract recruitment facts.",
             "input": {
                 "bundle_id": bundle_id,
+                "coverage": {"status": "ready_for_extraction", "review_reasons": []},
                 "identity": {"issuer": "SSC", "advertisement_number": "01/2026", "campaign": "CGL", "year": "2026"},
                 "documents": docs,
             },

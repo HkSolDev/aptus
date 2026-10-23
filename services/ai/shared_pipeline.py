@@ -8,7 +8,7 @@ from build_extraction_input import prepare_extraction
 from capture_store import atomic_write
 from shared_crawl import crawl_source
 from source_registry import DEFAULT_SOURCES_PATH, load_sources, validate_sources
-from verify_bundle import grouping_blocking_reasons, verify_bundles
+from verify_bundle import verify_bundles
 
 
 def prepare_source(source, root, **crawl_options):
@@ -33,25 +33,8 @@ def prepare_source(source, root, **crawl_options):
         prepared_count = 0
         prepared_paths = []
         for bundle in verified['bundles']:
-            prepared = prepare_extraction(bundle)
-            reasons = set()
-            if crawl['status'] != 'scanned':
-                reasons.add('crawl_incomplete')
-            blocking = grouping_blocking_reasons(bundle)
-            if blocking:
-                reasons.update(blocking)
-            for doc in bundle['documents']:
-                if doc['format'] == 'pdf' and (
-                    doc['content'].get('coverage', {}).get('unreadable_pages')
-                    or not doc['content'].get('sections')
-                ):
-                    reasons.add('pdf_requires_review')
-            if reasons:
-                prepared['llm_input'] = None
-                prepared['coverage']['status'] = 'needs_review'
-                prepared['coverage']['review_reasons'] = sorted(
-                    set(prepared['coverage']['review_reasons']) | reasons)
-            prepared_count += prepared['llm_input'] is not None
+            prepared = prepare_extraction(bundle, crawl=crawl)
+            prepared_count += prepared.get('llm_input') is not None
             path = root / f"{bundle['bundle_id']}.prepared.json"
             prepared_paths.append(str(path.resolve()))
             atomic_write(path,

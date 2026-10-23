@@ -81,6 +81,13 @@ Only coverage-approved, changed bundles reach the extraction provider.
 Done when incomplete, ambiguous, unreadable or unchanged fixtures make no AI
 call and record a reason.
 
+Progress: Stage 4 completed and independently verified offline: 26 Stage 4 acceptance tests and 119 relevant regression tests passed (145 total). Full CI, live-source verification, and deployment remain outstanding.
+
+- Unified pre-AI evidence gating across preparation and coverage: grouping blockers, explicit content coverage gaps, PDF readability, selection budgets, substantive main-notice evidence, and required document recovery passes are checked directly in `services/ai/check_coverage.py` and `services/ai/build_extraction_input.py`.
+- Threaded explicit crawl status into `prepare_extraction` and removed duplicate post-hoc gating from `services/ai/shared_pipeline.py`.
+- Added `is_extraction_approved` guard to prevent provider calls on unapproved, blocked, waiting, or contradictory inputs in `services/ai/extract_bundle.py` and `services/ai/generic_pipeline.py`.
+- Added per-bundle outcome accounting (`bundle_id`, `outcome`, `reasons`) to pipeline run reports in `services/ai/generic_pipeline.py`, recording `unchanged_evidence_fingerprint` for reused notices and gate reasons for blocked notices.
+
 ### 5. Output validation and review drafts
 
 Keep deterministic post-AI checks for schema shape, dates, numeric ranges,

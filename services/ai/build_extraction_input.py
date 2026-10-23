@@ -5,9 +5,10 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
-from check_coverage import bundle_units, check_coverage
+from check_coverage import bundle_units, check_coverage, validate_crawl_status
 from schema import Post
 from compact_inline import compact_schema, field_catalogue
+from verify_bundle import grouping_blocking_reasons
 
 
 class FieldEvidence(BaseModel):
@@ -159,24 +160,151 @@ Examples of interpretation (examples are NOT facts for this recruitment):
 """
 
 
+BLOCKING_REVIEW_REASONS = {
+    'content_coverage_gap',
+    'pdf_requires_review',
+    'content_budget_exceeded',
+    'crawl_incomplete',
+    'main_notice_unreadable',
+    'missing_main_notice',
+    'no_usable_evidence',
+    'grouping_needs_review',
+    'document_recovery_failed',
+    'llm_input_budget_exceeded',
+}
+
+
+def is_extraction_approved(prepared):
+    """Check that a prepared bundle has explicitly approved, non-contradictory gate data.
+
+    Why llm_input existence or matching status strings alone does not establish approval:
+    Stale prepared artifacts or partial pipeline runs can leave a payload present even after
+    an upstream stage invalidated coverage or discovered missing documents. Approval requires
+    full structural integrity and consistency between outer gate metadata and payload contents.
+    """
+    if not isinstance(prepared, dict):
+        return False
+    try:
+        top_bundle_id = prepared.get('bundle_id')
+        coverage = prepared.get('coverage')
+        if not isinstance(coverage, dict) or coverage.get('status') != 'ready_for_extraction':
+            return False
+        if coverage.get('missing_documents') or coverage.get('missing_document_urls'):
+            return False
+
+        llm_input = prepared.get('llm_input')
+        if not isinstance(llm_input, dict):
+            return False
+        instructions = llm_input.get('instructions')
+        source_input = llm_input.get('input')
+        if not isinstance(instructions, str) or not instructions.strip() or not isinstance(source_input, dict):
+            return False
+
+        payload_bundle_id = source_input.get('bundle_id')
+        if not isinstance(payload_bundle_id, str) or not payload_bundle_id.strip():
+            return False
+        if top_bundle_id is not None and top_bundle_id != payload_bundle_id:
+            return False
+
+        payload_coverage = source_input.get('coverage')
+        if not isinstance(payload_coverage, dict) or payload_coverage.get('status') != 'ready_for_extraction':
+            return False
+        if payload_coverage.get('missing_documents') or payload_coverage.get('missing_document_urls'):
+            return False
+
+        # A stale payload must not disagree with the gate on any coverage field.
+        if payload_coverage != coverage:
+            return False
+
+        cov_reasons = set(coverage.get('review_reasons', []))
+        payload_reasons = set(payload_coverage.get('review_reasons', []))
+        if cov_reasons != payload_reasons:
+            return False
+
+        all_reasons = cov_reasons | payload_reasons
+        if grouping_blocking_reasons({'review_reasons': sorted(all_reasons)}):
+            return False
+        if all_reasons & BLOCKING_REVIEW_REASONS:
+            return False
+
+        documents = source_input.get('documents')
+        if not isinstance(documents, list) or len(documents) == 0:
+            return False
+
+        has_substantive_main = False
+        for doc in documents:
+            if not isinstance(doc, dict):
+                return False
+            if doc.get('format') not in {'html', 'pdf'}:
+                return False
+            sections = doc.get('sections')
+            if not isinstance(sections, list):
+                return False
+            for sec in sections:
+                if not isinstance(sec, dict):
+                    return False
+                text = sec.get('text')
+                locs = sec.get('locations')
+                if not isinstance(text, str) or not isinstance(locs, list):
+                    return False
+                # Nonempty lists alone do not establish a valid source location.
+                locator = 'block' if doc['format'] == 'html' else 'page'
+                minimum = 0 if locator == 'block' else 1
+                if any(not isinstance(loc, dict)
+                       or type(loc.get(locator)) is not int
+                       or loc[locator] < minimum for loc in locs):
+                    return False
+                ev_id = sec.get('evidence_id', '')
+                is_substantive = not (ev_id.endswith(':identity') or ':link-' in ev_id)
+                if doc.get('role') == 'main_notice' and is_substantive and text.strip() and locs:
+                    has_substantive_main = True
+
+        if not has_substantive_main:
+            return False
+
+        return True
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return False
+
+
 def prepare_extraction(bundle, *, missing_documents=None, recovery_queue=None,
-                       recovery_pass=0, max_characters=120_000):
+                       recovery_pass=0, max_characters=120_000, crawl=None, crawl_status=None):
     """Queue initial linked gaps; second pass may extract partial facts with warnings."""
     if type(max_characters) is not int or max_characters < 1:
         raise ValueError('max_characters must be a positive integer')
+    validated_crawl_status = validate_crawl_status(crawl=crawl, crawl_status=crawl_status)
+
+    # Why pending recovery must not be treated as an exhausted attempt:
+    # When recovery tasks are still queued, running, or awaiting retry in the recovery queue,
+    # the recovery attempt is active. Elevating recovery_pass to 1 while pending would falsely
+    # block the notice with needs_review before the recovery worker has had a chance to fetch it.
     recovery = recovery_queue.bundle(bundle['bundle_id']) if recovery_queue else None
-    if recovery and recovery['status'] != 'not_requested':
+    if recovery and recovery['status'] in {'ready_for_coverage', 'needs_review'}:
         recovery_pass = 1
-    coverage = check_coverage(bundle, missing_documents=missing_documents, recovery_pass=recovery_pass)
+    coverage = check_coverage(bundle, missing_documents=missing_documents,
+                              recovery_pass=recovery_pass, crawl_status=validated_crawl_status)
     if recovery and recovery['status'] == 'waiting_for_document':
-        coverage['status'] = 'waiting_for_document'
+        if coverage['status'] != 'needs_review':
+            coverage['status'] = 'waiting_for_document'
     elif coverage['status'] == 'waiting_for_document' and recovery_queue:
         recovery = recovery_queue.request(bundle['bundle_id'], coverage['missing_document_urls'])
         if recovery['status'] != 'waiting_for_document':
-            coverage = check_coverage(bundle, missing_documents=missing_documents, recovery_pass=1)
+            recovery_pass = 1 if recovery['status'] in {'ready_for_coverage', 'needs_review'} else 0
+            coverage = check_coverage(bundle, missing_documents=missing_documents,
+                                      recovery_pass=recovery_pass, crawl_status=validated_crawl_status)
     if recovery and recovery['status'] == 'needs_review':
+        coverage['status'] = 'needs_review'
         coverage['review_reasons'] = sorted(set(coverage['review_reasons']) | {'document_recovery_failed'})
-    result = {'coverage': coverage, 'recovery': recovery, 'llm_input': None}
+
+    # Why identity must survive even when the AI payload is withheld:
+    # Downstream pipeline runners, cache checks, and audit reports must identify every notice
+    # by its durable bundle ID, even when evidence gating withholds the AI extraction payload.
+    result = {
+        'bundle_id': bundle['bundle_id'],
+        'coverage': coverage,
+        'recovery': recovery,
+        'llm_input': None,
+    }
     if coverage['status'] != 'ready_for_extraction':
         return result
     units = bundle_units(bundle)
@@ -222,9 +350,11 @@ if __name__ == '__main__':
     parser.add_argument('--queue-db', help='Queue only evidence-backed missing document URLs')
     parser.add_argument('--recovery-pass', type=int, choices=[0, 1], default=0)
     parser.add_argument('--max-characters', type=int, default=120_000)
+    parser.add_argument('--crawl-status', choices=['scanned', 'partial', 'blocked'])
     args = parser.parse_args()
     request = json.loads(Path(args.input_json).read_text())
     result = prepare_extraction(request['bundle'], missing_documents=request.get('missing_documents'),
         recovery_queue=RecoveryQueue(args.queue_db) if args.queue_db else None,
-        recovery_pass=args.recovery_pass, max_characters=args.max_characters)
+        recovery_pass=args.recovery_pass, max_characters=args.max_characters,
+        crawl_status=args.crawl_status)
     print(json.dumps(result, ensure_ascii=False, indent=2))

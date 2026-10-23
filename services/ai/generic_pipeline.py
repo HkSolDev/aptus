@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from capture_store import atomic_write, now
+from build_extraction_input import is_extraction_approved
 from extract_bundle import extract_bundle
 from notice_state import (EXTRACTION_VERSION, NoticeStateManager,
                           compute_evidence_fingerprint)
@@ -45,6 +46,7 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
             'crawl_status': source['status'], 'prepared': source.get('prepared_inputs', 0),
             'extracted': 0, 'drafts': 0, 'reused': 0, 'published': 0, 'blocked': 0, 'failed': 0,
             'blocked_reasons': [], 'failure_stages': [],
+            'bundle_outcomes': [],
         }
         if source['status'] == 'blocked':
             counts['blocked'] += 1
@@ -53,12 +55,38 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
             continue
         for path in source.get('prepared_paths', []):
             stage = 'prepared_input'
+            bundle_id = None
             try:
-                prepared = json.loads(Path(path).read_text(encoding='utf-8'))
-                if not prepared.get('llm_input'):
+                raw_text = Path(path).read_text(encoding='utf-8')
+                prepared = json.loads(raw_text)
+                # Reject corrupt artifact shapes through the normal per-file failure path.
+                if not isinstance(prepared, dict):
+                    raise ValueError('Prepared artifact must be an object')
+                if isinstance(prepared, dict):
+                    bundle_id = prepared.get('bundle_id')
+                    if not bundle_id and isinstance(prepared.get('llm_input'), dict):
+                        src = prepared['llm_input'].get('input')
+                        if isinstance(src, dict):
+                            bundle_id = src.get('bundle_id')
+                if not bundle_id:
+                    stem = Path(path).name
+                    bundle_id = stem[:-len('.prepared.json')] if stem.endswith('.prepared.json') else (
+                        stem[:-len('.json')] if stem.endswith('.json') else stem)
+
+                if not is_extraction_approved(prepared):
                     counts['blocked'] += 1
-                    counts['blocked_reasons'].extend(
-                        prepared.get('coverage', {}).get('review_reasons', ['coverage_not_ready']))
+                    gate_reasons = (
+                        prepared.get('coverage', {}).get('review_reasons')
+                        if isinstance(prepared.get('coverage'), dict)
+                        else None
+                    )
+                    reasons = sorted(set(gate_reasons)) if gate_reasons else ['coverage_not_ready']
+                    counts['blocked_reasons'].extend(reasons)
+                    counts['bundle_outcomes'].append({
+                        'bundle_id': bundle_id,
+                        'outcome': 'blocked',
+                        'reasons': reasons,
+                    })
                     continue
                 if prepare_only:
                     continue
@@ -72,6 +100,11 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                         bundle_id, fingerprint, extraction_version, source_input=source_input)
                     if cached_envelope is not None:
                         counts['reused'] += 1
+                        counts['bundle_outcomes'].append({
+                            'bundle_id': bundle_id,
+                            'outcome': 'reused',
+                            'reasons': ['unchanged_evidence_fingerprint'],
+                        })
                         if persist is not None:
                             stage = 'persistence'
                             persist(cached_envelope)
@@ -85,9 +118,17 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                     validation = validate(extracted, source_input)
                     if validation.get('status') == 'blocked':
                         counts['blocked'] += 1
-                        counts['blocked_reasons'].extend(
+                        val_reasons = [
                             issue.get('reason', 'candidate_validation_blocked')
-                            for issue in validation.get('errors', []) if isinstance(issue, dict))
+                            for issue in validation.get('errors', []) if isinstance(issue, dict)
+                        ]
+                        reasons = sorted(set(val_reasons)) if val_reasons else ['candidate_validation_blocked']
+                        counts['blocked_reasons'].extend(reasons)
+                        counts['bundle_outcomes'].append({
+                            'bundle_id': bundle_id,
+                            'outcome': 'blocked',
+                            'reasons': reasons,
+                        })
                         continue
                     stage = 'draft_preparation'
                     envelope = draft(extracted, source_input,
@@ -95,6 +136,11 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                     draft_path = root / 'drafts' / f"{extracted['bundle_id']}.json"
                     atomic_write(draft_path, json.dumps(envelope, ensure_ascii=False, indent=2).encode())
                     counts['drafts'] += 1
+                    counts['bundle_outcomes'].append({
+                        'bundle_id': bundle_id,
+                        'outcome': 'extracted',
+                        'reasons': [],
+                    })
                     state_manager.record_success(bundle_id, fingerprint, extraction_version, draft_path)
                     if persist is not None:
                         stage = 'persistence'
@@ -104,6 +150,14 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                 counts['failed'] += 1
                 counts['failure_stages'].append(stage)
                 report['status'] = 'partial_failure'
+                stem = Path(path).name
+                fail_id = bundle_id or (stem[:-len('.prepared.json')] if stem.endswith('.prepared.json') else (
+                    stem[:-len('.json')] if stem.endswith('.json') else stem))
+                counts['bundle_outcomes'].append({
+                    'bundle_id': fail_id,
+                    'outcome': 'failed',
+                    'reasons': [f'failed_at_{stage}'],
+                })
         if counts['blocked'] or counts['failed']:
             report['status'] = 'partial_failure'
         counts['blocked_reasons'] = sorted(set(counts['blocked_reasons']))
