@@ -320,6 +320,11 @@ class BundleExtractionTests(unittest.TestCase):
         self.assertEqual(result['credential_attempts'], 2)
         self.assertNotIn('placeholder', json.dumps(result))
 
+    def test_comma_separated_keys_are_trimmed_ordered_and_deduplicated(self):
+        with patch.dict('os.environ', {'GEMINI_API_KEY': ' first, second, ,first ',
+                                     'GEMINI_API_KEY_1': 'second,third'}, clear=True):
+            self.assertEqual(provider_keys('gemini'), ['first', 'second', 'third'])
+
     def test_quota_bad_request_and_permission_errors_do_not_rotate(self):
         for status in (429, 400, 403, 503):
             client = Mock()

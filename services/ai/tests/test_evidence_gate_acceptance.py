@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from build_extraction_input import prepare_extraction
+from build_extraction_input import is_extraction_approved, prepare_extraction
 from extract_bundle import extract_bundle
 from generic_pipeline import run_pipeline
 from recovery_queue import RecoveryQueue
@@ -75,6 +75,11 @@ class EvidenceReadinessTests(GateAssertions):
             with self.subTest(reason=reason):
                 bundle = notice()
                 bundle['review_reasons'] = [reason]
+                if reason == 'missing_main_notice':
+                    extra = copy.deepcopy(bundle['documents'][0])
+                    extra['document_id'] = 'support'
+                    extra['source_url'] += '?support=1'
+                    bundle['documents'].append(extra)
                 self.assert_blocked(prepare_extraction(bundle), reason)
 
     def test_existing_review_decision_without_reason_is_not_upgraded(self):
@@ -181,8 +186,10 @@ class RecoveryGateTests(GateAssertions):
 
 
 class CrawlAndBudgetTests(GateAssertions):
-    def test_partial_crawl_blocks_and_offline_preparation_remains_supported(self):
-        self.assert_blocked(prepare_extraction(notice(), crawl={'status': 'partial'}), 'crawl_incomplete')
+    def test_partial_crawl_warns_and_offline_preparation_remains_supported(self):
+        partial = prepare_extraction(notice(), crawl={'status': 'partial'})
+        self.assertTrue(is_extraction_approved(partial))
+        self.assertIn('source_crawl_partial', partial['coverage']['review_reasons'])
         self.assertIsNotNone(prepare_extraction(notice())['llm_input'])
         self.assertIsNotNone(prepare_extraction(notice(), crawl={'status': 'scanned'})['llm_input'])
 
@@ -214,7 +221,9 @@ class CrawlAndBudgetTests(GateAssertions):
             result = prepare_source(source, root, issuer_hosts={'Example Board': ['board.example.gov.in']})
             self.assertTrue(result['prepared_paths'])
             for path in result['prepared_paths']:
-                self.assert_blocked(json.loads(Path(path).read_text()), 'crawl_incomplete')
+                prepared = json.loads(Path(path).read_text())
+                self.assertTrue(is_extraction_approved(prepared))
+                self.assertIn('source_crawl_partial', prepared['coverage']['review_reasons'])
 
 
 class ExtractionBoundaryTests(unittest.TestCase):
@@ -290,10 +299,18 @@ class WorkerReuseAndReportTests(unittest.TestCase):
     def extract(self, prepared):
         source = prepared['llm_input']['input']
         unit = source['documents'][0]['sections'][0]
-        return {'bundle_id': source['bundle_id'], 'facts': {
-            'posts': [{'post_name': 'Engineer'}],
-            'evidence': [{'field_path': 'posts.0.post_name', 'evidence_id': unit['evidence_id'], 'quote': 'Engineer'}],
-            'missing_fields': []}}
+        from services.ai.tests.test_inline_extraction import response
+        from inline_extraction import decode_inline
+        wire = response()
+        wire['document_purposes'] = []
+        wire['amendment'] = None
+        wire['purpose_evidence'] = [{'evidence_id': unit['evidence_id'], 'quote': 'Engineer'}]
+        for value in wire['posts'][0].values():
+            if isinstance(value, dict) and value.get('value') == 'Engineer':
+                value['evidence'][0]['evidence_id'] = unit['evidence_id']
+                value['scope_evidence'][0]['evidence_id'] = unit['evidence_id']
+        facts, _ = decode_inline(wire, source)
+        return {'bundle_id': source['bundle_id'], 'facts': facts}
 
     def run_input(self, prepared, **options):
         path = self.root / 'prepared.json'
@@ -302,7 +319,7 @@ class WorkerReuseAndReportTests(unittest.TestCase):
             return [{'source': 'stage4_board', 'status': 'prepared_for_review',
                      'prepared_inputs': int(bool(prepared.get('llm_input'))), 'prepared_paths': [str(path)]}]
         report = run_pipeline(self.root, prepare=prepare, extract=self.extract_calls,
-                              validate=lambda *_: {'status': 'needs_review'},
+                              validate=lambda *_: {'status': 'needs_review', 'disposition': 'valid_recruitment_review_draft'},
                               draft=lambda result, _source, **_: result, **options)
         return report['sources']['stage4_board']
 
@@ -314,6 +331,7 @@ class WorkerReuseAndReportTests(unittest.TestCase):
         self.assertEqual(self.extract_calls.call_count, 1)
         self.assertEqual(second['reused'], 1)
         self.assertIn({'bundle_id': 'stage4-engineers', 'outcome': 'reused',
+                       'disposition': 'valid_recruitment_review_draft',
                        'reasons': ['unchanged_evidence_fingerprint']}, second['bundle_outcomes'])
         bundle = notice()
         bundle['documents'][0]['content']['sections'][0]['text'] += ' Vacancies: 7.'
@@ -345,7 +363,7 @@ class WorkerReuseAndReportTests(unittest.TestCase):
             return [{'source': 'stage4_board', 'status': 'prepared_for_review',
                      'prepared_inputs': 1, 'prepared_paths': [str(bad), str(good)]}]
         report = run_pipeline(self.root, prepare=prepare, extract=self.extract_calls,
-                              validate=lambda *_: {'status': 'needs_review'},
+                              validate=lambda *_: {'status': 'needs_review', 'disposition': 'valid_recruitment_review_draft'},
                               draft=lambda result, _source, **_: result)
         counts = report['sources']['stage4_board']
         self.assertEqual(counts['failed'], 1)

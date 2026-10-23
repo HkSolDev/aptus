@@ -12,7 +12,9 @@ from capture_store import atomic_write, now
 
 # Extraction contract version. Increment this when schema, prompt,
 # or extraction rules materially change to invalidate older cached extractions.
-EXTRACTION_VERSION = "extract-bundle-v1"
+# v4 clarifies field-level status: a supported row does not establish an
+# unstated category or other nullable neighbour; null is never "found".
+EXTRACTION_VERSION = "extract-bundle-v4"
 
 
 def canonicalize_for_fingerprint(value: Any) -> Any:
@@ -95,24 +97,12 @@ def verify_cached_citations(draft_envelope: dict[str, Any], source_input: dict[s
     if not isinstance(facts, dict):
         return False
 
-    posts = facts.get("posts")
-    evidence = facts.get("evidence")
-    missing_fields = facts.get("missing_fields")
-
-    if not isinstance(posts, list) or not isinstance(evidence, list) or not isinstance(missing_fields, list):
-        return False
-
-    if not posts or not evidence:
-        return False
-
-    from extract_bundle import check_evidence
+    # Checksums establish byte integrity, not the validity of the saved decision.
+    from validate_candidate import validate_candidate
     try:
-        report = check_evidence(facts, source_input)
-        if not isinstance(report, dict):
+        if validate_candidate({'facts': facts}, source_input)['status'] == 'blocked':
             return False
-        if report.get("status") != "quotes_located" or report.get("errors"):
-            return False
-    except Exception:
+    except (KeyError, TypeError, ValueError, AttributeError):
         return False
 
     return True
@@ -157,7 +147,7 @@ class NoticeStateManager:
         except (json.JSONDecodeError, OSError):
             return None
 
-        if state.get("outcome") != "success":
+        if not isinstance(state, dict) or state.get("outcome") != "success":
             return None
         if state.get("evidence_fingerprint") != expected_fingerprint:
             return None
@@ -178,9 +168,9 @@ class NoticeStateManager:
             if actual_draft_sha256 != expected_draft_sha256:
                 return None
             draft_envelope = json.loads(draft_bytes.decode("utf-8"))
-            if draft_envelope.get("bundle_id") != bundle_id:
+            if not isinstance(draft_envelope, dict) or draft_envelope.get("bundle_id") != bundle_id:
                 return None
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
             return None
 
         # Verify cached citations against current evidence if provided
@@ -190,8 +180,9 @@ class NoticeStateManager:
 
         return draft_envelope
 
-    def record_success(self, bundle_id: str, fingerprint: str, extraction_version: str, draft_path: Path):
-        """Record successful extraction outcome, draft location, and draft SHA-256."""
+    def record_outcome(self, bundle_id: str, fingerprint: str, extraction_version: str,
+                       draft_path: Path, disposition: str = "valid_recruitment_review_draft"):
+        """Record successful extraction outcome, draft location, SHA-256, and disposition."""
         draft_path = Path(draft_path)
         if not draft_path.is_file():
             raise FileNotFoundError(f"Draft file not found: {draft_path}")
@@ -201,8 +192,14 @@ class NoticeStateManager:
             "evidence_fingerprint": fingerprint,
             "extraction_version": extraction_version,
             "outcome": "success",
+            "disposition": disposition,
             "draft_path": str(draft_path.resolve()),
             "draft_sha256": draft_sha256,
             "updated_at": now(),
         }
         atomic_write(self.state_path(bundle_id), json.dumps(state, indent=2).encode("utf-8"))
+
+    def record_success(self, bundle_id: str, fingerprint: str, extraction_version: str, draft_path: Path):
+        """Record successful extraction outcome (backward-compatible alias for record_outcome)."""
+        self.record_outcome(bundle_id, fingerprint, extraction_version, draft_path,
+                            disposition="valid_recruitment_review_draft")

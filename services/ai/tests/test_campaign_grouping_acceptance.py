@@ -176,13 +176,14 @@ class AmendmentTests(unittest.TestCase):
                 self.assertIsNotNone(update['amendment_scope'])
                 self.assertIn('amendment_or_cancellation_scope_needs_review', bundles[0]['review_reasons'])
 
-    def test_unmatched_amendment_is_isolated_and_blocked(self):
+    def test_unmatched_amendment_is_isolated_for_ai_classification(self):
         docs = [notice('main'), notice('update', title='Corrigendum', ad='EC/99/2026')]
         bundles = grouped(docs)
         update = next(b for b in bundles if any(d['document_id'] == 'update' for d in b['documents']))
         self.assertEqual(len(update['documents']), 1)
         self.assertEqual(update['status'], 'needs_review')
-        self.assertTrue(all(p['llm_input'] is None for p in prepared([docs[1]])))
+        self.assertTrue(all(p['llm_input'] is not None for p in prepared([docs[1]])))
+        self.assertIn('unmatched_amendment_target', update['review_reasons'])
 
     def test_ambiguous_amendment_does_not_choose_first_main(self):
         docs = [notice('a'), notice('b', ad='EC/02/2026'),
@@ -195,7 +196,8 @@ class AmendmentTests(unittest.TestCase):
         for title in ['Recruitment examination result', 'Recruitment admit card']:
             with self.subTest(title=title):
                 outputs = prepared([notice('other', title=title)])
-                self.assertTrue(all(p['llm_input'] is None for p in outputs))
+                self.assertTrue(all(p['llm_input'] is not None for p in outputs))
+                self.assertTrue(all('non_recruitment_document' in p['coverage']['review_reasons'] for p in outputs))
 
 
 class ExtractionBoundaryTests(unittest.TestCase):

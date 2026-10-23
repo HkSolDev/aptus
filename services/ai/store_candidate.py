@@ -46,6 +46,11 @@ class StorageCandidate(BaseModel):
     facts: BundleFacts
     review: DraftReview
     evidence_units: list[EvidenceLocation]
+    disposition: Literal['valid_recruitment_review_draft'] = 'valid_recruitment_review_draft'
+    evidence_fingerprint: str | None = None
+    extraction_version: str | None = None
+    source_evidence: list[dict[str, JsonValue]] = []
+    metadata: dict[str, JsonValue] = {}
 
 
 def storage_schema():
@@ -73,6 +78,8 @@ def prepare_storage(result, source, *, source_name):
     report = validate_candidate(result, source)
     if report['status'] == 'blocked':
         raise ValueError('candidate_validation_blocked')
+    if report['disposition'] != 'valid_recruitment_review_draft':
+        raise ValueError('candidate_is_not_recruitment')
     if result.get('bundle_id') != source['bundle_id']:
         raise ValueError('candidate_bundle_mismatch')
     documents = source['documents']
@@ -83,6 +90,9 @@ def prepare_storage(result, source, *, source_name):
     if parsed.scheme not in {'http', 'https'} or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError('candidate_source_url_invalid')
     references = {item['evidence_id'] for item in report['validated_facts']['evidence']}
+    references.update(item['evidence_id'] for item in report['validated_facts']['purpose_evidence'])
+    for document in report['validated_facts']['document_purposes']:
+        references.update(item['evidence_id'] for item in document['evidence'])
     units = [{'evidence_id': unit['evidence_id'], 'document_id': doc['document_id'],
               'source_url': doc['source_url'], 'locations': unit['locations'],
               'role': doc.get('role'), 'authority': doc.get('authority')}

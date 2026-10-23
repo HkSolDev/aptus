@@ -30,7 +30,18 @@ def response():
         'category_requirement': [], 'education_options': [], 'age_rules': [],
         'relaxation_combination_rule': fact(None)}
     post['post_name'] = fact('Engineer')
-    return {'posts': [post]}
+    return {'purpose': 'recruitment',
+            'purpose_evidence': [{'evidence_id': 'main:unit-0', 'quote': 'Recruitment Notice'}],
+            'document_purposes': [
+                {'document_id': 'main', 'purpose': 'recruitment', 'evidence': [
+                    {'evidence_id': 'main:unit-0', 'quote': 'Recruitment Notice'}]},
+                {'document_id': 'update', 'purpose': 'amendment', 'evidence': [
+                    {'evidence_id': 'update:unit-0', 'quote': 'Vacancies have been updated'}]}],
+            'amendment': dict(amendment_type='vacancy_revision', effective_date=None,
+                target_advertisement_number=None, target_campaign_name=None, target_post_names=[],
+                changes_description=None, evidence=[{'evidence_id': 'update:unit-0',
+                                                     'quote': 'Vacancies have been updated'}]),
+            'posts': [post]}
 
 
 def compact_response(wire):
@@ -43,7 +54,8 @@ def compact_response(wire):
         elif isinstance(node, list):
             for index, value in enumerate(node):
                 yield from collect(value, f'{path}.{index}')
-    return {'posts': [{'facts': list(collect(post, ''))} for post in wire['posts']]}
+    return {**{key: value for key, value in wire.items() if key != 'posts'},
+            'posts': [{'facts': list(collect(post, ''))} for post in wire['posts']]}
 
 
 class InlineExtractionTests(unittest.TestCase):
@@ -211,7 +223,9 @@ class InlineExtractionTests(unittest.TestCase):
     def test_compact_provider_schema_does_not_expand_all_post_fields(self):
         schema = compact_schema()
         self.assertNotIn('$defs', schema)
-        self.assertLess(len(json.dumps(schema)), 2500)
+        # Purpose and amendment metadata add a bounded envelope; post fields
+        # must still use the compact catalogue rather than schema expansion.
+        self.assertLess(len(json.dumps(schema)), 4000)
 
 
 if __name__ == '__main__':

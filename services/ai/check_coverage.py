@@ -87,10 +87,20 @@ def bundle_units(bundle):
 
 
 VALID_CRAWL_STATUSES = {'scanned', 'partial', 'blocked'}
+# Why missing identity is advisory for extraction while preserved as review metadata:
+# Missing deterministic identity (insufficient_campaign_identity) means pre-extraction regexes
+# could not confirm the recruiter or advertisement number, but the document has readable recruitment
+# evidence. Allowing extraction lets the AI model locate and cite these identity fields.
+# Downstream review and approval still retain the review reason in metadata.
 ADVISORY_REVIEW_REASONS = {
+    'source_crawl_partial',
     'authority_needs_review',
     'amendment_or_cancellation_scope_needs_review',
     'unresolved_document_references',
+    'insufficient_campaign_identity',
+    'document_role_needs_review',
+    'unmatched_amendment_target',
+    'non_recruitment_document',
 }
 
 
@@ -201,8 +211,14 @@ def check_coverage(bundle, *, missing_documents=None, recovery_pass=0, crawl=Non
     # C. Main-notice substantive evidence check
     main_documents = [doc for doc in bundle['documents'] if doc.get('role') == 'main_notice']
     has_readable_main = False
+    is_standalone = len(bundle['documents']) == 1
     if not main_documents:
-        reasons.add('missing_main_notice')
+        # Standalone readable notices undergo purpose classification; they satisfy
+        # substantive evidence if the single document has readable content.
+        if is_standalone and _has_substantive_content(bundle['documents'][0]):
+            has_readable_main = True
+        else:
+            reasons.add('missing_main_notice')
     else:
         has_readable_main = any(_has_substantive_content(doc) for doc in main_documents)
         if not has_readable_main:
@@ -249,9 +265,14 @@ def check_coverage(bundle, *, missing_documents=None, recovery_pass=0, crawl=Non
 
     # E. Crawl completeness check
     crawl_blocked = False
-    if validated_crawl_status in {'partial', 'blocked'}:
+    if validated_crawl_status == 'blocked':
         reasons.add('crawl_incomplete')
         crawl_blocked = True
+    elif validated_crawl_status == 'partial':
+        # The source frontier includes unrelated notices. A budget/fetch failure
+        # there does not invalidate captured evidence; explicit dependencies above
+        # still hold this particular notice for recovery or review.
+        reasons.add('source_crawl_partial')
 
     # Precedence:
     # Explicit blocking reasons force needs_review immediately.

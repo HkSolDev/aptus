@@ -17,6 +17,17 @@ class CompactPathError(ValueError):
         self.field_path = field_path
 
 
+PURPOSE_VALUES = [
+    'recruitment',
+    'amendment',
+    'result',
+    'admit_card',
+    'exam_update',
+    'non_job',
+    'unclear',
+]
+
+
 def compact_schema():
     fact = {'type': 'object', 'additionalProperties': False, 'properties': {
         'field': {'type': 'string'},
@@ -29,8 +40,58 @@ def compact_schema():
         'required': ['field', 'value', 'status', 'evidence', 'reason', 'scope', 'scope_evidence']}
     post = {'type': 'object', 'additionalProperties': False,
             'properties': {'facts': {'type': 'array', 'items': fact}}, 'required': ['facts']}
-    return {'type': 'object', 'additionalProperties': False,
-            'properties': {'posts': {'type': 'array', 'items': post}}, 'required': ['posts']}
+
+    doc_purpose = {
+        'type': 'object',
+        'additionalProperties': False,
+        'properties': {
+            'document_id': {'type': 'string'},
+            'purpose': {'type': 'string', 'enum': PURPOSE_VALUES},
+            'evidence': {'type': 'array', 'items': CITATION},
+        },
+        'required': ['document_id', 'purpose', 'evidence'],
+    }
+
+    amendment = {
+        'anyOf': [
+            {'type': 'null'},
+            {
+                'type': 'object',
+                'additionalProperties': False,
+                'properties': {
+                    'amendment_type': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
+                    'effective_date': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
+                    'target_advertisement_number': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
+                    'target_campaign_name': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
+                    'target_post_names': {'type': 'array', 'items': {'type': 'string'}},
+                    'changes_description': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
+                    'evidence': {'type': 'array', 'items': CITATION},
+                },
+                'required': [
+                    'amendment_type',
+                    'effective_date',
+                    'target_advertisement_number',
+                    'target_campaign_name',
+                    'target_post_names',
+                    'changes_description',
+                    'evidence',
+                ],
+            },
+        ]
+    }
+
+    return {
+        'type': 'object',
+        'additionalProperties': False,
+        'properties': {
+            'purpose': {'type': 'string', 'enum': PURPOSE_VALUES},
+            'purpose_evidence': {'type': 'array', 'items': CITATION},
+            'document_purposes': {'type': 'array', 'items': doc_purpose},
+            'amendment': amendment,
+            'posts': {'type': 'array', 'items': post},
+        },
+        'required': ['purpose', 'purpose_evidence', 'document_purposes', 'amendment', 'posts'],
+    }
 
 
 def field_catalogue(schema):
@@ -57,8 +118,41 @@ def field_catalogue(schema):
 
 
 def decode_compact(response, source, schema):
-    if not isinstance(response, dict) or set(response) != {'posts'} or not isinstance(response['posts'], list):
+    if not isinstance(response, dict):
         raise ValueError('Invalid compact response root')
+    has_purpose = 'purpose' in response
+    if has_purpose:
+        expected_keys = {'purpose', 'purpose_evidence', 'document_purposes', 'amendment', 'posts'}
+        if set(response) != expected_keys:
+            raise ValueError('Invalid compact response root: missing purpose fields')
+        purpose = response['purpose']
+        if purpose not in PURPOSE_VALUES:
+            raise ValueError('Invalid compact response root: unknown purpose')
+        if not isinstance(response['purpose_evidence'], list):
+            raise ValueError('Invalid compact response root: purpose_evidence must be list')
+        if not isinstance(response['document_purposes'], list):
+            raise ValueError('Invalid compact response root: document_purposes must be list')
+        if response['amendment'] is not None and not isinstance(response['amendment'], dict):
+            raise ValueError('Invalid compact response root: amendment must be object or null')
+    else:
+        if set(response) != {'posts'}:
+            raise ValueError('Invalid compact response root')
+        purpose = 'recruitment'
+
+    if not isinstance(response['posts'], list):
+        raise ValueError('Invalid compact response root: posts must be list')
+
+    tree = {
+        'purpose': purpose,
+        'purpose_evidence': response.get('purpose_evidence', []),
+        'document_purposes': response.get('document_purposes', []),
+        'amendment': response.get('amendment'),
+        'posts': [],
+    }
+
+    if purpose in {'result', 'admit_card', 'exam_update', 'non_job', 'unclear', 'amendment'} and not response['posts']:
+        return decode_inline(tree, source)
+
     definitions = schema['$defs']
 
     def resolve(node):
@@ -71,6 +165,8 @@ def decode_compact(response, source, schema):
         if node.get('type') == 'object':
             return {key: skeleton(value) for key, value in node['properties'].items()}
         if node.get('type') == 'array':
+            # Unknown arrays use no indexed entries because null placeholders violate their item type;
+            # omitting indexed entries leaves the container as [] cleanly.
             return []
         return None
 
@@ -105,7 +201,6 @@ def decode_compact(response, source, schema):
             container[key] = skeleton(branch)
         assign(container[key], child, tokens[1:], fact)
 
-    tree = {'posts': []}
     for post in response['posts']:
         if not isinstance(post, dict) or set(post) != {'facts'} or not isinstance(post['facts'], list):
             raise ValueError('Invalid compact post')

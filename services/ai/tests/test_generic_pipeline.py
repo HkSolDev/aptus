@@ -29,7 +29,7 @@ class GenericPipelineTests(unittest.TestCase):
             return {'bundle_id': prepared['llm_input']['input']['bundle_id'], 'facts': {'posts': []}}
         def validate(result, source):
             calls.append('validate')
-            return {'status': 'needs_review'}
+            return {'status': 'needs_review', 'disposition': 'valid_recruitment_review_draft'}
         def draft(result, source, *, source_name):
             calls.append('draft')
             return {'bundle_id': result['bundle_id'], 'source_name': source_name}

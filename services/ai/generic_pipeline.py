@@ -100,12 +100,14 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                         bundle_id, fingerprint, extraction_version, source_input=source_input)
                     if cached_envelope is not None:
                         counts['reused'] += 1
+                        disposition = cached_envelope.get('disposition', 'valid_recruitment_review_draft')
                         counts['bundle_outcomes'].append({
                             'bundle_id': bundle_id,
                             'outcome': 'reused',
+                            'disposition': disposition,
                             'reasons': ['unchanged_evidence_fingerprint'],
                         })
-                        if persist is not None:
+                        if persist is not None and disposition == 'valid_recruitment_review_draft':
                             stage = 'persistence'
                             persist(cached_envelope)
                             counts['published'] += 1
@@ -114,9 +116,19 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                     stage = 'extraction'
                     extracted = extract(prepared)
                     counts['extracted'] += 1
+                    if extracted.get('bundle_id') != bundle_id:
+                        raise ValueError('Extracted bundle identity mismatch')
                     stage = 'validation'
                     validation = validate(extracted, source_input)
+                    disposition = validation.get('disposition', 'validation_blocked')
                     if validation.get('status') == 'blocked':
+                        # Retain the rejected response and findings for review, but
+                        # never record it as a reusable successful extraction.
+                        atomic_write(root / 'validation' / f'{bundle_id}.json', json.dumps({
+                            'bundle_id': bundle_id, 'evidence_fingerprint': fingerprint,
+                            'extraction_version': extraction_version,
+                            'result': extracted, 'validation': validation,
+                        }, ensure_ascii=False, indent=2).encode())
                         counts['blocked'] += 1
                         val_reasons = [
                             issue.get('reason', 'candidate_validation_blocked')
@@ -127,25 +139,150 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                         counts['bundle_outcomes'].append({
                             'bundle_id': bundle_id,
                             'outcome': 'blocked',
+                            'disposition': disposition,
                             'reasons': reasons,
                         })
                         continue
-                    stage = 'draft_preparation'
-                    envelope = draft(extracted, source_input,
-                                     source_name=_source_name(source_id, prepared))
-                    draft_path = root / 'drafts' / f"{extracted['bundle_id']}.json"
-                    atomic_write(draft_path, json.dumps(envelope, ensure_ascii=False, indent=2).encode())
-                    counts['drafts'] += 1
-                    counts['bundle_outcomes'].append({
-                        'bundle_id': bundle_id,
-                        'outcome': 'extracted',
-                        'reasons': [],
-                    })
-                    state_manager.record_success(bundle_id, fingerprint, extraction_version, draft_path)
-                    if persist is not None:
-                        stage = 'persistence'
-                        persist(envelope)
-                        counts['published'] += 1
+
+                    if disposition not in {'valid_recruitment_review_draft', 'amendment_pending_review',
+                                            'valid_non_job_classification', 'unclear_purpose_review'}:
+                        raise ValueError('Unknown validated disposition')
+
+                    if disposition == 'valid_recruitment_review_draft':
+                        stage = 'draft_preparation'
+                        envelope = draft(extracted, source_input,
+                                         source_name=_source_name(source_id, prepared))
+                        envelope['disposition'] = disposition
+                        envelope['evidence_fingerprint'] = fingerprint
+                        envelope['extraction_version'] = extraction_version
+                        envelope['source_evidence'] = source_input['documents']
+                        envelope['metadata'] = {key: extracted.get(key) for key in ('provider', 'model', 'usage')}
+                        draft_path = root / 'drafts' / f"{extracted['bundle_id']}.json"
+                        atomic_write(draft_path, json.dumps(envelope, ensure_ascii=False, indent=2).encode())
+                        counts['drafts'] += 1
+                        counts['bundle_outcomes'].append({
+                            'bundle_id': bundle_id,
+                            'outcome': 'extracted',
+                            'disposition': disposition,
+                            'reasons': [],
+                        })
+                        state_manager.record_outcome(bundle_id, fingerprint, extraction_version, draft_path,
+                                                     disposition=disposition)
+                        if persist is not None:
+                            stage = 'persistence'
+                            persist(envelope)
+                            counts['published'] += 1
+                    elif disposition == 'amendment_pending_review':
+                        stage = 'amendment_review_preparation'
+                        out_dir = root / 'amendments'
+                        out_dir.mkdir(parents=True, exist_ok=True)
+                        out_path = out_dir / f"{extracted['bundle_id']}.json"
+                        envelope = {
+                            'bundle_id': bundle_id,
+                            'evidence_fingerprint': fingerprint,
+                            'extraction_version': extraction_version,
+                            'disposition': disposition,
+                            'status': 'needs_review',
+                            'source_name': _source_name(source_id, prepared),
+                            'source_url': source_input['documents'][0]['source_url'],
+                            'source_evidence': source_input['documents'],
+                            'purpose': 'amendment',
+                            'purpose_evidence': extracted['facts'].get('purpose_evidence', []),
+                            'document_purposes': extracted['facts'].get('document_purposes', []),
+                            'amendment': extracted['facts'].get('amendment'),
+                            'facts': extracted['facts'],
+                            'validation': validation,
+                            'review_reasons': sorted(set(extracted.get('review_reasons', []) +
+                                                        source_input.get('coverage', {}).get('review_reasons', []))),
+                            'metadata': {
+                                'provider': extracted.get('provider'),
+                                'model': extracted.get('model'),
+                                'usage': extracted.get('usage', {}),
+                            },
+                            'updated_at': now(),
+                        }
+                        atomic_write(out_path, json.dumps(envelope, ensure_ascii=False, indent=2).encode())
+                        counts['amendments'] = counts.get('amendments', 0) + 1
+                        counts['bundle_outcomes'].append({
+                            'bundle_id': bundle_id,
+                            'outcome': 'amendment_review',
+                            'disposition': disposition,
+                            'reasons': [],
+                        })
+                        state_manager.record_outcome(bundle_id, fingerprint, extraction_version, out_path,
+                                                     disposition=disposition)
+                    elif disposition == 'valid_non_job_classification':
+                        stage = 'non_job_preparation'
+                        out_dir = root / 'non_jobs'
+                        out_dir.mkdir(parents=True, exist_ok=True)
+                        out_path = out_dir / f"{extracted['bundle_id']}.json"
+                        envelope = {
+                            'bundle_id': bundle_id,
+                            'evidence_fingerprint': fingerprint,
+                            'extraction_version': extraction_version,
+                            'disposition': disposition,
+                            'status': 'completed',
+                            'source_name': _source_name(source_id, prepared),
+                            'source_url': source_input['documents'][0]['source_url'],
+                            'source_evidence': source_input['documents'],
+                            'purpose': extracted['facts']['purpose'],
+                            'purpose_evidence': extracted['facts'].get('purpose_evidence', []),
+                            'document_purposes': extracted['facts'].get('document_purposes', []),
+                            'facts': extracted['facts'],
+                            'validation': validation,
+                            'metadata': {
+                                'provider': extracted.get('provider'),
+                                'model': extracted.get('model'),
+                                'usage': extracted.get('usage', {}),
+                            },
+                            'updated_at': now(),
+                        }
+                        atomic_write(out_path, json.dumps(envelope, ensure_ascii=False, indent=2).encode())
+                        counts['non_jobs'] = counts.get('non_jobs', 0) + 1
+                        counts['bundle_outcomes'].append({
+                            'bundle_id': bundle_id,
+                            'outcome': 'non_job_classified',
+                            'disposition': disposition,
+                            'reasons': [],
+                        })
+                        state_manager.record_outcome(bundle_id, fingerprint, extraction_version, out_path,
+                                                     disposition=disposition)
+                    elif disposition == 'unclear_purpose_review':
+                        stage = 'unclear_preparation'
+                        out_dir = root / 'unclear'
+                        out_dir.mkdir(parents=True, exist_ok=True)
+                        out_path = out_dir / f"{extracted['bundle_id']}.json"
+                        envelope = {
+                            'bundle_id': bundle_id,
+                            'evidence_fingerprint': fingerprint,
+                            'extraction_version': extraction_version,
+                            'disposition': disposition,
+                            'status': 'needs_review',
+                            'source_name': _source_name(source_id, prepared),
+                            'source_url': source_input['documents'][0]['source_url'],
+                            'source_evidence': source_input['documents'],
+                            'purpose': 'unclear',
+                            'purpose_evidence': extracted['facts'].get('purpose_evidence', []),
+                            'document_purposes': extracted['facts'].get('document_purposes', []),
+                            'facts': extracted['facts'],
+                            'validation': validation,
+                            'metadata': {
+                                'provider': extracted.get('provider'),
+                                'model': extracted.get('model'),
+                                'usage': extracted.get('usage', {}),
+                            },
+                            'updated_at': now(),
+                        }
+                        atomic_write(out_path, json.dumps(envelope, ensure_ascii=False, indent=2).encode())
+                        counts['unclear'] = counts.get('unclear', 0) + 1
+                        counts['bundle_outcomes'].append({
+                            'bundle_id': bundle_id,
+                            'outcome': 'unclear_review',
+                            'disposition': disposition,
+                            'reasons': [],
+                        })
+                        state_manager.record_outcome(bundle_id, fingerprint, extraction_version, out_path,
+                                                     disposition=disposition)
             except (KeyError, OSError, RuntimeError, TypeError, ValueError):
                 counts['failed'] += 1
                 counts['failure_stages'].append(stage)

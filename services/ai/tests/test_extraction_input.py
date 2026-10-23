@@ -56,7 +56,8 @@ class ExtractionInputTests(unittest.TestCase):
         self.assertEqual(output['documents'][1]['role'], 'corrigendum')
         self.assertIn('amendment_or_cancellation_scope_needs_review', output['coverage']['review_reasons'])
         self.assertEqual(output['output_format'], 'compact-inline-facts-v1')
-        self.assertEqual(set(output['output_schema']['properties']), {'posts'})
+        self.assertEqual(set(output['output_schema']['properties']),
+                         {'purpose', 'purpose_evidence', 'document_purposes', 'amendment', 'posts'})
 
     def test_initial_dependency_waits_and_queues_once(self):
         with tempfile.TemporaryDirectory() as root:

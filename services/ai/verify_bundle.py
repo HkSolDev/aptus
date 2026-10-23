@@ -7,6 +7,7 @@ import unicodedata
 from urllib.parse import urlsplit
 
 from link_discovery import url_identity
+from notice_classification import is_candidate_notice, non_recruitment_role
 
 
 LABELS = {
@@ -28,10 +29,6 @@ ROLES = {
     ),
     "vacancy_annexure": r"\b(?:vacancy annexure|annexure.*vacanc|vacancy details|updated vacancy)\b",
     "form_appendix": r"\b(?:certificate form|proforma|appendix|application form)\b",
-}
-NON_RECRUITMENT_PATTERNS = {
-    "result": r"\b(?:recruitment\s+(?:examination\s+)?results?|examination\s+results?|written\s+results?|final\s+results?|score\s*cards?|marks\s+list|merit\s+list|answer\s+keys?)\b",
-    "admit_card": r"\b(?:recruitment\s+admit\s+cards?|admit\s+cards?|hall\s+tickets?|call\s+letters?|e[ -]admit\s+cards?)\b",
 }
 CHANGE_FIELDS = {
     "vacancies": r"\bvacanc(?:y|ies)\b",
@@ -143,22 +140,16 @@ def describe_document(document, issuer_hosts):
             role = "unknown"
     else:
         role = "unknown"
-    # Recognize non-recruitment documents (results, admit cards) BEFORE generic recruitment fallback.
-    # Why non-recruitment title detection runs before main_notice fallback:
-    # Documents announcing examination results or admit cards often contain the word
-    # "recruitment" in their titles (e.g. "Recruitment Examination Result"). They must not
-    # fall through to become a main_notice or satisfy recruitment evidence requirements.
-    non_recruitment = next(
-        (nr_role for nr_role, nr_pattern in NON_RECRUITMENT_PATTERNS.items()
-         if re.search(nr_pattern, title, re.I)),
-        None
-    )
-    if non_recruitment:
-        role = non_recruitment
+    from notice_classification import GENERIC_TITLE, RECRUITMENT_DETAILS
+    listing_title = re.fullmatch(r'(?:recruitment(?: advertisements)?|careers|latest recruitment notifications)', title.strip(), re.I)
+    if kind == 'html' and (GENERIC_TITLE.search(title) or (
+            listing_title and not any(RECRUITMENT_DETAILS.search(text) for text, _ in units))):
+        flags.append('navigation_document')
+    purpose_role = non_recruitment_role(title, identity_units, kind)
+    if purpose_role:
+        role = purpose_role
         flags.append("non_recruitment_document")
-
-    # Fallback to main_notice only when no amendment/cancellation or non-recruitment pattern matched.
-    if role == "unknown" and re.search(r"\b(?:recruitment|notification|CRP)\b", title, re.I):
+    elif role == "unknown" and is_candidate_notice(title, identity_units):
         role = "main_notice"
     for field, label in LABELS.items():
         pattern = (
@@ -205,6 +196,10 @@ def describe_document(document, issuer_hosts):
     if identity["year"] and not re.fullmatch(r"20\d{2}", identity["year"]):
         identity["year"] = None
         flags.append("invalid_campaign_year")
+    # Why source host and recruiter may differ:
+    # Third-party aggregators (such as SarkariResult) or general government hosting platforms
+    # host notices for other recruiting organizations. The recruiter must be derived verbatim
+    # from document evidence, never assumed equal to the website owner or host domain.
     issuer = normalized(identity["issuer"]) if identity["issuer"] else ""
     hosts = next((hosts for name, hosts in issuer_hosts.items() if normalized(name) == issuer), [])
     official = parsed.scheme == "https" and parsed.hostname.casefold() in [host.casefold() for host in hosts]
@@ -214,7 +209,7 @@ def describe_document(document, issuer_hosts):
         flags.append("document_role_needs_review")
     if role in {"corrigendum", "cancellation"}:
         flags.append("amendment_or_cancellation_scope_needs_review")
-    if role in {"result", "admit_card"} and "non_recruitment_document" not in flags:
+    if role in {"result", "admit_card", "exam_update", "non_employment"} and "non_recruitment_document" not in flags:
         flags.append("non_recruitment_document")
     if not units:
         flags.append("empty_content")
@@ -232,8 +227,15 @@ def describe_document(document, issuer_hosts):
             "review_reasons": flags}
 
 
+# Why missing identity differs from contradictory identity:
+# Missing identity (such as insufficient_campaign_identity) indicates that deterministic
+# regex patterns could not reliably locate the recruiter, campaign name, or advertisement number
+# in unstructured text; the notice remains readable and can be safely analyzed by the AI
+# extraction model with verbatim citations. Conversely, contradictory or ambiguous identity
+# (conflicting_*, ambiguous_*, unmatched_amendment_target) signals irreconcilable evidence
+# or competing recruitment candidates across documents, which must block extraction to prevent
+# conflating distinct recruitments.
 GROUPING_BLOCKING_REASONS = {
-    "insufficient_campaign_identity",
     "missing_main_notice",
     "multiple_main_documents_need_comparison",
     "unmatched_amendment_target",
@@ -259,8 +261,24 @@ def grouping_blocking_reasons(bundle):
     or ambiguous amendment attachments indicate that recruitment boundaries
     are unverified. Sending uncertain evidence to AI leads to hallucinated
     cross-recruitment facts or incorrect eligibility criteria.
+
+    Why standalone notices bypass unmatched amendment and non-recruitment blockers:
+    A standalone readable notice undergoes purpose classification by the AI model.
+    An isolated amendment with an unresolved target is retained for review, but does
+    not block purpose classification. True grouping conflicts (conflicting_*), competing
+    candidates, and ambiguous multi-document associations remain strict blockers.
     """
     reasons = set(bundle.get("review_reasons", []))
+    if 'navigation_document' in reasons:
+        return ['navigation_document']
+    docs = bundle.get("documents", [])
+    if len(docs) == 1:
+        standalone_blockers = GROUPING_BLOCKING_REASONS - {
+            "unmatched_amendment_target",
+            "missing_main_notice",
+            "non_recruitment_document",
+        }
+        return sorted(reasons & standalone_blockers)
     return sorted(reasons & GROUPING_BLOCKING_REASONS)
 
 
@@ -396,6 +414,11 @@ def verify_bundles(documents, *, issuer_hosts=None, edges=None):
             if u["document_id"] in hub_doc_ids:
                 break
 
+    # Why uncertain documents stay separate:
+    # When deterministic grouping cannot establish a shared recruitment identity (e.g. matching
+    # advertisement numbers or campaign names), documents must remain isolated in standalone
+    # single-document bundles. Merging uncertain documents merely because they share a host or
+    # title pattern risks corrupting extraction with unrelated evidence.
     primary_units = [u for u in units if u["role"] not in {"corrigendum", "cancellation"}]
     amendment_units = [u for u in units if u["role"] in {"corrigendum", "cancellation"}]
 
@@ -687,7 +710,10 @@ def verify_bundles(documents, *, issuer_hosts=None, edges=None):
 
         mains = [u for u in units_in_cluster if u["role"] == "main_notice"]
         if not mains:
-            bundle_reasons.add("missing_main_notice")
+            # Standalone document clusters undergo AI purpose classification;
+            # missing_main_notice applies only to multi-document clusters lacking a core notice.
+            if len(units_in_cluster) > 1:
+                bundle_reasons.add("missing_main_notice")
         elif len(mains) == 1:
             pass
         elif len(mains) == 2:

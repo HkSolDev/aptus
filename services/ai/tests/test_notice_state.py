@@ -47,15 +47,26 @@ def sample_prepared(bundle_id="bnd_101", docs=None):
 
 
 def sample_facts(quote="Age 18-30 years", evidence_id="e1"):
-    return {
-        "posts": [{"post_name": "Clerk"}],
+    from services.ai.tests.test_inline_extraction import response
+    from inline_extraction import decode_inline
+    from test_extraction_input import sample_bundle
+    from build_extraction_input import prepare_extraction
+    facts, _ = decode_inline(response(), prepare_extraction(sample_bundle())['llm_input']['input'])
+    facts.update({
+        'amendment': None,
+        'purpose_evidence': [{'evidence_id': evidence_id, 'quote': quote}],
+        'document_purposes': [
+            {'document_id': 'doc_html_1', 'purpose': 'recruitment', 'evidence': [
+                {'evidence_id': evidence_id, 'quote': quote}]},
+            {'document_id': 'doc_pdf_1', 'purpose': 'recruitment', 'evidence': [
+                {'evidence_id': 'e2', 'quote': 'Fee Rs 100'}]}],
         "evidence": [{
             "field_path": "posts.0.post_name",
             "evidence_id": evidence_id,
             "quote": quote,
         }],
-        "missing_fields": [],
-    }
+    })
+    return facts
 
 
 class NoticeStateTests(unittest.TestCase):
@@ -80,7 +91,7 @@ class NoticeStateTests(unittest.TestCase):
                 "prepared_paths": [str(path)],
             }]
 
-        default_validate = lambda _res, _src: {"status": "needs_review"}
+        default_validate = lambda _res, _src: {"status": "needs_review", "disposition": "valid_recruitment_review_draft"}
         def default_draft(res, _src, source_name=""):
             facts = res.get("facts")
             if not isinstance(facts, dict) or not facts.get("evidence"):

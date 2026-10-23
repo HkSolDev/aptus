@@ -114,7 +114,8 @@ class VerifyBundleTests(unittest.TestCase):
         item["content"]["blocks"][0]["text"] += "\nAdvertisement No: EC/02/2026"
         bundle = verify_bundles([item], issuer_hosts=HOSTS)["bundles"][0]
         self.assertIn("ambiguous_advertisement_number", bundle["review_reasons"])
-        self.assertIn("missing_main_notice", bundle["review_reasons"])
+        from build_extraction_input import prepare_extraction
+        self.assertIsNone(prepare_extraction(bundle)['llm_input'])
 
     def test_prior_campaign_in_body_does_not_replace_title_identity(self):
         item = document("a", kind="pdf")
