@@ -6,6 +6,8 @@ COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
 COPY src ./src
 COPY scripts/match.ts scripts/validate-post.ts ./scripts/
+COPY scripts/store-extraction-candidate.ts scripts/publish-extraction-candidate.ts ./scripts/
+COPY services/ai/candidate-storage.schema.json ./services/ai/
 COPY frontend ./frontend
 COPY public ./public
 COPY tsconfig.web.json ./
@@ -19,6 +21,7 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/generated ./generated
 COPY --from=build --chown=node:node /app/src ./src
 COPY --from=build --chown=node:node /app/scripts ./scripts
+COPY --from=build --chown=node:node /app/services/ai/candidate-storage.schema.json ./services/ai/candidate-storage.schema.json
 COPY --from=build --chown=node:node /app/frontend ./frontend
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/package.json ./package.json
