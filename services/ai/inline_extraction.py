@@ -65,10 +65,19 @@ def decode_inline(response, source):
     """Validate local quote/scope evidence and flatten facts without inventing citations."""
     from build_extraction_input import BundleFacts
 
-    if not isinstance(response, dict) or set(response) != {'posts'} or not isinstance(response['posts'], list):
+    if not isinstance(response, dict) or not isinstance(response.get('posts'), list):
         raise ValueError('Invalid inline response root')
+    response = copy.deepcopy(response)
     units = {unit['evidence_id']: unit for document in source['documents'] for unit in document['sections']}
-    facts = {'posts': [], 'evidence': [], 'missing_fields': []}
+    facts = {
+        'purpose': response.get('purpose', 'recruitment'),
+        'purpose_evidence': response.get('purpose_evidence', []),
+        'document_purposes': response.get('document_purposes', []),
+        'amendment': response.get('amendment'),
+        'posts': [],
+        'evidence': [],
+        'missing_fields': [],
+    }
     checks, errors = [], []
 
     def validate_quotes(citations, path, kind):
@@ -87,6 +96,19 @@ def decode_inline(response, source):
             else:
                 valid.append(citation)
         return valid
+
+    # Validate purpose evidence citations
+    if facts['purpose_evidence']:
+        facts['purpose_evidence'] = validate_quotes(facts['purpose_evidence'], 'purpose_evidence', 'purpose')
+
+    # Validate document purposes evidence citations if present
+    for dp_idx, dp in enumerate(facts['document_purposes']):
+        if isinstance(dp, dict) and 'evidence' in dp:
+            dp['evidence'] = validate_quotes(dp['evidence'], f'document_purposes.{dp_idx}', 'document_purpose')
+
+    # Validate amendment citations if present
+    if isinstance(facts['amendment'], dict) and 'evidence' in facts['amendment']:
+        facts['amendment']['evidence'] = validate_quotes(facts['amendment']['evidence'], 'amendment', 'amendment')
 
     def flatten(node, path):
         if isinstance(node, list):

@@ -2,6 +2,10 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../db.js';
 import { sendJson } from '../lib/http.js';
 import {
+  ingestReviewedCandidate,
+  ReviewSubmissionError,
+} from './reviewed-ingest.js';
+import {
   type EducationLevel,
   type PostGroup,
   Prisma,
@@ -32,6 +36,8 @@ interface IngestPost {
 }
 
 interface IngestRequestBody {
+  reviewed_candidate_json?: string;
+  approval?: unknown;
   source_url?: string;
   source_name?: string;
   raw_hash?: string | null;
@@ -48,6 +54,23 @@ export async function handleIngest(
 ): Promise<void> {
   try {
     const body = req.body ?? {};
+
+    if ('reviewed_candidate_json' in body || 'approval' in body) {
+      try {
+        sendJson(res, 200, await ingestReviewedCandidate(body));
+      } catch (error) {
+        // Safe to resend the identical approved draft after transient failures.
+        const conflict =
+          error instanceof Error &&
+          /Source already published|Reviewed candidate/.test(error.message);
+        sendJson(
+          res,
+          error instanceof ReviewSubmissionError ? 400 : conflict ? 409 : 503,
+          { error: 'Reviewed publication rejected' },
+        );
+      }
+      return;
+    }
 
     if (!body.source_url || !body.source_name) {
       sendJson(res, 400, {

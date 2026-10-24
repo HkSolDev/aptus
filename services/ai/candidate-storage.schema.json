@@ -85,9 +85,135 @@
       "title": "AgeRule",
       "type": "object"
     },
+    "AmendmentDetails": {
+      "additionalProperties": false,
+      "properties": {
+        "amendment_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Amendment Type"
+        },
+        "effective_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Effective Date"
+        },
+        "target_advertisement_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target Advertisement Number"
+        },
+        "target_campaign_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target Campaign Name"
+        },
+        "target_post_names": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Post Names",
+          "type": "array"
+        },
+        "changes_description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Changes Description"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/PurposeCitation"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "amendment_type",
+        "effective_date",
+        "target_advertisement_number",
+        "target_campaign_name",
+        "target_post_names",
+        "changes_description",
+        "evidence"
+      ],
+      "title": "AmendmentDetails",
+      "type": "object"
+    },
     "BundleFacts": {
       "additionalProperties": false,
       "properties": {
+        "purpose": {
+          "default": "recruitment",
+          "enum": [
+            "recruitment",
+            "amendment",
+            "result",
+            "admit_card",
+            "exam_update",
+            "non_job",
+            "unclear"
+          ],
+          "title": "Purpose",
+          "type": "string"
+        },
+        "purpose_evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PurposeCitation"
+          },
+          "title": "Purpose Evidence",
+          "type": "array"
+        },
+        "document_purposes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DocumentPurpose"
+          },
+          "title": "Document Purposes",
+          "type": "array"
+        },
+        "amendment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AmendmentDetails"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "posts": {
           "items": {
             "$ref": "#/$defs/CandidatePost"
@@ -559,6 +685,38 @@
       "title": "CategoryRelaxationRules",
       "type": "object"
     },
+    "DocumentPurpose": {
+      "additionalProperties": false,
+      "properties": {
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "purpose": {
+          "enum": [
+            "recruitment",
+            "amendment",
+            "result",
+            "admit_card",
+            "exam_update",
+            "non_job",
+            "unclear"
+          ],
+          "title": "Purpose",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/PurposeCitation"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": ["document_id", "purpose", "evidence"],
+      "title": "DocumentPurpose",
+      "type": "object"
+    },
     "DraftReview": {
       "additionalProperties": false,
       "properties": {
@@ -998,6 +1156,22 @@
       "title": "PayRule",
       "type": "object"
     },
+    "PurposeCitation": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "quote": {
+          "title": "Quote",
+          "type": "string"
+        }
+      },
+      "required": ["evidence_id", "quote"],
+      "title": "PurposeCitation",
+      "type": "object"
+    },
     "ReviewIssue": {
       "additionalProperties": false,
       "properties": {
@@ -1089,6 +1263,55 @@
       },
       "title": "Evidence Units",
       "type": "array"
+    },
+    "disposition": {
+      "const": "valid_recruitment_review_draft",
+      "default": "valid_recruitment_review_draft",
+      "title": "Disposition",
+      "type": "string"
+    },
+    "evidence_fingerprint": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence Fingerprint"
+    },
+    "extraction_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Extraction Version"
+    },
+    "source_evidence": {
+      "default": [],
+      "items": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": "object"
+      },
+      "title": "Source Evidence",
+      "type": "array"
+    },
+    "metadata": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "default": {},
+      "title": "Metadata",
+      "type": "object"
     }
   },
   "required": [

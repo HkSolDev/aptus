@@ -63,11 +63,11 @@ Invalid configuration fails before collection writes or fetches. Public URL
 and redirect checks remain enforced by capture; URL shape validation alone
 is not an SSRF guarantee, and existing DNS rebinding protection remains open.
 
-The source registry does **not yet** implement generic discovery. Enabling a
-new source ID in the default production path reports `discovery_not_connected`
-without fetching it. The new opt-in prepare-only path below accepts new source
-IDs without adapters. Existing adapters remain connected temporarily; the
-default publishing path's PDF bug is not fixed in this slice.
+The source registry feeds generic discovery. An enabled static HTML source is
+crawled from its registry URL without a per-site adapter. JSON and RSS/XML seed
+URLs are explicitly blocked as unsupported transport types; they are not sent
+to an HTML parser. Existing adapter modules remain as historical code/tests but
+are not on the scheduled worker route.
 Adapter URL constants still describe their existing site-specific parsing bases.
 
 For an offline custom-list run: `collect_sources.py STORAGE --sources FILE`.
@@ -93,12 +93,16 @@ No paid provider call, production write, deployment or live scraping in this sli
 
 ## Shared replacement pilot — local verification
 
-The next slice adds `shared_crawl.py` and `shared_pipeline.py`, reusing the
-existing link scorer, capture/recovery normalizers, verifier and extraction-input
-builder. No new dependency or per-site parser. `worker_schedule.py --prepare-only`
-invokes this path; default publication behavior is unchanged until acceptance.
-The pilot never calls an AI provider or ingestion. The same source file controls
-it, including arbitrary new source IDs and disabling on the next run.
+`shared_crawl.py` and `shared_pipeline.py` reuse the existing link scorer,
+capture/recovery normalizers, verifier and extraction-input builder. No new
+dependency or per-site parser. The scheduled worker now invokes
+`generic_pipeline.py`: it crawls through this shared path, calls extraction only
+for coverage-approved inputs, validates the candidate, and writes a local
+review-draft artifact. It never auto-publishes model output: the existing
+reviewed-candidate publication path remains the only database publication gate.
+`worker_schedule.py --prepare-only` stops before the AI call. The same source
+file controls both modes, including arbitrary new HTML source IDs and disabling
+on the next run.
 
 Run one source locally:
 
@@ -159,8 +163,11 @@ campaign rather than merging an entire multi-job page. Then prove a full
 HTML+PDF campaign on a real source. Add persistent frontier/resume and
 per-campaign completeness (currently any partial crawl withholds all inputs),
 bounded JS-rendering fallback and transport handling for RSS/JSON seeds.
-Only then connect candidate extraction/validation/persistence and safe retries.
-Keep all current adapters/tests until the shared replacement meets those checks.
+Candidate extraction and draft preparation are now connected behind the shared
+coverage gate. Remaining work is a representative live/provider trial and the
+explicit reviewed-candidate publication workflow; never bypass that review gate.
+Keep adapter modules/tests only as historical regression coverage until they can
+be removed in a separately reviewed cleanup.
 
 Final offline suite: **229 tests passed**, no skips. Markdown formatting and
 `git diff --check` pass. Manual review checked that capture type chooses the

@@ -56,9 +56,14 @@ class VerifyBundleTests(unittest.TestCase):
         self.assertEqual(len(result["bundles"]), 1)
         bundle = result["bundles"][0]
         self.assertEqual(bundle["status"], "candidate_for_extraction")
-        self.assertEqual([d["role"] for d in bundle["documents"]], ["main_notice", "vacancy_annexure"])
-        self.assertEqual(bundle["documents"][0]["content"], main["content"])
-        self.assertEqual(bundle["documents"][0]["identity_evidence"][0]["locations"][0]["page"], 1)
+        # Lookup documents by document_id rather than assuming discovery arrival order
+        docs_by_id = {d["document_id"]: d for d in bundle["documents"]}
+        self.assertEqual(set(docs_by_id), {"main", "annexure"})
+        self.assertEqual(len(bundle["documents"]), 2)
+        self.assertEqual(docs_by_id["main"]["role"], "main_notice")
+        self.assertEqual(docs_by_id["annexure"]["role"], "vacancy_annexure")
+        self.assertEqual(docs_by_id["main"]["content"], main["content"])
+        self.assertEqual(docs_by_id["main"]["identity_evidence"][0]["locations"][0]["page"], 1)
 
     def test_mirror_and_domain_suffix_attack_never_gain_authority(self):
         for url in ("https://mirror.example/notice", "https://jobs.example.gov.in.evil.example/notice",
@@ -109,7 +114,8 @@ class VerifyBundleTests(unittest.TestCase):
         item["content"]["blocks"][0]["text"] += "\nAdvertisement No: EC/02/2026"
         bundle = verify_bundles([item], issuer_hosts=HOSTS)["bundles"][0]
         self.assertIn("ambiguous_advertisement_number", bundle["review_reasons"])
-        self.assertIn("missing_main_notice", bundle["review_reasons"])
+        from build_extraction_input import prepare_extraction
+        self.assertIsNone(prepare_extraction(bundle)['llm_input'])
 
     def test_prior_campaign_in_body_does_not_replace_title_identity(self):
         item = document("a", kind="pdf")

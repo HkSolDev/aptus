@@ -8,11 +8,18 @@ import re
 import httpx
 from pydantic import ValidationError
 
-from build_extraction_input import BundleFacts, INSTRUCTIONS
+from build_extraction_input import BundleFacts, INSTRUCTIONS, is_extraction_approved
 from compact_inline import CompactPathError, MissingFactsError, compact_schema, decode_compact, field_catalogue
 from inline_extraction import InlineFactError
 from normalize_candidate_facts import normalize_candidate_facts
 from providers.openai import _openai_schema
+
+
+class ProviderRequestError(RuntimeError):
+    def __init__(self, reason, *, retryable=False, retry_after=0):
+        super().__init__(reason)
+        self.retryable = retryable
+        self.retry_after = retry_after
 
 
 DECODE_CHECKS = {
@@ -64,7 +71,8 @@ class FactDecodingError(RuntimeError):
                 if len(location) > 2 and location[0] == 'posts' and isinstance(location[1], int):
                     paths.append('.'.join(str(part) for part in location[2:]))
         else:
-            check = DECODE_CHECKS.get(str(cause), 'unclassified_decoding_error')
+            check = ('invalid_response_root' if str(cause).startswith('Invalid compact response root')
+                     else DECODE_CHECKS.get(str(cause), 'unclassified_decoding_error'))
         paths = sorted({path for path in paths if isinstance(path, str)
                         and any(re.fullmatch(pattern, path) for pattern in patterns)})
         self.details = {'check': check, 'field_count': len(paths), 'field_paths': paths[:20]}
@@ -73,13 +81,15 @@ class FactDecodingError(RuntimeError):
 def provider_keys(provider):
     if provider == 'openai':
         names = ['OPENAI_API_KEY']
+    elif provider == 'deepseek':
+        names = ['DEEPSEEK_API_KEY']
     else:
         numbered = sorted((name for name in os.environ
                            if re.fullmatch(r'GEMINI_API_KEY_[1-9]\d*', name)),
                           key=lambda name: int(name.rsplit('_', 1)[1]))
         names = ['GEMINI_API_KEY', *numbered]
-    return list(dict.fromkeys(os.environ[name].strip() for name in names
-                             if os.environ.get(name, '').strip()))
+    return list(dict.fromkeys(key.strip() for name in names
+                             for key in os.environ.get(name, '').split(',') if key.strip()))
 
 
 def invalid_gemini_key(response):
@@ -98,11 +108,11 @@ def invalid_gemini_key(response):
 
 def request_structured(source, schema, instructions, *, provider=None, model=None, client=None):
     """One bounded provider request; shared by single-pass and staged extraction."""
-    provider = provider or os.getenv('LLM_PROVIDER', 'openai')
-    if provider not in {'openai', 'gemini'}:
-        raise ValueError('Use openai or gemini')
-    model = model or os.getenv('LLM_MODEL') or (
-        'gpt-4o-mini' if provider == 'openai' else 'gemini-2.5-flash-lite')
+    provider = provider or os.getenv('LLM_PROVIDER', 'gemini')
+    if provider not in {'openai', 'gemini', 'deepseek'}:
+        raise ValueError('Use openai, gemini or deepseek')
+    model = model or os.getenv('LLM_MODEL') or {
+        'openai': 'gpt-4o-mini', 'gemini': 'gemini-3.8-flash', 'deepseek': 'deepseek-flash'}[provider]
     if not re.fullmatch(r'[A-Za-z0-9._-]{1,100}', model):
         raise ValueError('Invalid model name')
     keys = provider_keys(provider)
@@ -119,6 +129,16 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
         payload = {'model': model, 'messages': [{'role': 'system', 'content': system},
             {'role': 'user', 'content': prompt}], 'response_format': {'type': 'json_schema',
             'json_schema': {'name': 'bundle_facts', 'strict': True, 'schema': _openai_schema(schema)}}}
+    elif provider == 'deepseek':
+        url = 'https://api.deepseek.com/chat/completions'
+        headers = {}
+        # JSON mode constrains syntax, not this schema. Send the schema explicitly
+        # and keep the same local decoding/grounding gate as every other provider.
+        payload = {'model': model, 'messages': [
+            {'role': 'system', 'content': system + '\nReturn one JSON object matching output_schema.'},
+            {'role': 'user', 'content': json.dumps({**source, 'output_schema': schema}, ensure_ascii=False)}],
+            'response_format': {'type': 'json_object'}, 'max_tokens': 32768,
+            'thinking': {'type': 'disabled'}}
     else:
         url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
         headers = {}
@@ -128,7 +148,7 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
     # Only explicitly rejected keys fail over. Never repeat a timeout/quota request.
     try:
         for attempt, key in enumerate(keys, 1):
-            headers = ({'Authorization': f'Bearer {key}'} if provider == 'openai'
+            headers = ({'Authorization': f'Bearer {key}'} if provider in {'openai', 'deepseek'}
                        else {'x-goog-api-key': key})
             response = (client or httpx).post(url, headers=headers, json=payload, timeout=120)
             if provider == 'gemini' and invalid_gemini_key(response):
@@ -137,9 +157,12 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
                 raise RuntimeError('provider_credentials_rejected')
             break
         if not response.is_success:
-            raise RuntimeError(f'provider_http_{response.status_code}')
+            delay = response.headers.get('retry-after', '0')
+            raise ProviderRequestError(f'provider_http_{response.status_code}',
+                retryable=response.status_code in {408, 429, 500, 502, 503, 504},
+                retry_after=min(int(delay), 86400) if delay.isdigit() else 0)
         data = response.json()
-        if provider == 'openai':
+        if provider in {'openai', 'deepseek'}:
             choice = data['choices'][0]
             if choice.get('finish_reason') != 'stop' or choice['message'].get('refusal'):
                 raise RuntimeError('provider_incomplete_or_refused')
@@ -151,8 +174,12 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
                 raise RuntimeError('provider_incomplete_or_refused')
             text = ''.join(part.get('text', '') for part in candidate['content']['parts'])
             usage = data.get('usageMetadata', {})
+    except (httpx.ConnectError, httpx.ConnectTimeout):
+        raise ProviderRequestError('provider_network_failed', retryable=True) from None
     except httpx.HTTPError:
-        raise RuntimeError('provider_network_failed') from None
+        # A read timeout may follow a billed generation: require review instead
+        # of silently paying for the same uncertain request again.
+        raise ProviderRequestError('provider_network_failed') from None
     except (KeyError, IndexError, TypeError, ValueError):
         raise RuntimeError('provider_response_invalid') from None
     try:
@@ -163,7 +190,7 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
 
 
 def extract_bundle(prepared, *, provider=None, model=None, client=None, response_path=None):
-    if not prepared.get('llm_input'):
+    if not is_extraction_approved(prepared):
         raise ValueError('No approved input: inspect coverage/budget first')
     source = copy.deepcopy(prepared['llm_input']['input'])
     source.pop('output_schema')
@@ -239,7 +266,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='One offline extraction trial; never publishes')
     parser.add_argument('prepared_json')
     parser.add_argument('output_json')
-    parser.add_argument('--provider', choices=['openai', 'gemini'])
+    parser.add_argument('--provider', choices=['openai', 'gemini', 'deepseek'])
     parser.add_argument('--model')
     parser.add_argument('--staged', action='store_true', help='Roster, shared rules, then small post batches')
     parser.add_argument('--prepare-html', action='store_true',

@@ -3,13 +3,15 @@
 import hashlib
 import json
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from capture_store import atomic_write
 from link_discovery import discover_links, url_identity
 from recover_documents import capture_and_normalize
+from capture_retry import capture_with_retry
 
 
-def crawl_source(url, root, *, process=capture_and_normalize, max_fetches=12, max_depth=3):
+def crawl_source(url, root, *, process=capture_and_normalize, source_id=None, max_fetches=12, max_depth=3):
     if (type(max_fetches) is not int or not 1 <= max_fetches <= 30
             or type(max_depth) is not int or not 0 <= max_depth <= 4):
         raise ValueError('Use 1–30 fetches and 0–4 link levels')
@@ -18,7 +20,7 @@ def crawl_source(url, root, *, process=capture_and_normalize, max_fetches=12, ma
         raise ValueError('Invalid source URL')
     root = Path(root)
     report = {'seed_url': seed, 'status': 'scanning', 'pages': [], 'edges': [],
-              'unchecked': [], 'documents': []}
+              'unchecked': [], 'documents': [], 'seed_status': 'pending'}
     queue = [{'url': seed, 'depth': 0, 'priority': 100}]
     visited = set()
     queued = {seed}
@@ -35,14 +37,61 @@ def crawl_source(url, root, *, process=capture_and_normalize, max_fetches=12, ma
         page = {**item, 'status': 'failed'}
         report['pages'].append(page)
         try:
-            result, reason, retryable = process(item['url'], root / 'capture')
+            result, reason, retryable = capture_with_retry(item['url'], root, process, source_id)
             if result is None:
                 page.update(reason=reason, retryable=retryable)
+                if item['depth'] == 0 and reason in ('unsupported_document_type', 'unsupported_listing_format'):
+                    report['seed_status'] = 'unsupported_document_type'
                 save()
                 continue
-            page.update(status='normalized', result=result)
+
             final_url = result['final_url']
             visited.add(url_identity(final_url, final_url))
+
+            if result.get('is_listing') or 'listing' in result:
+                page.update(status='listing', result=result)
+                if item['depth'] == 0:
+                    report['seed_status'] = 'listing'
+
+                listing = result.get('listing', {})
+                if listing.get('truncated'):
+                    report['unchecked'].append({'url': final_url, 'reason': 'listing_truncated'})
+
+                for dest in listing.get('destinations', []):
+                    dest_url = dest.get('url')
+                    if not dest_url:
+                        continue
+                    edge = {
+                        'parent_url': final_url,
+                        'url': dest_url,
+                        'title': dest.get('title'),
+                        'date': dest.get('date'),
+                        'target_kind': 'document_reference' if urlsplit(dest_url).path.lower().endswith(('.pdf', '.doc', '.docx')) else 'html_candidate',
+                        'priority': 90,
+                        'occurrences': [{'parent_url': final_url, 'title': dest.get('title'), 'date': dest.get('date')}],
+                    }
+                    report['edges'].append(edge)
+
+                    if dest_url in queued or dest_url in visited:
+                        continue
+                    child = {
+                        'url': dest_url,
+                        'depth': item['depth'] + 1,
+                        'priority': 90,
+                        'title': dest.get('title'),
+                        'date': dest.get('date'),
+                    }
+                    queued.add(dest_url)
+                    if child['depth'] > max_depth or len(queued) > 1000:
+                        report['unchecked'].append({**child, 'reason': 'discovery_limit'})
+                    else:
+                        queue.append(child)
+                save()
+                continue
+
+            page.update(status='normalized', result=result)
+            if item['depth'] == 0:
+                report['seed_status'] = 'normalized'
             content = json.loads(Path(result['content_path']).read_text())
             kind = result['document_kind']
             identifier = hashlib.sha256(final_url.encode()).hexdigest()[:24]
@@ -71,7 +120,10 @@ def crawl_source(url, root, *, process=capture_and_normalize, max_fetches=12, ma
     report['unchecked'].extend({**item, 'reason': 'fetch_budget'} for item in queue
                                 if item['url'] not in visited)
     failed = any(page['status'] == 'failed' for page in report['pages'])
-    report['status'] = 'partial' if report['unchecked'] or failed else 'scanned'
+    if report['seed_status'] == 'unsupported_document_type':
+        report['status'] = 'blocked'
+    else:
+        report['status'] = 'partial' if report['unchecked'] or failed else 'scanned'
     # 'scanned' means the bounded positive-score frontier, never complete site coverage.
     save()
     return report

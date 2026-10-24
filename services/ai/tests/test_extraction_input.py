@@ -56,7 +56,8 @@ class ExtractionInputTests(unittest.TestCase):
         self.assertEqual(output['documents'][1]['role'], 'corrigendum')
         self.assertIn('amendment_or_cancellation_scope_needs_review', output['coverage']['review_reasons'])
         self.assertEqual(output['output_format'], 'compact-inline-facts-v1')
-        self.assertEqual(set(output['output_schema']['properties']), {'posts'})
+        self.assertEqual(set(output['output_schema']['properties']),
+                         {'purpose', 'purpose_evidence', 'document_purposes', 'amendment', 'posts'})
 
     def test_initial_dependency_waits_and_queues_once(self):
         with tempfile.TemporaryDirectory() as root:
@@ -67,7 +68,7 @@ class ExtractionInputTests(unittest.TestCase):
                 self.assertIsNone(result['llm_input'])
             self.assertEqual(len(queue.bundle(sample_bundle()['bundle_id'])['tasks']), 1)
 
-    def test_second_pass_unresolved_gap_is_focus_not_third_request(self):
+    def test_second_pass_unresolved_gap_blocks_without_third_request(self):
         with tempfile.TemporaryDirectory() as root:
             queue = RecoveryQueue(Path(root) / 'queue.db')
             bundle = sample_bundle(linked=True)
@@ -75,10 +76,11 @@ class ExtractionInputTests(unittest.TestCase):
             task = queue.claim_next()
             queue.finish(task, reason='login_required')
             result = prepare_extraction(bundle, missing_documents=[gap()], recovery_queue=queue)
-            self.assertEqual(result['coverage']['status'], 'ready_for_extraction')
+            self.assertEqual(result['coverage']['status'], 'needs_review')
             self.assertIn('vacancies', result['coverage']['coverage_focus'])
             self.assertIn('document_recovery_failed', result['coverage']['review_reasons'])
-            self.assertIsNotNone(result['llm_input'])
+            self.assertIsNone(result['llm_input'])
+            self.assertEqual(result['coverage']['missing_document_urls'], [UPDATE_URL])
             self.assertIsNone(queue.claim_next())
 
     def test_recovered_document_in_expanded_bundle_resolves_url_gap(self):
@@ -98,7 +100,10 @@ class ExtractionInputTests(unittest.TestCase):
         bundle['review_reasons'].append('authority_needs_review')
         bundle['documents'][0]['content']['coverage'] = {'unreadable_pages': [3],
             'omitted_sections': [{'page': 4}], 'unresolved_references': ['Appendix II']}
-        reasons = prepare_extraction(bundle)['llm_input']['input']['coverage']['review_reasons']
+        prepared = prepare_extraction(bundle)
+        self.assertIsNone(prepared['llm_input'])
+        self.assertEqual(prepared['coverage']['status'], 'needs_review')
+        reasons = prepared['coverage']['review_reasons']
         self.assertTrue({'authority_needs_review', 'content_coverage_gap',
                          'unresolved_document_references'} <= set(reasons))
 

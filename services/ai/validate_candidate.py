@@ -8,13 +8,28 @@ from pydantic import ValidationError
 
 from build_extraction_input import BundleFacts
 from extract_bundle import check_evidence, leaves
+from purpose_validation import purpose_errors
+
+
+ALLOWED_PURPOSES = {
+    'recruitment',
+    'amendment',
+    'result',
+    'admit_card',
+    'exam_update',
+    'non_job',
+    'unclear',
+}
 
 
 def validate_candidate(result, source):
     errors, warnings = [], []
-    report = {'status': 'blocked', 'persistence_allowed': False,
+    report = {'status': 'blocked', 'disposition': 'validation_blocked',
+              'persistence_allowed': False,
               'errors': errors, 'warnings': warnings, 'validated_facts': None,
               'semantic_support_verified': False}
+    if result.get('bundle_id') is not None and result['bundle_id'] != source.get('bundle_id'):
+        errors.append({'field_path': 'bundle_id', 'reason': 'candidate_bundle_mismatch'})
     for reason in sorted(set(result.get('review_reasons', []) +
                              source.get('coverage', {}).get('review_reasons', []))):
         warnings.append({'field_path': 'source', 'reason': reason})
@@ -23,6 +38,12 @@ def validate_candidate(result, source):
     if not isinstance(raw, dict):
         errors.append({'field_path': 'facts', 'reason': 'missing_candidate_facts'})
         return report
+
+    # 1. Purpose validation
+    purpose = raw.get('purpose', 'recruitment')
+    if purpose not in ALLOWED_PURPOSES:
+        errors.append({'field_path': 'purpose', 'reason': f'invalid_purpose_{purpose}'})
+
     # The legacy date validator converts malformed dates to null. Catch them
     # before schema validation so a bad value cannot become an innocent unknown.
     for path, value in leaves(raw.get('posts', []), 'posts'):
@@ -44,51 +65,68 @@ def validate_candidate(result, source):
     except (ValidationError, TypeError, ValueError):
         errors.append({'field_path': 'facts', 'reason': 'invalid_candidate_structure'})
         return report
-    if not facts['posts']:
-        errors.append({'field_path': 'posts', 'reason': 'no_candidate_posts'})
-    names = set()
-    for index, post in enumerate(facts['posts']):
-        prefix = f'posts.{index}'
-        organization = post['recruiting_body']
-        if organization is not None and not any(
-                citation['field_path'] == prefix + '.recruiting_body'
-                and organization in citation['quote'] for citation in facts['evidence']):
-            errors.append({'field_path': prefix + '.recruiting_body',
-                           'reason': 'recruiting_body_not_in_citation'})
-        name = (post['post_name'] or '').strip().casefold()
-        if not name or name in names:
-            errors.append({'field_path': prefix + '.post_name', 'reason': 'missing_or_duplicate_post_name'})
-        names.add(name)
-        groups = [(prefix, post), *[(f'{prefix}.eligibility_rules.age_rules.{i}', rule)
-                  for i, rule in enumerate(post['eligibility_rules']['age_rules'])]]
-        if post['pay'] is not None:
-            groups.append((prefix + '.pay', post['pay']))
-        for path, rule in groups:
-            low, high = (('minimum_amount', 'maximum_amount') if path.endswith('.pay')
-                         else ('min_age', 'max_age'))
-            if rule[low] is not None and rule[high] is not None and rule[low] > rule[high]:
-                errors.append({'field_path': path, 'reason': 'minimum_exceeds_maximum'})
-        start, end = post['application_start_date'], post['application_last_date']
-        if start and end and start > end:
-            errors.append({'field_path': prefix, 'reason': 'application_dates_reversed'})
-        for path, value in leaves(post, prefix):
-            if value is None:
-                warnings.append({'field_path': path, 'reason': 'detail_not_supported'})
-        def empty_lists(node, path):
-            if isinstance(node, dict):
-                for key, value in node.items():
-                    empty_lists(value, f'{path}.{key}')
-            elif isinstance(node, list):
-                if not node:
-                    warnings.append({'field_path': path, 'reason': 'array_coverage_unconfirmed'})
-                for i, value in enumerate(node):
-                    empty_lists(value, f'{path}.{i}')
-        empty_lists(post, prefix)
-    errors.extend(check_evidence(facts, source)['errors'])
+
+    errors.extend(purpose_errors(facts, source))
+
+    # 4. Purpose-specific rules
+    if purpose == 'recruitment':
+        if not facts['posts']:
+            errors.append({'field_path': 'posts', 'reason': 'recruitment_requires_posts'})
+        names = set()
+        for index, post in enumerate(facts['posts']):
+            prefix = f'posts.{index}'
+            organization = post['recruiting_body']
+            if organization is not None and not any(
+                    citation['field_path'] == prefix + '.recruiting_body'
+                    and organization in citation['quote'] for citation in facts['evidence']):
+                errors.append({'field_path': prefix + '.recruiting_body',
+                               'reason': 'recruiting_body_not_in_citation'})
+            name = (post['post_name'] or '').strip().casefold()
+            if not name or name in names:
+                errors.append({'field_path': prefix + '.post_name', 'reason': 'missing_or_duplicate_post_name'})
+            names.add(name)
+            groups = [(prefix, post), *[(f'{prefix}.eligibility_rules.age_rules.{i}', rule)
+                      for i, rule in enumerate(post['eligibility_rules']['age_rules'])]]
+            if post['pay'] is not None:
+                groups.append((prefix + '.pay', post['pay']))
+            for path, rule in groups:
+                low, high = (('minimum_amount', 'maximum_amount') if path.endswith('.pay')
+                             else ('min_age', 'max_age'))
+                if rule[low] is not None and rule[high] is not None and rule[low] > rule[high]:
+                    errors.append({'field_path': path, 'reason': 'minimum_exceeds_maximum'})
+            start, end = post['application_start_date'], post['application_last_date']
+            if start and end and start > end:
+                errors.append({'field_path': prefix, 'reason': 'application_dates_reversed'})
+            for path, value in leaves(post, prefix):
+                if value is None:
+                    warnings.append({'field_path': path, 'reason': 'detail_not_supported'})
+            def empty_lists(node, path):
+                if isinstance(node, dict):
+                    for key, value in node.items():
+                        empty_lists(value, f'{path}.{key}')
+                elif isinstance(node, list):
+                    if not node:
+                        warnings.append({'field_path': path, 'reason': 'array_coverage_unconfirmed'})
+                    for i, value in enumerate(node):
+                        empty_lists(value, f'{path}.{i}')
+            empty_lists(post, prefix)
+        errors.extend(check_evidence(facts, source)['errors'])
+
+
     for issue in result.get('inline_check', {}).get('errors', []):
         (warnings if issue['reason'] == 'scope_needs_review' else errors).append(issue)
-    if not errors:
-        report.update(status='needs_review', validated_facts=facts)
+
+    if errors:
+        report.update(status='blocked', disposition='validation_blocked', validated_facts=None)
+    else:
+        if purpose == 'recruitment':
+            report.update(status='needs_review', disposition='valid_recruitment_review_draft', validated_facts=facts)
+        elif purpose == 'amendment':
+            report.update(status='needs_review', disposition='amendment_pending_review', validated_facts=facts)
+        elif purpose in {'result', 'admit_card', 'exam_update', 'non_job'}:
+            report.update(status='completed', disposition='valid_non_job_classification', validated_facts=facts)
+        elif purpose == 'unclear':
+            report.update(status='needs_review', disposition='unclear_purpose_review', validated_facts=facts)
     return report
 
 
