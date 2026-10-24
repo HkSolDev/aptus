@@ -6,10 +6,24 @@ action; scheduling the generic worker only creates review artifacts.
 ## DeepSeek off-peak scheduling
 
 Set `LLM_PROVIDER=deepseek` and `DEEPSEEK_OFF_PEAK_ONLY=true` in the worker's
-runtime configuration. Its existing scheduler then runs at **04:00, 10:00,
-16:00 and 22:00 IST**. Startup during peak hours waits instead of extracting;
-`--once` reports a deferral and exits without running the pipeline. Prepare-only
-inspection remains available at any time.
+runtime configuration. Production uses **host cron** to launch a one-shot
+`aptus-worker-cron` container at **04:00, 10:00, 16:00 and 22:00 IST** with
+`--once` and Docker restart policy `no`. The container exits after each batch;
+there is no always-running production scheduler. A host `flock` prevents
+overlapping batches. The old managed worker is stopped and retained for rollback,
+and both images reuse the existing `aptus-worker-data:/work` volume.
+
+On a server whose system timezone is UTC, the cron expression is
+`30 4,10,16,22 * * *` (04:30, 10:30, 16:30, 22:30 UTC). On an IST server it
+is `0 4,10,16,22 * * *`. Verify the server timezone before installing cron;
+do not assume a `CRON_TZ` setting is supported by its cron implementation.
+Cron calls `docker start --attach aptus-worker-cron`; credentials remain in
+Docker's private runtime configuration, never in the cron command or a release
+checkout. Existing unrelated cron entries are preserved.
+
+Startup during peak hours defers instead of extracting; `--once` reports the
+deferral and exits without running the pipeline. Prepare-only inspection remains
+available at any time. The legacy daemon mode remains supported for other users.
 
 The provider boundary checks the clock before every DeepSeek request, including
 calls outside the scheduler, so a long batch cannot begin new requests in peak

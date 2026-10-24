@@ -13,16 +13,8 @@ from provider_schedule import off_peak_schedule_enabled, seconds_until_off_peak
 INDIA = timezone(timedelta(hours=5, minutes=30))
 
 
-def seconds_until_next_run(current=None, *, off_peak=False):
+def seconds_until_next_run(current=None):
     current = current or datetime.now(INDIA)
-    current = current.astimezone(INDIA)
-    if off_peak:
-        for hour in (4, 10, 16, 22):
-            slot = current.replace(hour=hour, minute=0, second=0, microsecond=0)
-            if slot > current:
-                return int((slot - current).total_seconds())
-        return int((current.replace(hour=4, minute=0, second=0, microsecond=0)
-                    + timedelta(days=1) - current).total_seconds())
     boundary = current.replace(minute=0, second=0, microsecond=0)
     next_hour = ((current.hour // 6) + 1) * 6
     if next_hour >= 24:
@@ -59,7 +51,7 @@ def main():
             print(json.dumps({'status': 'failed', 'reason': 'pipeline_run_failed'}), flush=True)
         if args.once:
             return
-        time.sleep(max(1, seconds_until_next_run(off_peak=off_peak)))
+        time.sleep(max(1, seconds_until_next_run()))
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@ from provider_schedule import ProviderDeferred, seconds_until_off_peak
 from extract_bundle import request_structured
 from extraction_checkpoint import extract_or_resume
 from stage_retry import StageRetries
-from worker_schedule import main, seconds_until_next_run
+from worker_schedule import main
 
 
 class OffPeakScheduleTests(unittest.TestCase):
@@ -29,10 +29,8 @@ class OffPeakScheduleTests(unittest.TestCase):
         self.assertEqual(seconds_until_off_peak(datetime(2026, 10, 26, 7, tzinfo=india)), 9000)
         self.assertEqual(seconds_until_off_peak(datetime(2026, 10, 26, 1, tzinfo=india)), 0)
 
-    def test_four_daily_slots_stay_off_peak_and_roll_over(self):
+    def test_four_daily_cron_slots_stay_off_peak(self):
         india = timezone(timedelta(hours=5, minutes=30))
-        self.assertEqual(seconds_until_next_run(datetime(2026, 10, 26, 3, tzinfo=india), off_peak=True), 3600)
-        self.assertEqual(seconds_until_next_run(datetime(2026, 10, 26, 22, tzinfo=india), off_peak=True), 21600)
         for day in range(24, 31):
             for hour in [4, 10, 16, 22]:
                 self.assertEqual(seconds_until_off_peak(datetime(2026, 10, day, hour, tzinfo=india)), 0)
