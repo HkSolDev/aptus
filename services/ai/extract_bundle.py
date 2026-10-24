@@ -13,6 +13,7 @@ from compact_inline import CompactPathError, MissingFactsError, compact_schema, 
 from inline_extraction import InlineFactError
 from normalize_candidate_facts import normalize_candidate_facts
 from providers.openai import _openai_schema
+from provider_schedule import ProviderDeferred, provider_off_peak_delay
 
 
 class ProviderRequestError(RuntimeError):
@@ -111,6 +112,9 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
     provider = provider or os.getenv('LLM_PROVIDER', 'gemini')
     if provider not in {'openai', 'gemini', 'deepseek'}:
         raise ValueError('Use openai, gemini or deepseek')
+    delay = provider_off_peak_delay(provider)
+    if delay:
+        raise ProviderDeferred(delay)
     model = model or os.getenv('LLM_MODEL') or {
         'openai': 'gpt-4o-mini', 'gemini': 'gemini-3.8-flash', 'deepseek': 'deepseek-flash'}[provider]
     if not re.fullmatch(r'[A-Za-z0-9._-]{1,100}', model):

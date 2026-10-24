@@ -3,6 +3,27 @@
 Stages 6 and 7 are implemented locally. Publication remains an explicit operator
 action; scheduling the generic worker only creates review artifacts.
 
+## DeepSeek off-peak scheduling
+
+Set `LLM_PROVIDER=deepseek` and `DEEPSEEK_OFF_PEAK_ONLY=true` in the worker's
+runtime configuration. Its existing scheduler then runs at **04:00, 10:00,
+16:00 and 22:00 IST**. Startup during peak hours waits instead of extracting;
+`--once` reports a deferral and exits without running the pipeline. Prepare-only
+inspection remains available at any time.
+
+The provider boundary checks the clock before every DeepSeek request, including
+calls outside the scheduler, so a long batch cannot begin new requests in peak
+hours. It stops five minutes early to leave room for a bounded generation.
+Deferred notices keep their evidence and do not consume provider retry attempts.
+Existing successful checkpoints and drafts remain reusable without provider calls.
+
+[DeepSeek pricing](https://api-docs.deepseek.com/quick_start/pricing/) lists peak
+windows as Monday–Friday **01:00–04:00 and 06:00–10:00 UTC**; other hours are
+half-price. Decisions use UTC weekdays, not server local time. Weekends are
+off-peak. No holiday calendar is required: weekday holidays follow the same
+conservative schedule. This rule uses the published October 2026 windows and
+must be reviewed if the provider changes pricing.
+
 ## Stage 6: resume the failed stage
 
 - Capture failures have durable, URL-scoped attempts under

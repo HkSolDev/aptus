@@ -1,4 +1,4 @@
-"""Run the Aptus pipeline immediately and then at six-hour India-time boundaries."""
+"""Run the pipeline on India-time boundaries, with optional off-peak billing."""
 
 import argparse
 import json
@@ -8,12 +8,21 @@ from pathlib import Path
 
 from generic_pipeline import run_pipeline
 from source_registry import DEFAULT_SOURCES_PATH
+from provider_schedule import off_peak_schedule_enabled, seconds_until_off_peak
 
 INDIA = timezone(timedelta(hours=5, minutes=30))
 
 
-def seconds_until_next_run(current=None):
+def seconds_until_next_run(current=None, *, off_peak=False):
     current = current or datetime.now(INDIA)
+    current = current.astimezone(INDIA)
+    if off_peak:
+        for hour in (4, 10, 16, 22):
+            slot = current.replace(hour=hour, minute=0, second=0, microsecond=0)
+            if slot > current:
+                return int((slot - current).total_seconds())
+        return int((current.replace(hour=4, minute=0, second=0, microsecond=0)
+                    + timedelta(days=1) - current).total_seconds())
     boundary = current.replace(minute=0, second=0, microsecond=0)
     next_hour = ((current.hour // 6) + 1) * 6
     if next_hour >= 24:
@@ -31,7 +40,16 @@ def main():
     parser.add_argument('--max-fetches', type=int, default=12)
     parser.add_argument('--max-depth', type=int, default=3)
     args = parser.parse_args()
+    off_peak = off_peak_schedule_enabled()
     while True:
+        delay = seconds_until_off_peak() if off_peak and not args.prepare_only else 0
+        if delay:
+            print(json.dumps({'status': 'deferred', 'reason': 'provider_peak_hours',
+                              'retry_after_seconds': delay}), flush=True)
+            if args.once:
+                return
+            time.sleep(delay)
+            continue
         try:
             result = run_pipeline(Path(args.storage_dir), sources_path=args.sources,
                                   source_id=args.source, max_fetches=args.max_fetches,
@@ -41,7 +59,7 @@ def main():
             print(json.dumps({'status': 'failed', 'reason': 'pipeline_run_failed'}), flush=True)
         if args.once:
             return
-        time.sleep(max(1, seconds_until_next_run()))
+        time.sleep(max(1, seconds_until_next_run(off_peak=off_peak)))
 
 
 if __name__ == '__main__':
