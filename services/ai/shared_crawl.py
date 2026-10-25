@@ -120,8 +120,15 @@ def crawl_source(url, root, *, process=capture_and_normalize, source_id=None, ma
     report['unchecked'].extend({**item, 'reason': 'fetch_budget'} for item in queue
                                 if item['url'] not in visited)
     failed = any(page['status'] == 'failed' for page in report['pages'])
+    all_failed = bool(report['pages']) and all(page['status'] == 'failed' for page in report['pages'])
+    errors = sorted(set(p.get('reason') for p in report['pages'] if p.get('status') == 'failed' and p.get('reason')))
+    if errors:
+        report['errors'] = errors
     if report['seed_status'] == 'unsupported_document_type':
         report['status'] = 'blocked'
+    elif all_failed:
+        report['status'] = 'failed'
+        report['reason'] = errors[0] if errors else 'crawl_failed'
     else:
         report['status'] = 'partial' if report['unchecked'] or failed else 'scanned'
     # 'scanned' means the bounded positive-score frontier, never complete site coverage.
