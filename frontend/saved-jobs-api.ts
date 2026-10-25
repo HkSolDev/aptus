@@ -91,7 +91,9 @@ export async function saveJobApi(jobId: string): Promise<boolean> {
       credentials: 'same-origin',
       headers: {
         Accept: 'application/json',
+        'Content-Type': 'application/json',
       },
+      body: '{}',
       signal: AbortSignal.timeout(10000),
     });
   } catch {
@@ -122,7 +124,11 @@ export async function unsaveJobApi(jobId: string): Promise<boolean> {
     response = await fetch(`/api/saved-jobs/${encodeURIComponent(jobId)}`, {
       method: 'DELETE',
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
       signal: AbortSignal.timeout(10000),
     });
   } catch {
