@@ -151,5 +151,37 @@ at image build time.
 
 Validation: typecheck/lint and the streaming-proxy regression pass.
 The initial full browser run passed 33 checks and failed one design-review search
-interaction; that test passed alone unchanged. The full rerun passed all 34 checks, including that interaction unchanged. Live verification of the corrected image is
-still required; this section does not claim the feature release is deployed.
+interaction; that test passed alone unchanged. The full rerun passed all 34 checks, including that interaction unchanged. Live verification was pending at that checkpoint; the final results follow.
+
+## Corrected release deployed and verified
+
+PR #23 merged as `ca5b28936d7d07a4957ae38f8ef89b911188ac5f`. All eight PR checks
+and all four main CI jobs passed (main run 40212425859): 133 Node/database tests
+with zero skips, 375 offline Python tests, 34 browser checks, and zero known
+production dependency advisories. Both production containers
+run exact-commit local-registry images, with verified OCI revision labels and
+healthy status. Coolify API deployment sz8lpbqbr5epxyumzqrfo2vx and frontend
+jvsfozfmzcpmrdip1tjfaj4e finished.
+
+Exact merged images passed 22 staging API checks and eight real Chrome flows.
+A fresh private production backup restored successfully in isolated PostgreSQL 18
+(SHA256 43f1e94b4e78cde2a7c91758eb166576d6e460a4791b760bc4654864d213291f).
+Production migration history has zero pending migrations.
+All 22 production authenticated API checks passed; fictional fixtures cleaned.
+Chrome profile update/refresh passed and actual Save and Remove returned 200.
+Public loading exceeded five-second operator assertions. With consistent 30-second
+waits, the full browser profile update/refresh and Save/refresh/Remove/refresh
+flow passed; fictional fixtures were cleaned. The 900-second production watch
+passed: 24 rounds, 96 expected HTTP responses and no detected runtime errors.
+Disposable staging and temporary release credential files were removed; verified
+backups and exact rollback images are retained. Public jobs API latency remains
+a documented performance follow-up, not a correctness claim or a measured field
+percentile. Synthetic checks do not establish live Google OAuth consent or load
+test coverage.
+
+During the watch, a separate read-only worker inspection found the 10 PM run
+published zero jobs. The old worker image94ccc9d retains13 capture holds with
+needs_review/attempts3 from earlier DNS failures; the run skips fresh capture and
+misreports completed. Fresh worker-image DNS checks now succeed. Worker state
+was not reset and no provider calls or worker deployment were triggered. Recovery
+requirements are recorded in the existing Notion worker tracker.

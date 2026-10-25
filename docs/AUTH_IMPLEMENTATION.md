@@ -639,3 +639,15 @@ PUT /api/profile before canonical empty-body matching; failed saves do not match
 Profile date/marks/education validation has its own persistent contract coverage.
 The added regression failed with actual 200 / expected 409 before this fix;
 132 Node/database and 34 browser tests pass afterward, with no skipped checks.
+
+### Public-proxy saved-job request correction
+
+PR #23 adds explicit JSON empty-object bodies and content types to Save and Remove.
+A real streaming HTTP proxy/Fastify regression reproduces the prior 415 response
+and verifies the correction. No session, ownership or origin policy changed.
+The release is merged as ca5b28936d7d07a4957ae38f8ef89b911188ac5f; main CI,
+isolated database/browser staging and 22 live authenticated API checks passed.
+Both Coolify containers are healthy at that exact revision. Public Chrome profile update/refresh and Save/Remove persistence checks passed.
+Fictional fixtures were cleaned. Fifteen-minute monitoring passed (24 rounds, 96 expected responses, no detected
+runtime errors); see the scoped release record for
+final evidence and latency limitations.
