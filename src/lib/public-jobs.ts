@@ -4,7 +4,7 @@ import type { JobFilters } from '../../frontend/public-job-filters.js';
 import { activeApplicationWhere } from './application-deadline.js';
 
 // Shared by the JSON API and HTML catalogue; never select user/profile data.
-const publicFields = {
+export const publicFields = {
   id: true,
   postName: true,
   organization: true,

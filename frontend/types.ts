@@ -22,6 +22,21 @@ export interface Profile {
   educations: EducationEntry[];
 }
 
+export interface SavedProfileEducation {
+  level: EducationLevel;
+  marksPercent: number | null;
+}
+
+export interface SavedProfile {
+  dob: string;
+  category: string | null;
+  educations: SavedProfileEducation[];
+}
+
+export interface ProfileResponse {
+  profile: SavedProfile | null;
+}
+
 interface PostSummary {
   id: string;
   postName: string;
@@ -38,6 +53,19 @@ export interface MatchedPost extends PostSummary {
 export interface ManualPost extends PostSummary {
   reason: string;
   educationRequired: string | null;
+}
+
+export interface PublicJobItem {
+  id: string;
+  postName: string;
+  organization?: string | null;
+  vacancies: number | null;
+  applicationLastDate: string | null;
+  educationRequired: string;
+  payLevel?: string | null;
+  source: {
+    name: string;
+  };
 }
 
 export interface MatchResponse {

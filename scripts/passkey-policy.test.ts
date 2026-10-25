@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { supportsPasskeys } from '../src/auth/passkeys.js';
-import { passkeyFixture, passkeyConfig } from './helpers/passkey-fixture.js';
-import { mockGoogle } from './helpers/google-fixture.js';
+import { passkeyFixture } from './helpers/passkey-fixture.js';
 
 await test('passkeys require a domain and a secure browser context', () => {
   assert.equal(supportsPasskeys('http://localhost:8080'), true);
@@ -20,7 +19,8 @@ await test(
   'passkey account-management security boundaries',
   { skip: !process.env.TEST_DATABASE_URL },
   async (t) => {
-    const { app, database, seed, call, origin } = await passkeyFixture(t);
+    const { app, database, seed, call, origin, google } =
+      await passkeyFixture(t);
     const owner = await seed('Illustrative Owner');
     const other = await seed('Illustrative Other');
     const key = await database.authPasskey.create({
@@ -167,7 +167,6 @@ await test(
     await t.test(
       'same-account Google reauthentication succeeds but cannot switch accounts',
       async () => {
-        const google = mockGoogle(t, passkeyConfig.googleClientId);
         const reauthenticate = async (subject: string, email: string) => {
           google.subject = subject;
           google.email = email;

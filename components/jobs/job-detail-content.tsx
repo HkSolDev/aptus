@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import React, { type ReactNode } from 'react';
 import { JobDetailSection, JobPreviewSaveButton } from './job-detail-section';
+import { SaveJobButton } from './save-job-button';
 import styles from './job-detail-content.module.css';
 
 type EducationOption = {
@@ -483,7 +484,11 @@ export function JobDetailContent({ job }: { job: JobDetailData }) {
         <Link href="/#jobs" className="button button-secondary">
           ← Back to all jobs
         </Link>
-        {job.designReview ? <JobPreviewSaveButton id={job.id} /> : null}
+        {job.designReview ? (
+          <JobPreviewSaveButton id={job.id} />
+        ) : (
+          <SaveJobButton id={job.id} className="button button-secondary" />
+        )}
       </nav>
 
       <header className={styles.header}>

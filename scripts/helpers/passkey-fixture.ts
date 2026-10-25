@@ -4,6 +4,7 @@ import type { TestContext } from 'node:test';
 import { buildApp } from '../../src/app.js';
 import { createAuth } from '../../src/auth/auth.js';
 import { authDatabase } from './auth-database.js';
+import { mockGoogle } from './google-fixture.js';
 
 export const passkeyConfig = {
   origin: 'https://aptus.example',
@@ -30,6 +31,8 @@ export async function passkeyFixture(t: TestContext, browser = false) {
     );
     origin = `http://localhost:${port}`;
   }
+  // Discovery happens during auth initialization, before the first OAuth request.
+  const google = mockGoogle(t, passkeyConfig.googleClientId);
   const auth = createAuth({ ...passkeyConfig, origin }, database);
   const app = buildApp(auth);
   t.after(() => app.close());
@@ -89,5 +92,5 @@ export async function passkeyFixture(t: TestContext, browser = false) {
       headers: { origin, cookie, 'content-type': 'application/json' },
       payload: JSON.stringify(payload),
     });
-  return { app, auth, database, seed, call, origin };
+  return { app, auth, database, seed, call, origin, google };
 }

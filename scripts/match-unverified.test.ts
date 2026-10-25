@@ -114,7 +114,7 @@ await test('match handler keeps unverified qualifications/experience manual even
       }),
     );
   };
-  stub(prisma.user, 'upsert', () => Promise.resolve(user));
+  stub(prisma.user, 'findUnique', () => Promise.resolve(user));
   stub(prisma.user, 'findUniqueOrThrow', () => Promise.resolve(user));
   stub(prisma.post, 'findMany', () => Promise.resolve([post]));
   stub(prisma.source, 'findMany', () => Promise.resolve([]));
