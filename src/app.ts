@@ -4,6 +4,8 @@ import { registerPublicRoutes } from './routes/public.js';
 import { handleMatch } from './routes/match.js';
 import { handleExplain } from './routes/explain.js';
 import { handleIngest } from './routes/ingest.js';
+import { registerProfileRoutes } from './routes/profile.js';
+import { registerSavedJobsRoutes } from './routes/saved-jobs.js';
 import { createAuth, type AppAuth } from './auth/auth.js';
 import { readAuthConfig } from './auth/config.js';
 import { registerAuthRoutes } from './auth/routes.js';
@@ -54,6 +56,8 @@ export function buildApp(auth?: AppAuth, env: NodeJS.ProcessEnv = process.env) {
   const config = auth ? null : readAuthConfig(env);
   const appAuth = auth ?? (config ? createAuth(config) : null);
   if (appAuth) registerAuthRoutes(app, appAuth);
+  registerProfileRoutes(app, appAuth);
+  registerSavedJobsRoutes(app, appAuth);
   const options = { schema: { body: { type: 'object' } } };
   const protectedOptions = {
     ...options,

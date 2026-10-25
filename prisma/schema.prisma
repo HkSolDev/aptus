@@ -25,6 +25,7 @@ model AuthUser {
   sessions      AuthSession[]
   accounts      AuthAccount[]
   passkeys      AuthPasskey[]
+  savedJobs     SavedJob[]
 }
 
 // Public verification material only; private keys stay with the authenticator.
@@ -187,8 +188,22 @@ model Post {
   reviewedDetails           Json?
   reviewedAt                DateTime?
   reviewNote                String?
+  savedBy                   SavedJob[]
 
   @@unique([extractionCandidateId, candidatePostIndex])
+}
+
+// Account-owned saved jobs shortlist, independent of profile completion.
+model SavedJob {
+  id         String   @id @default(cuid())
+  authUserId String
+  authUser   AuthUser @relation(fields: [authUserId], references: [id], onDelete: Cascade)
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  savedAt    DateTime @default(now())
+
+  @@unique([authUserId, postId])
+  @@index([authUserId, savedAt])
 }
 
 // Offline extraction drafts. Public browsing and matching read Post, not this table.

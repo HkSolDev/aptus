@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { fetchPublicJobs } from '@/components/jobs/catalogue-grid';
 import { RecommendationsPreview } from '@/components/results/recommendations-preview';
+import { SavedJobsView } from '@/components/results/saved-jobs-view';
 
 export const metadata: Metadata = {
   title: 'Saved jobs',
@@ -21,18 +21,5 @@ export default async function SavedPage() {
     if (result?.designReview)
       return <RecommendationsPreview savedJobs={result.data} />;
   }
-  return (
-    <section className="intro" aria-labelledby="saved-title">
-      <h1 id="saved-title">Saved jobs</h1>
-      <div className="panel">
-        <p>Saving jobs is not available yet.</p>
-        <p className="muted">
-          This section will keep the jobs you choose to read later.
-        </p>
-        <Link className="button button-secondary" href="/#jobs">
-          Explore jobs
-        </Link>
-      </div>
-    </section>
-  );
+  return <SavedJobsView />;
 }

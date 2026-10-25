@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import styles from './job-card.module.css';
+import { SaveJobButton } from './save-job-button';
 
 export interface PublicJobItem {
   id: string;
@@ -84,7 +85,7 @@ export function JobCard({
           View details
         </Link>
         <div className={styles.secondaryActions}>
-          {actions ?? <Link href="/sign-in">Save</Link>}
+          {actions ?? <SaveJobButton id={job.id} />}
         </div>
       </div>
     </article>
