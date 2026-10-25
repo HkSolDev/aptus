@@ -110,3 +110,48 @@ test('matching distinguishes missing profile from a storage outage with one read
   assert.equal(fallback.mock.callCount(), 0);
   assert.equal(write.mock.callCount(), 0);
 });
+
+test('stale clients cannot silently match a different stored profile', async (t) => {
+  const user = {
+    id: 'fixture-profile',
+    dob: new Date('1995-01-02'),
+    category: 'General',
+    educations: [{ level: 'BACHELORS', marksPercent: 80 }],
+  };
+  const read = t.mock.fn(async () => user);
+  for (const [target, key, implementation] of [
+    [prisma.user, 'findUnique', read],
+    [prisma.user, 'findUniqueOrThrow', async () => user],
+    [prisma.post, 'findMany', async () => []],
+    [prisma.source, 'findMany', async () => []],
+  ] as const) {
+    const original = Reflect.get(target, key);
+    Object.defineProperty(target, key, {
+      configurable: true,
+      value: implementation,
+    });
+    t.after(() =>
+      Object.defineProperty(target, key, {
+        configurable: true,
+        value: original,
+      }),
+    );
+  }
+  const app = Fastify();
+  t.after(() => app.close());
+  app.post<{ Body: Parameters<typeof handleMatch>[0]['body'] }>(
+    '/match',
+    (request, reply) => {
+      request.authUserId = 'fixture-account';
+      return handleMatch(request, reply);
+    },
+  );
+  const response = await app.inject({
+    method: 'POST',
+    url: '/match',
+    payload: { dob: '2001-01-01', educations: [{ level: 'TENTH' }] },
+  });
+  assert.equal(response.statusCode, 409);
+  assert.match(response.json().error, /Refresh Aptus.*Save profile/);
+  assert.equal(read.mock.callCount(), 0);
+});

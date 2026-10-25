@@ -4,7 +4,7 @@ import { buildApp } from '../src/app.js';
 import { createAuth } from '../src/auth/auth.js';
 import { prisma } from '../src/db.js';
 
-await test('matching validates input only after origin and session verification', async (t) => {
+await test('matching rejects legacy profile payloads only after origin and session verification', async (t) => {
   const origin = 'https://aptus.example';
   const auth = createAuth({
     origin,
@@ -48,22 +48,22 @@ await test('matching validates input only after origin and session verification'
     {
       name: 'missing DOB',
       payload: { educations: [{ level: 'BACHELORS' }] },
-      error: 'A valid Date of Birth (dob) is required',
+      error: 'Refresh Aptus and use Save profile before checking matches.',
     },
     {
       name: 'invalid DOB',
       payload: { dob: 'invalid-date', educations: [{ level: 'BACHELORS' }] },
-      error: 'A valid Date of Birth (dob) is required',
+      error: 'Refresh Aptus and use Save profile before checking matches.',
     },
     {
       name: 'empty education',
       payload: { dob: '1998-05-15', educations: [] },
-      error: 'At least one education entry is required',
+      error: 'Refresh Aptus and use Save profile before checking matches.',
     },
     {
       name: 'invalid education level',
       payload: { dob: '1998-05-15', educations: [{ level: 'INVALID_LEVEL' }] },
-      error: 'Invalid education level: INVALID_LEVEL',
+      error: 'Refresh Aptus and use Save profile before checking matches.',
     },
   ];
   for (const item of cases) {
@@ -73,7 +73,7 @@ await test('matching validates input only after origin and session verification'
       headers,
       payload: item.payload,
     });
-    assert.equal(response.statusCode, 400, item.name);
+    assert.equal(response.statusCode, 409, item.name);
     assert.deepEqual(response.json(), { error: item.error });
   }
   const signedOut = await app.inject({
