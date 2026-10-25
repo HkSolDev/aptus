@@ -130,3 +130,26 @@ eligibility/manual-review assertions remain unchanged. The follow-up local gate
 passed all 132 API/database tests (zero skips) and all 34 browser tests.
 The earlier candidate images were built but not deployed; the rollout must use
 the follow-up merged commit after its own green CI.
+
+## Public-proxy transport correction
+
+The first b9852a7 rollout passed staging but failed the public Save-job flow:
+Chrome and the synthetic-account smoke both received HTTP 415. A real streaming
+HTTP proxy regression reproduces rejection when the body is chunked and lacks a
+content type. Save and Remove now send explicit JSON `{}` with
+`Content-Type: application/json`; session, ownership and origin checks are unchanged.
+The regression passes against real Fastify and a streaming Node proxy.
+
+Both services were restored: API 94ccc9d and frontend d5779421. The frontend
+rollback required publishing its retained local image to the local registry and
+using Coolify's prebuilt-image queue. The original rollback tried a missing root
+Dockerfile; a second attempt tried Docker Hub for a local-only image. The final
+rollback finished with a healthy retained frontend. The additive SavedJob table
+remains; no existing records were removed. Future frontend releases use explicit
+local-registry image names and exact commit tags, with the internal API URL set
+at image build time.
+
+Validation: typecheck/lint and the streaming-proxy regression pass.
+The initial full browser run passed 33 checks and failed one design-review search
+interaction; that test passed alone unchanged. The full rerun passed all 34 checks, including that interaction unchanged. Live verification of the corrected image is
+still required; this section does not claim the feature release is deployed.
