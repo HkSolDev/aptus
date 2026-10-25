@@ -113,3 +113,20 @@ Typecheck, lint, full formatting, Prisma schema validation, fresh migration depl
 and production dependency audit passed. The advisory audit reports zero at every
 severity. The deprecated lodash 4.18.0 build was rejected in favour of 4.18.1.
 CI and production rollout are still pending at this checkpoint.
+
+## Pre-deploy contract review
+
+Before changing production, a new regression reproduced that a stale client
+could submit changed profile fields and receive HTTP 200 while the server matched
+the previously stored profile instead. The matching endpoint now rejects any
+nonempty legacy input with HTTP 409 and refresh/Save profile guidance (forged
+ownership IDs still receive 400). Canonical matching accepts only `{}`.
+The remaining legacy form caller explicitly PUTs its whitelisted profile first,
+then sends an empty match body. A failed save cannot start matching.
+
+Date, qualification and marks validation coverage moved to profile-save contract
+tests rather than keeping obsolete validation behaviour inside matching. Existing
+eligibility/manual-review assertions remain unchanged. The follow-up local gate
+passed all 132 API/database tests (zero skips) and all 34 browser tests.
+The earlier candidate images were built but not deployed; the rollout must use
+the follow-up merged commit after its own green CI.

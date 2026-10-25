@@ -1,4 +1,4 @@
-import type { MatchResponse, Profile } from './types.js';
+import type { MatchResponse } from './types.js';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -66,8 +66,8 @@ async function postJson(path: string, body: unknown): Promise<unknown> {
   return data;
 }
 
-export async function matchProfile(profile?: Profile): Promise<MatchResponse> {
-  const data = await postJson('/api/match', profile ?? {});
+export async function matchProfile(): Promise<MatchResponse> {
+  const data = await postJson('/api/match', {});
   // Types disappear at compilation; check the server response at this boundary.
   if (!isMatchResponse(data))
     throw new Error(
