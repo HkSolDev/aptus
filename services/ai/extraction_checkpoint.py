@@ -28,16 +28,7 @@ def extract_or_resume(retries, fingerprint, prepared, extract):
         return None, False
     try:
         result = extract(prepared)
-        if not isinstance(result, dict) or result.get('bundle_id') != prepared['llm_input']['input']['bundle_id']:
-            raise ValueError('Extracted identity mismatch')
-        payload = json.dumps(result, ensure_ascii=False).encode()
-        atomic_write(path, payload)
-        retries.success('extraction', fingerprint, response_sha256=hashlib.sha256(payload).hexdigest(),
-                        evidence_sha256=evidence_sha)
-        return result, False
     except ProviderDeferred as error:
-        # A clock deferral made no HTTP request and must not exhaust the
-        # provider's three real attempts or create a permanent review block.
         state = retries.read('extraction', fingerprint)
         retries.write('extraction', fingerprint, {
             **state, 'status': 'retry_wait', 'reason': 'provider_peak_hours',
@@ -47,4 +38,15 @@ def extract_or_resume(retries, fingerprint, prepared, extract):
     except (RuntimeError, ValueError, TypeError, OSError) as error:
         reason, retryable, delay = extraction_failure(error)
         retries.failure('extraction', fingerprint, reason, retryable=retryable, retry_after=delay)
+        raise
+    try:
+        if not isinstance(result, dict) or result.get('bundle_id') != prepared['llm_input']['input']['bundle_id']:
+            raise ValueError('Extracted identity mismatch')
+        payload = json.dumps(result, ensure_ascii=False).encode()
+        atomic_write(path, payload)
+        retries.success('extraction', fingerprint, response_sha256=hashlib.sha256(payload).hexdigest(),
+                        evidence_sha256=evidence_sha)
+        return result, False
+    except (RuntimeError, ValueError, TypeError, OSError):
+        retries.failure('extraction', fingerprint, 'checkpoint_storage_failed')
         raise
