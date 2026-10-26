@@ -54,12 +54,7 @@ def publish(root, path, *, send=None, clock=None):
     receipt_path = root / 'publication' / 'receipts' / f'{digest}.json'
     with retries.lock('publication', digest):
         if receipt_path.exists():
-            payload = receipt_path.read_bytes()
-            if hashlib.sha256(payload).hexdigest() != retries.read('publication', digest).get('receipt_sha256'):
-                raise ValueError('Publication receipt integrity mismatch')
-            receipt = json.loads(payload)
-            _validate_receipt(receipt, digest, len(draft['facts']['posts']))
-            return receipt
+            return validate_receipt_payload(receipt_path.read_bytes(), digest, len(draft['facts']['posts']), retries)
         if not retries.begin('publication', digest):
             return retries.read('publication', digest)
         if send is None:
@@ -90,16 +85,42 @@ def publish(root, path, *, send=None, clock=None):
             raise RuntimeError('publication_failed') from None
 
 
-def _validate_receipt(receipt, digest, count):
+def validate_receipt_payload(payload, digest, expected_count=None, stage_retries=None):
+    if not isinstance(payload, (bytes, bytearray)):
+        raise ValueError('Receipt payload must be bytes')
+    if stage_retries is not None:
+        rec_sha = stage_retries.read('publication', digest).get('receipt_sha256')
+        if rec_sha and hashlib.sha256(payload).hexdigest() != rec_sha:
+            raise ValueError('Publication receipt integrity mismatch')
+    try:
+        receipt = json.loads(payload)
+    except (OSError, ValueError, TypeError) as err:
+        raise ValueError('Receipt payload is not valid JSON') from err
+    _validate_receipt(receipt, digest, expected_count)
+    return receipt
+
+
+def is_valid_receipt_file(receipt_path, digest, expected_count=None, stage_retries=None):
+    path = Path(receipt_path)
+    if not path.is_file():
+        return False
+    try:
+        validate_receipt_payload(path.read_bytes(), digest, expected_count=expected_count, stage_retries=stage_retries)
+        return True
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def _validate_receipt(receipt, digest, count=None):
     if (not isinstance(receipt, dict) or receipt.get('draft_sha256') != digest
             or not isinstance(receipt.get('candidate_id'), str) or not receipt['candidate_id']
             or not isinstance(receipt.get('content_hash'), str)
             or len(receipt['content_hash']) != 64
             or any(c not in '0123456789abcdef' for c in receipt['content_hash'])
             or not isinstance(receipt.get('post_ids'), list)
-            or len(receipt['post_ids']) != count
+            or (len(receipt['post_ids']) != count if count is not None else len(receipt['post_ids']) == 0)
             or any(not isinstance(item, str) or not item for item in receipt['post_ids'])
-            or len(set(receipt['post_ids'])) != count):
+            or len(set(receipt['post_ids'])) != len(receipt['post_ids'])):
         raise ValueError('Invalid publication receipt')
 
 

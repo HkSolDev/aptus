@@ -17,8 +17,10 @@ from extraction_checkpoint import extract_or_resume
 from generic_pipeline import run_pipeline
 from notice_state import (EXTRACTION_VERSION, NoticeStateManager,
                           compute_evidence_fingerprint)
-from review_publication import approve, publish
-from stage_retry import StageRetries
+from review_publication import approve, publish, is_valid_receipt_file
+from stage_retry import StageRetries, is_transient_capture_error, capture_failure
+from capture_retry import capture_with_retry
+from recover_capture_holds import audit_capture_holds
 from store_candidate import prepare_storage
 try:
     from test_notice_state import sample_prepared
@@ -608,6 +610,355 @@ class WorkerRecoveryAndReportingTests(unittest.TestCase):
 
         # Waiting retry was recorded as waiting, not counted as an extraction attempt
         self.assertEqual(ext["waiting_retry"], 1)
+
+    # 13. Transient capture recovers automatically after cooldown and restarts
+    def test_transient_capture_recovers_after_cooldown_and_restart(self):
+        root = self.root / "transient_capture_recovery"
+        clock = [1000]
+        test_url = "https://example.gov.in/notice"
+        calls = []
+
+        def failing_process(url, storage, **kwargs):
+            calls.append(("fail", clock[0]))
+            return None, "gaierror", True
+
+        def succeeding_process(url, storage, **kwargs):
+            calls.append(("success", clock[0]))
+            body_file = Path(storage) / "doc.html"
+            body_file.parent.mkdir(parents=True, exist_ok=True)
+            body_file.write_text("<html><h1>Recruitment</h1></html>")
+            norm_dir = Path(storage) / "normalized-runs" / "r1"
+            norm_dir.mkdir(parents=True, exist_ok=True)
+            norm_path = norm_dir / "normalized.json"
+            norm_path.write_text(json.dumps({"format": "html", "sections": []}))
+            content_path = norm_dir / "selected.json"
+            content_path.write_text(json.dumps({"format": "html", "sections": []}))
+            return {
+                "source_url": url,
+                "final_url": url,
+                "sha256": hashlib.sha256(b"html").hexdigest(),
+                "snapshot_id": "snap_1",
+                "body_path": str(body_file),
+                "document_kind": "html",
+                "normalized_path": str(norm_path),
+                "content_path": str(content_path),
+            }, None, False
+
+        # Attempt 1 (t=1000)
+        res1, reason1, retryable1 = capture_with_retry(test_url, root, failing_process, "board", clock=lambda: clock[0])
+        self.assertIsNone(res1)
+        self.assertEqual(reason1, "gaierror")
+        self.assertTrue(retryable1)
+        self.assertEqual(len(calls), 1)
+
+        # Check state: retry_wait with next_at in future
+        retries = StageRetries(root, lambda: clock[0])
+        st1 = retries.read("capture", test_url)
+        self.assertEqual(st1["status"], "retry_wait")
+        self.assertEqual(st1["attempts"], 1)
+        next_at_1 = st1["next_at"]
+        self.assertGreaterEqual(next_at_1, 1030)
+
+        # Restart during cooldown (t=1010): should skip fetch without real network attempt
+        clock[0] = 1010
+        res_skip = capture_with_retry(test_url, root, failing_process, "board", clock=lambda: clock[0])
+        self.assertIsNone(res_skip[0])
+        self.assertEqual(res_skip[1], "gaierror")
+        self.assertTrue(res_skip[2])
+        self.assertTrue(getattr(res_skip, "cooldown_skip", False))
+        self.assertEqual(len(calls), 1)  # No new network call!
+
+        # Attempt 2 (t=next_at_1 + 1): cooldown expired -> real attempt allowed
+        clock[0] = next_at_1 + 1
+        res2 = capture_with_retry(test_url, root, failing_process, "board", clock=lambda: clock[0])
+        self.assertIsNone(res2[0])
+        self.assertEqual(len(calls), 2)
+        st2 = retries.read("capture", test_url)
+        self.assertEqual(st2["status"], "retry_wait")
+        self.assertEqual(st2["attempts"], 2)
+        next_at_2 = st2["next_at"]
+
+        # Attempt 3 (t=next_at_2 + 1): attempt 3 fails -> enters capped delayed recovery (NOT permanent needs_review)
+        clock[0] = next_at_2 + 1
+        res3 = capture_with_retry(test_url, root, failing_process, "board", clock=lambda: clock[0])
+        self.assertIsNone(res3[0])
+        self.assertEqual(len(calls), 3)
+        st3 = retries.read("capture", test_url)
+        self.assertEqual(st3["status"], "retry_wait")
+        self.assertEqual(st3["attempts"], 3)
+        self.assertGreater(st3["next_at"], clock[0])
+        next_at_3 = st3["next_at"]
+
+        # Recovery run after outage resolved (t=next_at_3 + 1):
+        clock[0] = next_at_3 + 1
+        res_rec = capture_with_retry(test_url, root, succeeding_process, "board", clock=lambda: clock[0])
+        self.assertIsNotNone(res_rec[0])
+        self.assertEqual(len(calls), 4)
+        st_rec = retries.read("capture", test_url)
+        self.assertEqual(st_rec["status"], "success")
+        self.assertIsNone(st_rec["reason"])
+        # Next fresh capture cycle starts with attempt count 1
+        self.assertTrue(retries.begin("capture", test_url))
+        self.assertEqual(retries.read("capture", test_url)["attempts"], 1)
+
+    # 14. Successful DNS with failed HTTP distinguishes transient from permanent
+    def test_successful_dns_with_failed_http_distinguishes_transient_from_permanent(self):
+        root = self.root / "http_classification"
+        clock = [1000]
+
+        # Case A: HTTP 503 Service Unavailable (DNS resolved, server temporarily overloaded)
+        url_503 = "https://example.gov.in/status503"
+        capture_with_retry(url_503, root, lambda *a, **k: (None, "http_503", True), clock=lambda: clock[0])
+        retries = StageRetries(root, lambda: clock[0])
+        st_503 = retries.read("capture", url_503)
+        self.assertEqual(st_503["status"], "retry_wait")
+        self.assertTrue(is_transient_capture_error(st_503["reason"]))
+
+        # Case B: HTTP 404 Not Found (DNS resolved, resource permanently missing)
+        url_404 = "https://example.gov.in/missing404"
+        capture_with_retry(url_404, root, lambda *a, **k: (None, "http_404", False), clock=lambda: clock[0])
+        st_404 = retries.read("capture", url_404)
+        self.assertEqual(st_404["status"], "needs_review")
+        self.assertEqual(st_404["next_at"], 0)
+        self.assertFalse(is_transient_capture_error(st_404["reason"]))
+
+        # Even 100 days later, HTTP 404 must NOT automatically retry
+        clock[0] += 86400 * 100
+        self.assertFalse(retries.begin("capture", url_404))
+
+    # 15. No retry stampede: jitter staggers recovery and limits real attempts
+    def test_no_retry_stampede_and_jitter(self):
+        root = self.root / "stampede_jitter"
+        clock = [1000]
+        retries = StageRetries(root, lambda: clock[0], jitter=True)
+
+        urls = [
+            "https://example.gov.in/notice_alpha",
+            "https://example.gov.in/notice_beta",
+            "https://example.gov.in/notice_gamma",
+        ]
+        delays = []
+        for u in urls:
+            self.assertTrue(retries.begin("capture", u))
+            retries.failure("capture", u, "gaierror", retryable=True)
+            st = retries.read("capture", u)
+            delays.append(st["next_at"])
+
+        # Jitter ensures they do not all wake up at the exact same second
+        self.assertEqual(len(delays), 3)
+        self.assertTrue(all(d >= 1030 for d in delays))
+        self.assertGreater(len(set(delays)), 1)
+
+    # 16. Preservation of strong holds: uncertain AI, corrupt checkpoint, factual review
+    def test_preservation_of_strong_holds_across_runs_and_restarts(self):
+        root = self.root / "strong_holds"
+        clock = [1000]
+        retries = StageRetries(root, lambda: clock[0])
+
+        # Hold 1: Uncertain paid AI generation
+        retries.write("extraction", "fp_uncertain", {
+            "status": "needs_review", "attempts": 1, "next_at": 0,
+            "reason": "provider_completion_uncertain",
+        })
+
+        # Hold 2: Corrupt checkpoint
+        retries.write("extraction", "fp_corrupt", {
+            "status": "needs_review", "attempts": 1, "next_at": 0,
+            "reason": "corrupt_extraction_checkpoint",
+        })
+
+        # Hold 3: Candidate validation failure (factual hold)
+        retries.write("extraction", "fp_val_blocked", {
+            "status": "needs_review", "attempts": 1, "next_at": 0,
+            "reason": "candidate_validation_blocked",
+        })
+
+        # Hold 4: Non-transient capture hold
+        retries.write("capture", "url_invalid_pdf", {
+            "status": "needs_review", "attempts": 1, "next_at": 0,
+            "reason": "invalid_pdf",
+        })
+
+        # Simulate 30 days and worker restarts
+        clock[0] += 86400 * 30
+        for stage, key in [
+            ("extraction", "fp_uncertain"),
+            ("extraction", "fp_corrupt"),
+            ("extraction", "fp_val_blocked"),
+            ("capture", "url_invalid_pdf"),
+        ]:
+            restarted = StageRetries(root, lambda: clock[0])
+            self.assertFalse(restarted.begin(stage, key))
+            st = restarted.read(stage, key)
+            self.assertEqual(st["status"], "needs_review")
+
+    # 17. Publication receipt content & integrity validation before counting published
+    def test_publication_receipt_content_and_integrity_validation(self):
+        root = self.root / "receipt_integrity_validation"
+        prep = self._sample_prepared_bundle("bnd_receipt_test")
+        prep_path = root / "bnd_receipt_test.prepared.json"
+        prep_path.parent.mkdir(parents=True, exist_ok=True)
+        prep_path.write_text(json.dumps(prep))
+
+        # Create draft via pipeline run 1
+        rep1 = run_pipeline(
+            root,
+            prepare=lambda *a, **k: [{"source": "ssc", "status": "prepared_for_review",
+                                      "prepared_inputs": 1, "prepared_paths": [str(prep_path)]}],
+            extract=lambda _: {"bundle_id": "bnd_receipt_test", "facts": self._sample_facts()},
+            validate=lambda *_: {"status": "needs_review", "disposition": "valid_recruitment_review_draft", "errors": []},
+        )
+        self.assertEqual(rep1["summary"]["drafts"]["created"], 1)
+
+        draft_file = root / "drafts" / "bnd_receipt_test.json"
+        draft_sha = hashlib.sha256(draft_file.read_bytes()).hexdigest()
+        receipts_dir = root / "publication" / "receipts"
+        receipts_dir.mkdir(parents=True, exist_ok=True)
+        bad_receipt = receipts_dir / f"{draft_sha}.json"
+
+        # Case 1: Empty receipt file on disk
+        bad_receipt.write_text("")
+        rep_empty = run_pipeline(
+            root,
+            prepare=lambda *a, **k: [{"source": "ssc", "status": "prepared_for_review",
+                                      "prepared_inputs": 1, "prepared_paths": [str(prep_path)]}],
+            extract=lambda _: self.fail("Unexpected AI call"),
+            validate=lambda *_: {"status": "needs_review", "disposition": "valid_recruitment_review_draft", "errors": []},
+        )
+        # Must NOT count as published!
+        self.assertEqual(rep_empty["summary"]["drafts"]["published"], 0)
+        self.assertEqual(rep_empty["summary"]["drafts"]["reused_awaiting_review"], 1)
+        self.assertEqual(rep_empty["summary"]["drafts"]["total_backlog_awaiting_review"], 1)
+
+        # Case 2: Corrupt JSON / schema mismatch
+        bad_receipt.write_text(json.dumps({"invalid": "schema"}))
+        rep_corrupt = run_pipeline(
+            root,
+            prepare=lambda *a, **k: [{"source": "ssc", "status": "prepared_for_review",
+                                      "prepared_inputs": 1, "prepared_paths": [str(prep_path)]}],
+            extract=lambda _: self.fail("Unexpected AI call"),
+            validate=lambda *_: {"status": "needs_review", "disposition": "valid_recruitment_review_draft", "errors": []},
+        )
+        self.assertEqual(rep_corrupt["summary"]["drafts"]["published"], 0)
+        self.assertEqual(rep_corrupt["summary"]["drafts"]["reused_awaiting_review"], 1)
+        self.assertEqual(rep_corrupt["summary"]["drafts"]["total_backlog_awaiting_review"], 1)
+
+        # Case 3: Legitimate approval and publication with verified receipt
+        bad_receipt.unlink()
+        approval = approve(root, draft_file, reviewer="Auditor", note="Checked facts")
+        publish(root, draft_file, send=lambda _: {
+            "candidate_id": "cand_real_001",
+            "content_hash": hashlib.sha256(b"content").hexdigest(),
+            "draft_sha256": approval["draft_sha256"],
+            "post_ids": ["post_001"],
+        })
+        rep_valid = run_pipeline(
+            root,
+            prepare=lambda *a, **k: [{"source": "ssc", "status": "prepared_for_review",
+                                      "prepared_inputs": 1, "prepared_paths": [str(prep_path)]}],
+            extract=lambda _: self.fail("Unexpected AI call"),
+            validate=lambda *_: {"status": "needs_review", "disposition": "valid_recruitment_review_draft", "errors": []},
+        )
+        self.assertEqual(rep_valid["summary"]["drafts"]["published"], 1)
+        self.assertEqual(rep_valid["summary"]["drafts"]["reused_awaiting_review"], 0)
+        self.assertEqual(rep_valid["summary"]["drafts"]["total_backlog_awaiting_review"], 0)
+
+    # 18. Actual extractor invocation counter defects fixed
+    def test_actual_extractor_invocation_counter_defects_fixed(self):
+        root = self.root / "actual_invocations"
+        prep = self._sample_prepared_bundle("bnd_invocations")
+        prep_path = root / "bnd_invocations.prepared.json"
+        prep_path.parent.mkdir(parents=True, exist_ok=True)
+        prep_path.write_text(json.dumps(prep))
+
+        called = []
+
+        # Sub-case A: Provider is called and raises network error
+        def failing_extractor(p):
+            called.append("FAIL")
+            raise RuntimeError("provider_http_503")
+
+        rep_fail = run_pipeline(
+            root,
+            prepare=lambda *a, **k: [{"source": "ssc", "status": "prepared_for_review",
+                                      "prepared_inputs": 1, "prepared_paths": [str(prep_path)]}],
+            extract=failing_extractor,
+        )
+        self.assertEqual(called, ["FAIL"])
+        ext_fail = rep_fail["summary"]["extractions"]
+        self.assertEqual(ext_fail["attempted"], 1)
+        self.assertEqual(ext_fail["failed"], 1)
+        self.assertEqual(ext_fail["succeeded"], 0)
+
+        # Sub-case B: Checkpoint storage failure (provider succeeded, local disk failed)
+        fp = compute_evidence_fingerprint(prep["llm_input"]["input"], EXTRACTION_VERSION)
+        retries = StageRetries(root)
+        retries.path("extraction", fp).unlink(missing_ok=True)
+
+        called.clear()
+        def success_extractor(p):
+            called.append("SUCCESS")
+            return {"bundle_id": "bnd_invocations", "facts": self._sample_facts()}
+
+        with patch("extraction_checkpoint.atomic_write", side_effect=OSError("Disk full")):
+            rep_disk = run_pipeline(
+                root,
+                prepare=lambda *a, **k: [{"source": "ssc", "status": "prepared_for_review",
+                                          "prepared_inputs": 1, "prepared_paths": [str(prep_path)]}],
+                extract=success_extractor,
+            )
+        self.assertEqual(called, ["SUCCESS"])
+        ext_disk = rep_disk["summary"]["extractions"]
+        # Provider DID succeed!
+        self.assertEqual(ext_disk["attempted"], 1)
+        self.assertEqual(ext_disk["succeeded"], 1)
+        self.assertEqual(ext_disk["failed"], 0)
+        # Checkpoint failure recorded in retry state
+        st_disk = retries.read("extraction", fp)
+        self.assertEqual(st_disk["reason"], "checkpoint_storage_failed")
+
+    # 19. Audited dry-run recovery procedure for eligible capture holds
+    def test_audited_dry_run_recovery_procedure(self):
+        root = self.root / "dry_run_audit_recovery"
+        retries = StageRetries(root)
+
+        # Seed 2 eligible transient capture holds
+        retries.write("capture", "url_dns", {"status": "needs_review", "attempts": 3, "reason": "gaierror", "next_at": 0})
+        retries.write("capture", "url_conn", {"status": "needs_review", "attempts": 3, "reason": "ConnectTimeout", "next_at": 0})
+
+        # Seed 1 ineligible capture hold (permanent invalid_pdf)
+        retries.write("capture", "url_bad_pdf", {"status": "needs_review", "attempts": 1, "reason": "invalid_pdf", "next_at": 0})
+
+        # Seed 1 extraction hold (must NEVER be touched by capture audit)
+        retries.write("extraction", "fp_ai", {"status": "needs_review", "attempts": 1, "reason": "provider_completion_uncertain", "next_at": 0})
+
+        # 1. Run audit in dry_run=True (default)
+        audit_dry = audit_capture_holds(root, dry_run=True)
+        self.assertTrue(audit_dry["dry_run"])
+        self.assertEqual(audit_dry["total_holds"], 3)
+        self.assertEqual(audit_dry["eligible_holds"], 2)
+        self.assertEqual(audit_dry["ineligible_holds"], 1)
+        self.assertEqual(audit_dry["recovered"], 0)
+
+        # Disk files must be COMPLETELY unmodified in dry-run
+        self.assertEqual(retries.read("capture", "url_dns")["status"], "needs_review")
+        self.assertEqual(retries.read("capture", "url_conn")["status"], "needs_review")
+        self.assertEqual(retries.read("capture", "url_bad_pdf")["status"], "needs_review")
+        self.assertEqual(retries.read("extraction", "fp_ai")["status"], "needs_review")
+
+        # 2. Run recovery in dry_run=False
+        audit_exec = audit_capture_holds(root, dry_run=False)
+        self.assertFalse(audit_exec["dry_run"])
+        self.assertEqual(audit_exec["eligible_holds"], 2)
+        self.assertEqual(audit_exec["recovered"], 2)
+
+        # ONLY the 2 eligible transient holds were transitioned to retry_wait
+        self.assertEqual(retries.read("capture", "url_dns")["status"], "retry_wait")
+        self.assertEqual(retries.read("capture", "url_conn")["status"], "retry_wait")
+
+        # Ineligible capture hold and extraction hold are STRICTLY preserved in needs_review
+        self.assertEqual(retries.read("capture", "url_bad_pdf")["status"], "needs_review")
+        self.assertEqual(retries.read("extraction", "fp_ai")["status"], "needs_review")
 
 
 if __name__ == "__main__":

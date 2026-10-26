@@ -37,9 +37,14 @@ def crawl_source(url, root, *, process=capture_and_normalize, source_id=None, ma
         page = {**item, 'status': 'failed'}
         report['pages'].append(page)
         try:
-            result, reason, retryable = capture_with_retry(item['url'], root, process, source_id)
+            outcome = capture_with_retry(item['url'], root, process, source_id)
+            result, reason, retryable = outcome[0], outcome[1], outcome[2]
+            page['attempted'] = getattr(outcome, 'attempted', True)
+            page['cooldown_skip'] = getattr(outcome, 'cooldown_skip', False)
             if result is None:
                 page.update(reason=reason, retryable=retryable)
+                if page['cooldown_skip']:
+                    page['historical_reason'] = reason
                 if item['depth'] == 0 and reason in ('unsupported_document_type', 'unsupported_listing_format'):
                     report['seed_status'] = 'unsupported_document_type'
                 save()
@@ -131,6 +136,8 @@ def crawl_source(url, root, *, process=capture_and_normalize, source_id=None, ma
         report['reason'] = errors[0] if errors else 'crawl_failed'
     else:
         report['status'] = 'partial' if report['unchecked'] or failed else 'scanned'
+    report['capture_attempts'] = sum(1 for p in report['pages'] if p.get('attempted', True))
+    report['cooldown_skips'] = sum(1 for p in report['pages'] if p.get('cooldown_skip', False))
     # 'scanned' means the bounded positive-score frontier, never complete site coverage.
     save()
     return report

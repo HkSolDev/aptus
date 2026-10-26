@@ -15,6 +15,7 @@ from store_candidate import prepare_storage
 from validate_candidate import validate_candidate
 from stage_retry import StageRetries
 from extraction_checkpoint import extract_or_resume
+from review_publication import is_valid_receipt_file
 
 
 def _source_name(source_id, prepared):
@@ -51,6 +52,8 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
             'extracted': 0, 'drafts': 0, 'reused': 0, 'published': 0, 'blocked': 0, 'failed': 0,
             'blocked_reasons': [], 'failure_stages': [],
             'bundle_outcomes': [],
+            'capture_attempts': source.get('capture_attempts', 0),
+            'cooldown_skips': source.get('cooldown_skips', 0),
         }
         if source.get('errors'):
             counts['crawl_errors'] = list(source['errors'])
@@ -165,7 +168,12 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                         is_published = False
                         if draft_sha:
                             receipt_file = root / 'publication' / 'receipts' / f'{draft_sha}.json'
-                            is_published = receipt_file.is_file()
+                            post_count = len(cached_envelope.get('facts', {}).get('posts', []))
+                            is_published = is_valid_receipt_file(
+                                receipt_file, draft_sha,
+                                expected_count=post_count if post_count else None,
+                                stage_retries=retries,
+                            )
                         if is_published:
                             counts['published'] = counts.get('published', 0) + 1
                         elif disposition in {'valid_recruitment_review_draft', 'amendment_pending_review', 'unclear_purpose_review'}:
@@ -186,12 +194,25 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                     if extract is extract_bundle:
                         extractor = lambda value: extract_bundle(value, response_path=(
                             root / 'responses' / f'{fingerprint}.json'))
+
+                    provider_calls = {'attempted': 0, 'succeeded': 0, 'failed': 0}
+
+                    def tracked_extractor(val):
+                        provider_calls['attempted'] += 1
+                        try:
+                            res = extractor(val)
+                            provider_calls['succeeded'] += 1
+                            return res
+                        except Exception:
+                            provider_calls['failed'] += 1
+                            raise
+
                     try:
-                        extracted, resumed = extract_or_resume(retries, fingerprint, prepared, extractor)
-                    except (KeyError, OSError, RuntimeError, TypeError, ValueError):
-                        counts['provider_calls_attempted'] = counts.get('provider_calls_attempted', 0) + 1
-                        counts['provider_calls_failed'] = counts.get('provider_calls_failed', 0) + 1
-                        raise
+                        extracted, resumed = extract_or_resume(retries, fingerprint, prepared, tracked_extractor)
+                    finally:
+                        counts['provider_calls_attempted'] = counts.get('provider_calls_attempted', 0) + provider_calls['attempted']
+                        counts['provider_calls_succeeded'] = counts.get('provider_calls_succeeded', 0) + provider_calls['succeeded']
+                        counts['provider_calls_failed'] = counts.get('provider_calls_failed', 0) + provider_calls['failed']
 
                     if extracted is None:
                         retry = retries.read('extraction', fingerprint)
@@ -214,9 +235,7 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
 
                     if resumed:
                         counts['checkpoint_reused'] = counts.get('checkpoint_reused', 0) + 1
-                    else:
-                        counts['provider_calls_attempted'] = counts.get('provider_calls_attempted', 0) + 1
-                        counts['provider_calls_succeeded'] = counts.get('provider_calls_succeeded', 0) + 1
+                    elif extracted is not None:
                         counts['extracted'] += 1
 
                     if extracted.get('bundle_id') != bundle_id:
@@ -419,6 +438,8 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
 
     total_discovered_docs = sum(s.get('documents', 0) for s in enabled_sources)
     total_prepared_inputs = sum(report['sources'][s['source']].get('prepared', 0) for s in enabled_sources)
+    total_capture_attempts = sum(report['sources'][s['source']].get('capture_attempts', 0) for s in enabled_sources)
+    total_cooldown_skips = sum(report['sources'][s['source']].get('cooldown_skips', 0) for s in enabled_sources)
 
     total_cached_drafts_reused = sum(report['sources'][s['source']].get('reused', 0) for s in enabled_sources)
     total_checkpoints_resumed = sum(report['sources'][s['source']].get('checkpoint_reused', 0) for s in enabled_sources)
@@ -443,8 +464,20 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
     if drafts_dir.is_dir():
         for f in drafts_dir.glob('*.json'):
             try:
-                d_hash = hashlib.sha256(f.read_bytes()).hexdigest()
-                if not (receipts_dir / f'{d_hash}.json').is_file():
+                raw_draft = f.read_bytes()
+                d_hash = hashlib.sha256(raw_draft).hexdigest()
+                post_count = None
+                try:
+                    draft_obj = json.loads(raw_draft)
+                    post_count = len(draft_obj.get('facts', {}).get('posts', []))
+                except (OSError, ValueError):
+                    pass
+                if not is_valid_receipt_file(
+                    receipts_dir / f'{d_hash}.json',
+                    d_hash,
+                    expected_count=post_count if post_count else None,
+                    stage_retries=retries,
+                ):
                     backlog_drafts += 1
             except OSError:
                 pass
@@ -502,6 +535,10 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
         'documents': {
             'discovered': total_discovered_docs,
             'prepared': total_prepared_inputs,
+        },
+        'captures': {
+            'attempted': total_capture_attempts,
+            'cooldown_skips': total_cooldown_skips,
         },
         'artifacts': {
             'cached_drafts_reused': total_cached_drafts_reused,

@@ -69,7 +69,9 @@ def prepare_source(source, root, **crawl_options):
                    'documents': len(crawl['documents']), 'bundles': len(verified['bundles']),
                    'prepared_inputs': prepared_count, 'unchecked': len(crawl['unchecked']),
                    'output_dir': str(root.resolve()), 'crawl_path': str((root / 'crawl.json').resolve()),
-                   'bundles_path': str(bundles_path.resolve()), 'ai_called': False, 'published': False}
+                   'bundles_path': str(bundles_path.resolve()), 'ai_called': False, 'published': False,
+                   'capture_attempts': crawl.get('capture_attempts', 0),
+                   'cooldown_skips': crawl.get('cooldown_skips', 0)}
         if status == 'blocked':
             summary['reason'] = 'unsupported_seed_type'
         elif status == 'failed':
