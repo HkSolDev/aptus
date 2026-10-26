@@ -54,10 +54,7 @@ export function JobCard({
     >
       <div className={styles.primary}>
         <h3 className={styles.title} data-job-title>
-          <Link
-            href={`/jobs/${encodeURIComponent(job.id)}`}
-            prefetch={false}
-          >
+          <Link href={`/jobs/${encodeURIComponent(job.id)}`}>
             {job.postName}
           </Link>
         </h3>
@@ -96,7 +93,6 @@ export function JobCard({
         <Link
           className={styles.open}
           href={`/jobs/${encodeURIComponent(job.id)}`}
-          prefetch={false}
         >
           View details
         </Link>

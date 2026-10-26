@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync, mkdirSync } from 'node:fs';
@@ -14,9 +16,11 @@ const chromePath =
 const fixtureJobs = [
   {
     id: 'ssc-cgl-inspector',
-    postName: 'Inspector (Central Excise) in Central Board of Indirect Taxes & Customs',
+    postName:
+      'Inspector (Central Excise) in Central Board of Indirect Taxes & Customs',
     organization: 'Central Board of Indirect Taxes and Customs',
-    educationRequired: 'Bachelor Degree in any discipline from a recognized University',
+    educationRequired:
+      'Bachelor Degree in any discipline from a recognized University',
     applicationLastDate: '2026-11-20T00:00:00.000Z',
     vacancies: 1240,
     payLevel: 'Pay Level-7 (Rs 44,900 to 1,42,400)',
@@ -28,9 +32,11 @@ const fixtureJobs = [
   },
   {
     id: 'rpsc-assistant-prof',
-    postName: 'Assistant Professor (Mathematics) in Department of College Education',
+    postName:
+      'Assistant Professor (Mathematics) in Department of College Education',
     organization: 'Department of College Education, Rajasthan',
-    educationRequired: 'Master Degree in Mathematics with 55% marks and NET/SLET qualified',
+    educationRequired:
+      'Master Degree in Mathematics with 55% marks and NET/SLET qualified',
     applicationLastDate: '2026-11-05T00:00:00.000Z',
     vacancies: 48,
     payLevel: 'Academic Level 10 (AGP 6000)',
@@ -42,7 +48,8 @@ const fixtureJobs = [
   },
   {
     id: 'unknown-org-job',
-    postName: 'Research Officer (Planning) with Extended Long Title Requirements and Multi-Line Description Text',
+    postName:
+      'Research Officer (Planning) with Extended Long Title Requirements and Multi-Line Description Text',
     organization: null,
     educationRequired: 'Post Graduate Degree in Economics or Statistics',
     applicationLastDate: null,
@@ -67,34 +74,48 @@ const api = createServer((req, res) => {
   if (url.pathname === '/api/jobs') {
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = 200;
-    res.end(JSON.stringify({
-      data: fixtureJobs,
-      pagination: { page: 1, pageSize: 6, totalItems: 3, totalPages: 1 }
-    }));
+    res.end(
+      JSON.stringify({
+        data: fixtureJobs,
+        pagination: { page: 1, pageSize: 6, totalItems: 3, totalPages: 1 },
+      }),
+    );
     return;
   }
   res.statusCode = 404;
   res.end('Not found');
 });
 
-api.listen(8081, '127.0.0.1');
+// Match the API rewrite embedded by the local test build; fail if occupied.
+api.listen(Number(process.env.APTUS_FIXTURE_API_PORT ?? 8081), '127.0.0.1');
 await once(api, 'listening');
+const address = api.address();
+if (!address || typeof address === 'string')
+  throw new Error('Missing fixture address');
+const apiOrigin = `http://127.0.0.1:${address.port}`;
 
-const nextPort = 19125;
+const reservation = createServer();
+reservation.listen(0, '127.0.0.1');
+await once(reservation, 'listening');
+const nextAddress = reservation.address();
+if (!nextAddress || typeof nextAddress === 'string')
+  throw new Error('Missing Next address');
+const nextPort = nextAddress.port;
+await new Promise((done) => reservation.close(done));
 const nextProcess = spawn(
   process.execPath,
-  ['.next/standalone/server.js'],
+  ['node_modules/next/dist/bin/next', 'start', '-p', String(nextPort)],
   {
-    cwd: '/Users/mrblackghost/Work/Projects/aptus-frontend-discovery',
+    cwd: resolve(dirname(fileURLToPath(import.meta.url)), '..'),
     env: {
       ...process.env,
       PORT: String(nextPort),
       HOSTNAME: '127.0.0.1',
-      BACKEND_INTERNAL_URL: 'http://127.0.0.1:8081',
+      BACKEND_INTERNAL_URL: apiOrigin,
       NODE_ENV: 'production',
     },
     stdio: 'pipe',
-  }
+  },
 );
 
 const nextUrl = `http://127.0.0.1:${nextPort}`;
@@ -102,11 +123,16 @@ let ready = false;
 for (let i = 0; i < 50; i++) {
   try {
     const res = await fetch(nextUrl, { signal: AbortSignal.timeout(1000) });
-    if (res.ok) { ready = true; break; }
+    if (res.ok) {
+      ready = true;
+      break;
+    }
   } catch {}
   await setTimeout(100);
 }
-if (!ready) { process.exit(1); }
+if (!ready) {
+  process.exit(1);
+}
 
 mkdirSync('docs/screenshots', { recursive: true });
 
@@ -128,16 +154,23 @@ try {
   ];
 
   for (const vp of viewports) {
-    const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+    const context = await browser.newContext({
+      viewport: { width: vp.width, height: vp.height },
+    });
     const page = await context.newPage();
     await page.goto(nextUrl, { waitUntil: 'networkidle' });
-    
+
     // Measure first-job position
     const firstJob = page.locator('[data-job-card]').first();
     const box = await firstJob.boundingBox();
-    console.log(`[${prefix}] ${vp.name}: First job top = ${box?.y.toFixed(1)}px (viewport height = ${vp.height}px) -> ${box && box.y < vp.height ? 'VISIBLE ABOVE FOLD' : 'BELOW FOLD'}`);
+    console.log(
+      `[${prefix}] ${vp.name}: First job top = ${box?.y.toFixed(1)}px (viewport height = ${vp.height}px) -> ${box && box.y < vp.height ? 'VISIBLE ABOVE FOLD' : 'BELOW FOLD'}`,
+    );
 
-    await page.screenshot({ path: `docs/screenshots/${prefix}-${vp.name}.png`, fullPage: false });
+    await page.screenshot({
+      path: `docs/screenshots/${prefix}-${vp.name}.png`,
+      fullPage: false,
+    });
     await context.close();
   }
 } finally {

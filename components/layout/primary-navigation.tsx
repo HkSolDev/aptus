@@ -56,7 +56,11 @@ function NavLinkContent({
         {label}
         {isSaved && <span className="navigation-wide-label"> jobs</span>}
       </span>
-      {pending && <span className="nav-pending-dot" aria-hidden="true" />}
+      <span
+        className="nav-pending-dot"
+        data-pending={pending}
+        aria-hidden="true"
+      />
     </>
   );
 }

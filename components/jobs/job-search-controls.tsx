@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import Form from 'next/form';
 import Link from 'next/link';
 import { type HomeView, homeSearchParams } from '@/frontend/home-view';
@@ -11,6 +11,10 @@ import {
   type JobFilters,
 } from '@/frontend/public-job-filters';
 
+const subscribeToHydration = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
 export function JobSearchControls({
   filters,
   view,
@@ -18,10 +22,15 @@ export function JobSearchControls({
   filters: JobFilters;
   view: HomeView;
 }) {
-  const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState<boolean | null>(null);
   const hasQualification = Boolean(filters.qualification);
   const activeCount = hasQualification ? 1 : 0;
-  const isExpanded = mobileExpanded || hasQualification;
+  const isExpanded = mobileExpanded ?? hasQualification;
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    clientSnapshot,
+    serverSnapshot,
+  );
 
   return (
     <>
@@ -45,13 +54,15 @@ export function JobSearchControls({
           />
         </label>
 
-        <div className={styles.mobileFilterToggle}>
+        <div
+          className={`${styles.mobileFilterToggle}${hydrated ? ` ${styles.enhanced}` : ''}`}
+        >
           <button
             type="button"
             className={styles.filterButton}
             aria-expanded={isExpanded}
             aria-controls="secondary-filters"
-            onClick={() => setMobileExpanded((prev) => !prev)}
+            onClick={() => setMobileExpanded(!isExpanded)}
           >
             <span>Filters{activeCount > 0 ? ` (${activeCount})` : ''}</span>
             <span className={styles.filterChevron} aria-hidden="true">
@@ -62,7 +73,7 @@ export function JobSearchControls({
 
         <div
           id="secondary-filters"
-          className={`${styles.secondaryFilters}${isExpanded ? ` ${styles.isExpanded}` : ''}`}
+          className={`${styles.secondaryFilters}${hydrated ? ` ${styles.enhanced}` : ''}${isExpanded ? ` ${styles.isExpanded}` : ''}`}
         >
           <label className={styles.qualificationLabel}>
             Qualification

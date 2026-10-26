@@ -114,7 +114,7 @@
     font-size: 15px;
   }
 
-  .mobileFilterToggle {
+  .mobileFilterToggle.enhanced {
     display: flex;
   }
 
@@ -145,11 +145,11 @@
     color: var(--muted);
   }
 
-  .secondaryFilters {
+  .secondaryFilters.enhanced {
     display: none;
   }
 
-  .secondaryFilters.isExpanded {
+  .secondaryFilters.enhanced.isExpanded {
     display: block;
     padding: var(--space-2) var(--space-3);
     border: 1px solid var(--line);
