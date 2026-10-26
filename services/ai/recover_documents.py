@@ -11,6 +11,7 @@ from capture import capture
 from capture_store import atomic_write
 from normalize_html import normalize_html
 from normalize_pdf import normalize_pdf
+from stage_retry import is_transient_capture_error
 from select_pdf_sections import complete_pdf_sections, select_pdf_sections
 from source_transport import read_listing
 
@@ -23,10 +24,12 @@ def capture_and_normalize(url, root, *, capture_document=None, source_id=None):
         fcntl.flock(lock, fcntl.LOCK_EX)
         result = (capture_document or capture)(url, root)
     if result['outcome'] not in {'changed', 'identical', 'revalidated'}:
-        retryable = (result.get('http_status') in {408, 429, 500, 502, 503, 504}
-                     or result.get('reason') in {'ConnectError', 'ConnectTimeout',
-                         'ReadTimeout', 'ReadError', 'RemoteProtocolError', 'gaierror'})
-        return None, result.get('reason', 'capture_failed'), retryable
+        reason = result.get('reason', 'capture_failed')
+        http_status = result.get('http_status')
+        if reason == 'HTTPStatusError' and http_status:
+            reason = f'http_{http_status}'
+        retryable = is_transient_capture_error(reason, http_status=http_status)
+        return None, reason, retryable
     body = Path(result['body_path']).read_bytes()
     kind = result['snapshot']['document_kind']
     if kind == 'pdf':

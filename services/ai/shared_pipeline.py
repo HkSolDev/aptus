@@ -63,14 +63,23 @@ def prepare_source(source, root, **crawl_options):
             atomic_write(path,
                          json.dumps(prepared, ensure_ascii=False, indent=2).encode())
         status = ('blocked' if crawl['status'] == 'blocked' else
+                  'failed' if crawl['status'] == 'failed' else
                   'partial' if crawl['status'] == 'partial' else 'prepared_for_review')
         summary = {'source': source['id'], 'status': status, 'pages': len(crawl['pages']),
                    'documents': len(crawl['documents']), 'bundles': len(verified['bundles']),
                    'prepared_inputs': prepared_count, 'unchecked': len(crawl['unchecked']),
                    'output_dir': str(root.resolve()), 'crawl_path': str((root / 'crawl.json').resolve()),
-                   'bundles_path': str(bundles_path.resolve()), 'ai_called': False, 'published': False}
+                   'bundles_path': str(bundles_path.resolve()), 'ai_called': False, 'published': False,
+                   'capture_attempts': crawl.get('capture_attempts', 0),
+                   'cooldown_skips': crawl.get('cooldown_skips', 0)}
         if status == 'blocked':
             summary['reason'] = 'unsupported_seed_type'
+        elif status == 'failed':
+            summary['reason'] = crawl.get('reason') or 'crawl_failed'
+            if crawl.get('errors'):
+                summary['errors'] = list(crawl['errors'])
+        elif crawl.get('errors'):
+            summary['errors'] = list(crawl['errors'])
         summary['prepared_paths'] = prepared_paths
         atomic_write(root / 'summary.json', json.dumps(summary, indent=2).encode())
         return summary

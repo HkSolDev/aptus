@@ -132,7 +132,8 @@ export async function publishExtractionCandidate(
       }
       return saved;
     },
-    { isolationLevel: 'Serializable', timeout: 10000 },
+    // Multi-post publication includes several remote database round trips.
+    { isolationLevel: 'Serializable', timeout: 60000 },
   );
 }
 
