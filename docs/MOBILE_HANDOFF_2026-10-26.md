@@ -171,3 +171,11 @@ All commands executed in worktree `/Users/mrblackghost/Work/Projects/aptus-front
   signed-in save/remove, missing fields, deadlines and responsive overflow.
 - Full CI, including isolated PostgreSQL and image builds, must pass before merge.
 - No production deployment or database changes were performed locally.
+
+### Combined CI correction
+
+After integrating worker main, one CI concurrency regression exposed the test
+helper writing shared prepared.json non-atomically from both threads. The helper
+now uses the existing atomic_write, matching production artifact writes; locking
+assertions remain unchanged. Five consecutive concurrency runs and the full 408
+Python tests passed locally. The full frontend suite passed 41 checks locally.
