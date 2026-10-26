@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useSyncExternalStore } from 'react';
 import Form from 'next/form';
 import Link from 'next/link';
 import { type HomeView, homeSearchParams } from '@/frontend/home-view';
@@ -10,6 +11,10 @@ import {
   type JobFilters,
 } from '@/frontend/public-job-filters';
 
+const subscribeToHydration = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
 export function JobSearchControls({
   filters,
   view,
@@ -17,6 +22,16 @@ export function JobSearchControls({
   filters: JobFilters;
   view: HomeView;
 }) {
+  const [mobileExpanded, setMobileExpanded] = useState<boolean | null>(null);
+  const hasQualification = Boolean(filters.qualification);
+  const activeCount = hasQualification ? 1 : 0;
+  const isExpanded = mobileExpanded ?? hasQualification;
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    clientSnapshot,
+    serverSnapshot,
+  );
+
   return (
     <>
       <Form
@@ -27,7 +42,7 @@ export function JobSearchControls({
       >
         <input type="hidden" name="sort" value={filters.sort} />
         <HomeViewFields view={view} />
-        <label>
+        <label className={styles.searchLabel}>
           Search all jobs
           <input
             className={styles.input}
@@ -38,25 +53,49 @@ export function JobSearchControls({
             placeholder="Exam, role or organization"
           />
         </label>
-        <label>
-          Qualification
-          <select
-            className={styles.select}
-            name="qualification"
-            defaultValue={filters.qualification}
-            onChange={(event) => event.currentTarget.form?.requestSubmit()}
+
+        <div
+          className={`${styles.mobileFilterToggle}${hydrated ? ` ${styles.enhanced}` : ''}`}
+        >
+          <button
+            type="button"
+            className={styles.filterButton}
+            aria-expanded={isExpanded}
+            aria-controls="secondary-filters"
+            onClick={() => setMobileExpanded(!isExpanded)}
           >
-            <option value="">All qualifications</option>
-            {JOB_QUALIFICATIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+            <span>Filters{activeCount > 0 ? ` (${activeCount})` : ''}</span>
+            <span className={styles.filterChevron} aria-hidden="true">
+              {isExpanded ? '▴' : '▾'}
+            </span>
+          </button>
+        </div>
+
+        <div
+          id="secondary-filters"
+          className={`${styles.secondaryFilters}${hydrated ? ` ${styles.enhanced}` : ''}${isExpanded ? ` ${styles.isExpanded}` : ''}`}
+        >
+          <label className={styles.qualificationLabel}>
+            Qualification
+            <select
+              className={styles.select}
+              name="qualification"
+              defaultValue={filters.qualification}
+              onChange={(event) => event.currentTarget.form?.requestSubmit()}
+            >
+              <option value="">All qualifications</option>
+              {JOB_QUALIFICATIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+              <option value="ITI" disabled>
+                ITI — not available yet
               </option>
-            ))}
-            <option value="ITI" disabled>
-              ITI — not available yet
-            </option>
-          </select>
-        </label>
+            </select>
+          </label>
+        </div>
+
         <button className={`button ${styles.submit}`} type="submit">
           Search
         </button>

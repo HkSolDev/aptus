@@ -30,7 +30,7 @@ test('public card shows recorded facts without presenting the scraper as employe
   assert.match(html, /href="\/jobs\/example-job"/);
 });
 
-test('missing optional facts leave no placeholder rows or unsupported open status', () => {
+test('unknown core facts are explicit without inventing optional facts or open status', () => {
   const html = renderToStaticMarkup(
     createElement(JobCard, {
       job: {
@@ -41,10 +41,10 @@ test('missing optional facts leave no placeholder rows or unsupported open statu
       },
     }),
   );
-  assert.doesNotMatch(
-    html,
-    /Not specified|Apply by|Qualification|vacancies|Open/,
-  );
+  assert.match(html, /Organization: <\/span>Not specified/);
+  assert.match(html, /Appointment: <\/span>Not specified/);
+  assert.match(html, /Deadline not specified/);
+  assert.doesNotMatch(html, /Apply by|Qualification|vacancies|Open/);
   assert.match(html, /View details/);
 });
 

@@ -59,6 +59,7 @@ export interface PublicJobItem {
   id: string;
   postName: string;
   organization?: string | null;
+  appointmentType?: string | null;
   vacancies: number | null;
   applicationLastDate: string | null;
   educationRequired: string;

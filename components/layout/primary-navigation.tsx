@@ -1,8 +1,9 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useWorkspace } from '@/components/providers/workspace-provider';
+import type { ReactNode } from 'react';
 
 const destinations = [
   {
@@ -27,6 +28,42 @@ const destinations = [
     ),
   },
 ];
+
+function NavLinkContent({
+  label,
+  icon,
+  isSaved,
+}: {
+  label: string;
+  icon: ReactNode;
+  isSaved: boolean;
+}) {
+  const { pending } = useLinkStatus();
+  return (
+    <>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {icon}
+      </svg>
+      <span>
+        {label}
+        {isSaved && <span className="navigation-wide-label"> jobs</span>}
+      </span>
+      <span
+        className="nav-pending-dot"
+        data-pending={pending}
+        aria-hidden="true"
+      />
+    </>
+  );
+}
 
 export function PrimaryNavigation() {
   const pathname = usePathname();
@@ -58,23 +95,11 @@ export function PrimaryNavigation() {
             href={href}
             aria-current={active === href ? 'page' : undefined}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              {icon}
-            </svg>
-            <span>
-              {label}
-              {href === '/saved' && (
-                <span className="navigation-wide-label"> jobs</span>
-              )}
-            </span>
+            <NavLinkContent
+              label={label}
+              icon={icon}
+              isSaved={href === '/saved'}
+            />
           </Link>
         );
       })}
