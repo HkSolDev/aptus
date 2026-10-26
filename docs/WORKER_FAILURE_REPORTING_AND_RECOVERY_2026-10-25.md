@@ -23,13 +23,13 @@ Investigation across `shared_crawl.py`, `shared_pipeline.py`, and `generic_pipel
 
 All changes were implemented in a dedicated branch (`codex/worker-failure-reporting`) in a separate worktree (`/Users/mrblackghost/.codex/worktrees/worker-failure-reporting/aptus`), preserving uncommitted incident fixes and keeping the frontend/backend agent's checkout completely untouched.
 
-| File | Changes made |
-| --- | --- |
-| `services/ai/shared_crawl.py` | Distinguishes complete crawl failures (`all_failed` where all attempted pages failed) by setting `status = 'failed'`, capturing and exposing `errors` and `reason` (e.g. `gaierror`, `ConnectTimeout`). Retains `status = 'partial'` only when partial discovery actually occurred. |
-| `services/ai/shared_pipeline.py` | Propagates `status = 'failed'` and crawl error reasons (`errors`, `reason`) into the source preparation `summary.json`. |
-| `services/ai/generic_pipeline.py` | Handles source-level failures (`failed`, `blocked`, `already_running`, and partial runs with errors); records `failure_stages: ['discovery']` and `failure_reasons`; computes bounded stage diagnostic counts (`summary`); differentiates fresh provider attempts from resumed checkpoints and retry-wait states; tracks reused drafts awaiting review vs published receipts; separates per-run review counts from total backlog; prevents reporting `'completed'` when failures or retry-waits occur; and archives each run to `runs/<timestamp>.json` alongside `latest-generic-pipeline-run.json`. |
-| `services/ai/worker_schedule.py` | Enforces explicit exit codes in `--once` mode: returns `0` for `completed` and `partial_failure` (where valid work was preserved), and `1` for `failed` or unhandled exceptions to support failure detection. Daemon mode continues indefinitely. |
-| `services/ai/tests/test_worker_recovery_and_reporting.py` | Comprehensive regression suite covering the 8 observable cases and 4 newly identified issues offline. |
+| File                                                      | Changes made                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `services/ai/shared_crawl.py`                             | Distinguishes complete crawl failures (`all_failed` where all attempted pages failed) by setting `status = 'failed'`, capturing and exposing `errors` and `reason` (e.g. `gaierror`, `ConnectTimeout`). Retains `status = 'partial'` only when partial discovery actually occurred.                                                                                                                                                                                                                                                                                                                   |
+| `services/ai/shared_pipeline.py`                          | Propagates `status = 'failed'` and crawl error reasons (`errors`, `reason`) into the source preparation `summary.json`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `services/ai/generic_pipeline.py`                         | Handles source-level failures (`failed`, `blocked`, `already_running`, and partial runs with errors); records `failure_stages: ['discovery']` and `failure_reasons`; computes bounded stage diagnostic counts (`summary`); differentiates fresh provider attempts from resumed checkpoints and retry-wait states; tracks reused drafts awaiting review vs published receipts; separates per-run review counts from total backlog; prevents reporting `'completed'` when failures or retry-waits occur; and archives each run to `runs/<timestamp>.json` alongside `latest-generic-pipeline-run.json`. |
+| `services/ai/worker_schedule.py`                          | Enforces explicit exit codes in `--once` mode: returns `0` for `completed` and `partial_failure` (where valid work was preserved), and `1` for `failed` or unhandled exceptions to support failure detection. Daemon mode continues indefinitely.                                                                                                                                                                                                                                                                                                                                                     |
+| `services/ai/tests/test_worker_recovery_and_reporting.py` | Comprehensive regression suite covering the 8 observable cases and 4 newly identified issues offline.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ---
 
@@ -102,6 +102,7 @@ All changes were implemented in a dedicated branch (`codex/worker-failure-report
 ```
 
 ### Counter Definitions
+
 - **`sources`**:
   - `total`: Total sources in registry.
   - `enabled`: Enabled sources configured to run.
@@ -129,7 +130,7 @@ All changes were implemented in a dedicated branch (`codex/worker-failure-report
   - `published`: Reused drafts in this run confirmed published via durable receipts (`publication/receipts/<draft_sha256>.json`).
   - `total_backlog_awaiting_review`: Storage-wide count of unpublished draft files in `drafts/` + `amendments/` + `unclear/`.
 
-*Note on publication:* Scheduled pipeline runs do not execute publication; publication counts appear only when reviewed publication actually runs.
+_Note on publication:_ Scheduled pipeline runs do not execute publication; publication counts appear only when reviewed publication actually runs.
 
 ---
 
@@ -152,20 +153,20 @@ Verification confirmed that existing stage recovery guarantees protect completed
 
 ### 12 Observable cases verified in `test_worker_recovery_and_reporting.py`
 
-| Case | Scenario | Result |
-| --- | --- | --- |
-| 1 | All enabled sources fail DNS | Visible `status: 'failed'`, `sources['failed'] == 2`, `failure_stages: ['discovery']`, scheduler exits with code 1 supporting failure detection. |
-| 2 | One source fails and another succeeds | `status: 'partial_failure'`, successful source drafts preserved, failed source details exposed, scheduler exits with code 0. |
-| 3 | All sources succeed with unchanged content | `status: 'completed'`, `sources['failed'] == 0`, `artifacts['cached_drafts_reused'] == 1`, zero LLM calls. |
-| 4 | Disabled source in registry | Excluded from attempted/failed counts; does not degrade an otherwise healthy run. |
-| 5 | Valid extraction + mocked delivery failure | Mocked HTTP delivery failure tests worker error handling; verified that delivery failure does not invalidate completed extraction or call the model again. (Does not prove database rollback, which requires a live PostgreSQL instance). |
-| 6 | Incompatible/tampered checkpoint | Checksum mismatch safely rejected; records `corrupt_extraction_checkpoint` rather than silently reusing bad data. |
-| 7 | Awaiting human review | Reported as `drafts['created'] = 1`, `drafts['awaiting_review'] = 1`, never automatically published. |
-| 8 | Repeat approved delivery | Existing receipt returned immediately; idempotent delivery without duplicate records. |
-| 9 | Partial discovery errors with successful work | Source with `status='partial'`, `errors=['gaierror']` and valid prepared input reports `status: 'partial_failure'`, retains successful draft, and exposes `gaierror` under `failure_reasons`. |
-| 10 | Retry-wait preserved | Unfinished extraction in `retry_wait` preserves `partial_failure` status and records `waiting_retry: 1` without calling provider. |
-| 11 | Reused drafts awaiting review vs published | Reused unchanged drafts maintain `awaiting_review` until durable publication receipt (`publication/receipts/<draft_sha256>.json`) exists; separating per-run counts from total backlog. |
-| 12 | Diagnostic counter accuracy | Fresh provider calls, resumed checkpoints, cached drafts, retry-wait, and review holds are accurately segregated without labeling cached or waiting work as new attempts. |
+| Case | Scenario                                      | Result                                                                                                                                                                                                                                    |
+| ---- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | All enabled sources fail DNS                  | Visible `status: 'failed'`, `sources['failed'] == 2`, `failure_stages: ['discovery']`, scheduler exits with code 1 supporting failure detection.                                                                                          |
+| 2    | One source fails and another succeeds         | `status: 'partial_failure'`, successful source drafts preserved, failed source details exposed, scheduler exits with code 0.                                                                                                              |
+| 3    | All sources succeed with unchanged content    | `status: 'completed'`, `sources['failed'] == 0`, `artifacts['cached_drafts_reused'] == 1`, zero LLM calls.                                                                                                                                |
+| 4    | Disabled source in registry                   | Excluded from attempted/failed counts; does not degrade an otherwise healthy run.                                                                                                                                                         |
+| 5    | Valid extraction + mocked delivery failure    | Mocked HTTP delivery failure tests worker error handling; verified that delivery failure does not invalidate completed extraction or call the model again. (Does not prove database rollback, which requires a live PostgreSQL instance). |
+| 6    | Incompatible/tampered checkpoint              | Checksum mismatch safely rejected; records `corrupt_extraction_checkpoint` rather than silently reusing bad data.                                                                                                                         |
+| 7    | Awaiting human review                         | Reported as `drafts['created'] = 1`, `drafts['awaiting_review'] = 1`, never automatically published.                                                                                                                                      |
+| 8    | Repeat approved delivery                      | Existing receipt returned immediately; idempotent delivery without duplicate records.                                                                                                                                                     |
+| 9    | Partial discovery errors with successful work | Source with `status='partial'`, `errors=['gaierror']` and valid prepared input reports `status: 'partial_failure'`, retains successful draft, and exposes `gaierror` under `failure_reasons`.                                             |
+| 10   | Retry-wait preserved                          | Unfinished extraction in `retry_wait` preserves `partial_failure` status and records `waiting_retry: 1` without calling provider.                                                                                                         |
+| 11   | Reused drafts awaiting review vs published    | Reused unchanged drafts maintain `awaiting_review` until durable publication receipt (`publication/receipts/<draft_sha256>.json`) exists; separating per-run counts from total backlog.                                                   |
+| 12   | Diagnostic counter accuracy                   | Fresh provider calls, resumed checkpoints, cached drafts, retry-wait, and review holds are accurately segregated without labeling cached or waiting work as new attempts.                                                                 |
 
 ### Overall regression results
 
@@ -173,6 +174,7 @@ Verification confirmed that existing stage recovery guarantees protect completed
 - **TypeScript**: `pnpm typecheck` passed (0 errors).
 
 ### What remains unverified / could not run:
+
 - **Live database rollback under multi-post PostgreSQL transaction timeouts**:
   The live database timeout test in `scripts/publish-extraction-candidate.test.ts` requires a running PostgreSQL instance with `TEST_DATABASE_URL`, which is not available in offline sandbox environments.
 - **External alerting mechanisms**:
@@ -185,12 +187,14 @@ Verification confirmed that existing stage recovery guarantees protect completed
 ## 7. Remaining limitations and what is NOT implemented
 
 ### Explicit Pending Review Findings (Documented for Follow-up Slice)
+
 1. **Validate publication receipt contents and integrity before counting a draft as published**:
    Currently, checking if a reused draft is published checks `(receipts_dir / f'{draft_sha}.json').is_file()`. Parsing and validating the schema, bundle_id, and integrity of receipt file contents before treating the draft as published remains pending for the next review iteration.
 2. **Count actual extractor invocations and distinguish provider failures from checkpoint/storage failures**:
    Currently, extraction failure catch blocks capture general errors around `extract_or_resume`. Granular breakdown distinguishing remote LLM network/HTTP provider failures from local disk checkpoint/storage I/O failures remains pending for future refinement.
 
 ### System Limitations
+
 - **BHEL/HLL factual extraction quality**:
   Schema validation and JSON formatting do not establish that extracted facts match the official advertisement. Aggregator summaries omit tables, footnotes, and category-specific marks relaxations. This slice only improves failure reporting and prevents token waste; it does not fix semantic extraction errors.
 - **Single-machine local locks**:
@@ -203,5 +207,6 @@ Verification confirmed that existing stage recovery guarantees protect completed
 ## 8. Next stage: official evidence readiness and structured condition parsing
 
 The next worker slice will address the root cause of the BHEL and HLL factual holds:
+
 1. **Official evidence enrichment before extraction**: Prioritize fetching and verifying the primary official PDF notice before sending aggregator summaries to the LLM.
 2. **Conditional marks and reservation parsing**: Implement structured condition capture for category-specific marks percentages, experience routes, and footnote exceptions (as outlined in `docs/WORKER_PIPELINE_EXECUTION_PLAN.md`).
