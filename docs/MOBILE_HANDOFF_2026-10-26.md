@@ -30,8 +30,8 @@ This handoff details the completion of:
 
 | File                                             | Type     | Description                                                                                                                               |
 | ------------------------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `components/layout/primary-navigation.tsx`       | Modified | Added Next.js `useLinkStatus()` inside navigation links to provide immediate visual feedback (<16ms) during navigation.                   |
-| `public/css/navigation.css`                      | Modified | Added `.nav-pending-dot` styling with pulse animation and accessible indicator for active transitions.                                    |
+| `components/layout/primary-navigation.tsx`       | Modified | Added Next.js `useLinkStatus()` inside navigation links to show pending navigation feedback; exact latency remains unverified.            |
+| `public/css/navigation.css`                      | Modified | Added `.nav-pending-dot` styling with reserved space for a visual pending indicator.                                                      |
 | `components/jobs/job-search-controls.tsx`        | Modified | Added accessible collapsible secondary filter toggle on mobile with active filter count; preserved direct layout on desktop/tablet.       |
 | `components/jobs/job-search-controls.module.css` | Modified | Mobile-first search controls styling; hides mobile toggle on $\ge 760\text{px}$; compact touch targets ($\ge 44\text{px}$).               |
 | `components/jobs/job-card.tsx`                   | Modified | Added `appointmentType` rendering with fallback to `"Not specified"`; default link prefetching is preserved.                              |
@@ -146,7 +146,7 @@ All commands executed in worktree `/Users/mrblackghost/Work/Projects/aptus-front
 1. **Database Schema & Ingestion Contract Boundary:**
    - No Python worker extraction schemas or Prisma migrations were modified in this worktree to respect agent boundaries.
    - Currently, `appointmentType` is read from `Post.reviewedDetails` (`Json?`).
-   - **Recommendation for Coordinator:** Add a dedicated indexed column `appointment_type` to the `posts` table in the next coordinated database migration, and include it directly in `PostCandidateDraft` ingestion.
+   - **Deferred consideration:** A dedicated appointment field may help future filtering. Do not add a migration or index without a supported query requirement and measurements.
 2. **Backend response latency:** Requires real backend timing and network traces;
    no database performance change is justified by the fixture browser tests alone.
 
