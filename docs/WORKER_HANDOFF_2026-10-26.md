@@ -105,11 +105,13 @@ The following conditions remain strictly locked in `"status": "needs_review"` wi
 
 ### F. Audited Historical Recovery Utility (`recover_capture_holds.py`)
 `services/ai/recover_capture_holds.py` provides an audited, safe remediation tool:
-- **Lock Parity:** Locks `state_path.with_suffix('.lock')`, which is the exact same path (`state/stages/capture/<hash>.lock`) held by the downloader and `StageRetries.lock('capture', url)`.
+- **Truly Read-Only Advisory Dry-Run:** In `--dry-run` mode (default), the inspection is genuinely read-only. It reads state bytes without opening or creating `.lock` files, without creating directories, and with **zero disk mutations**.
+- **Lock Parity with Downloader:** In `--execute` mode, locks `state_path.with_suffix('.lock')`, which is the exact same path (`state/stages/capture/<hash>.lock`) held by the downloader and `StageRetries.lock('capture', url)`.
 - **Lock Acquisition Before Read:** The lock is acquired *before* reading the state file. Under that lock, state is re-read and validated. If concurrent operations updated the state (e.g. to `success`), recovery does not overwrite it.
 - **Canonical Validation:** Uses `is_valid_stage_record(state, max_attempts=10)` to validate the record. Malformed records (e.g. `attempts="invalid"`, boolean attempts, corrupt JSON) are classified as `ineligible_corrupt_hold` and remain held.
-- **Durable Backup and Audit Manifest:** In `--execute` mode, exact original bytes are saved to `backups/capture_recovery/<run_id>/records/<rel_path>` and an `audit_manifest.json` is durably written with timestamps, paths, and SHA-256 checksums before state is mutated.
-- **Default Mode:** Default remains `--dry-run` (zero disk mutations). Production state was not touched.
+- **Unique UUID Backup Directories:** Every execution creates a unique backup directory `backups/capture_recovery/recovery_<timestamp>_<uuid>` with `mkdir(parents=True, exist_ok=False)`. Two executions with the same clock value never collide or overwrite previous backups.
+- **Durable Intent & Completion Journaling:** Before mutating each state file, an `"intent"` entry is durably flushed to `audit_journal.jsonl` using `os.fsync`. After mutation, a `"completed"` outcome is logged with `os.fsync`. If an execution is interrupted, the original backup is intact and the journal clearly identifies which holds were intended vs completed.
+- **Audit Manifest:** In `--execute` mode, a complete `audit_manifest.json` is durably written summarizing all recovered records. Production state was not touched.
 
 ---
 
@@ -119,14 +121,14 @@ The following conditions remain strictly locked in `"status": "needs_review"` wi
 | --- | --- |
 | `services/ai/stage_retry.py` | Exported `file_lock` context manager and canonical `is_valid_stage_record` validator. Updated `StageRetries` to support capped delayed recovery for capture (`MAX_CAPTURE_COOLDOWN = 3600`, `MAX_CAPTURE_ATTEMPTS = 10`), added deterministic hash jitter (`_compute_capture_delay`), ensured `failure()` always writes `'attempts'`, and preserved `needs_review` for non-transient capture errors and all extraction/publication holds. |
 | `services/ai/review_publication.py` | Restored fail-closed integrity validation in `validate_receipt_payload`: rejects missing checksums, corrupt publication state, and mismatched checksums when validating durable receipts. |
-| `services/ai/recover_capture_holds.py` | Audited capture hold recovery: uses exact downloader lock (`state_path.with_suffix('.lock')`), locks before reading, validates complete canonical records, keeps corrupt/malformed records held, and durably backs up original records with an audit manifest before modifying state in `--execute` mode. |
+| `services/ai/recover_capture_holds.py` | Audited capture hold recovery: genuinely read-only advisory dry-run (no `.lock` files created, zero disk mutations); execution mode uses exact downloader lock (`state_path.with_suffix('.lock')`), locks before reading, validates complete canonical records, keeps corrupt/malformed records held, creates unique UUID-named backup directories, and durably records audit intents and outcomes to `audit_journal.jsonl`. |
 | `services/ai/capture_retry.py` | Implemented `CaptureRetryOutcome(tuple)` exposing `attempted` and `cooldown_skip` while maintaining backward compatibility with `(result, reason, retryable)`. Enforces transient error classification through `capture_failure` and forwards `clock`. |
 | `services/ai/recover_documents.py` | Preserved `from normalize_pdf import normalize_pdf` and successful PDF normalization. Replaced raw dictionary reason checking with `is_transient_capture_error` and formatted `HTTPStatusError` with concrete status codes (e.g. `http_503` vs `http_404`). |
 | `services/ai/shared_crawl.py` | Recorded `page['attempted']`, `page['cooldown_skip']`, and `page['historical_reason']`. Populated `report['capture_attempts']` and `report['cooldown_skips']` in crawl reports. |
 | `services/ai/shared_pipeline.py` | Propagated `capture_attempts` and `cooldown_skips` into source preparation summaries (`summary.json`). |
 | `services/ai/generic_pipeline.py` | Integrated `is_valid_receipt_file` for draft reuse and storage backlog calculation; wrapped extractor with `tracked_extractor` to count actual invocations; aggregated `capture_attempts` and `cooldown_skips` in per-source counts and overall summary (`summary.captures`). |
 | `services/ai/extraction_checkpoint.py` | Separated provider execution catch block from checkpoint persistence catch block, recording `checkpoint_storage_failed` upon disk write errors. |
-| `services/ai/tests/test_worker_recovery_and_reporting.py` | Added 12 comprehensive regression test cases (24 total tests in file) verifying transient capture recovery across restarts, 6-hour cron timeline, attempt counter saturation, HTTP 503 vs 404 discrimination, lock parity, concurrent updates, malformed record preservation, durable backups, receipt integrity, and invocation counters. |
+| `services/ai/tests/test_worker_recovery_and_reporting.py` | Added 15 comprehensive regression test cases (27 total tests in file) verifying transient capture recovery across restarts, 6-hour cron timeline, attempt counter saturation, HTTP 503 vs 404 discrimination, lock parity, concurrent updates, malformed record preservation, zero dry-run mutations, unique backup directories across identical clocks, intent/completion journals, receipt integrity, and invocation counters. |
 
 ---
 
@@ -165,7 +167,7 @@ PYTHONPATH=services/ai:services/ai/tests services/ai/.venv/bin/python -m unittes
 ```
 **Output:**
 ```
-Ran 24 tests in 0.598s
+Ran 27 tests in 0.998s
 OK
 ```
 
@@ -175,7 +177,7 @@ PYTHONPATH=services/ai:services/ai/tests services/ai/.venv/bin/python -m unittes
 ```
 **Output:**
 ```
-Ran 395 tests in 7.962s
+Ran 398 tests in 11.169s
 OK
 ```
 

@@ -22,6 +22,7 @@ from notice_state import (EXTRACTION_VERSION, NoticeStateManager,
 from review_publication import approve, publish, is_valid_receipt_file, validate_receipt_payload
 from stage_retry import StageRetries, is_transient_capture_error, capture_failure
 from capture_retry import capture_with_retry
+from capture_store import atomic_write
 from recover_capture_holds import audit_capture_holds
 from store_candidate import prepare_storage
 try:
@@ -1167,6 +1168,15 @@ class WorkerRecoveryAndReportingTests(unittest.TestCase):
         self.assertEqual(rec["previous_state"]["reason"], "ConnectTimeout")
         self.assertEqual(rec["recovered_state"]["status"], "retry_wait")
 
+        # Check audit journal contents
+        journal_path = Path(exec_res["journal_path"])
+        self.assertTrue(journal_path.is_file())
+        journal_entries = [json.loads(line) for line in journal_path.read_text().strip().split("\n")]
+        self.assertEqual(len(journal_entries), 2)
+        self.assertEqual(journal_entries[0]["event"], "intent")
+        self.assertEqual(journal_entries[1]["event"], "completed")
+        self.assertEqual(journal_entries[1]["status"], "applied")
+
     # 24. Transient failure becomes eligible on 6-hour cron run, attempt counter saturates at 10, AI/factual holds preserved
     def test_transient_failure_cron_recovery_and_saturation(self):
         root = self.root / "cron_recovery_and_saturation"
@@ -1246,6 +1256,126 @@ class WorkerRecoveryAndReportingTests(unittest.TestCase):
         # Even after 15 attempts, scheduled attempts remain allowed!
         clock[0] += 5000
         self.assertTrue(sat_retries.begin("capture", sat_url))
+
+    # 25. Dry-run advisory mode performs genuine zero disk mutations and creates no .lock files
+    def test_dry_run_zero_disk_mutations_no_lock_files(self):
+        root = self.root / "dry_run_zero_mutations"
+        retries = StageRetries(root)
+        url = "https://ssc.gov.in/notice_transient"
+        retries.write("capture", url, {
+            "status": "needs_review", "attempts": 2, "reason": "gaierror", "next_at": 0
+        })
+
+        # Capture complete filesystem snapshot prior to dry-run
+        before_files = set(p.relative_to(root) for p in root.rglob("*"))
+
+        # Run dry-run audit
+        res = audit_capture_holds(root, dry_run=True)
+        self.assertTrue(res["dry_run"])
+        self.assertEqual(res["eligible_holds"], 1)
+
+        # Confirm exact zero mutations: no .lock files, no new directories, exact same files
+        after_files = set(p.relative_to(root) for p in root.rglob("*"))
+        self.assertEqual(before_files, after_files)
+        lock_files = list(root.rglob("*.lock"))
+        self.assertEqual(len(lock_files), 0)
+        self.assertFalse((root / "backups").exists())
+
+    # 26. Unique backup directory for every execution preserves both backups even with identical clock
+    def test_unique_backup_directories_with_identical_clock(self):
+        root = self.root / "unique_backups_identical_clock"
+        retries = StageRetries(root)
+        url = "https://upsc.gov.in/notice_transient"
+
+        # Fixed clock for both executions
+        fixed_clock = lambda: 1729900000.0
+
+        # Seed hold 1
+        retries.write("capture", url, {
+            "status": "needs_review", "attempts": 2, "reason": "gaierror", "next_at": 0
+        })
+        orig_bytes_1 = retries.path("capture", url).read_bytes()
+
+        # Execution 1
+        res1 = audit_capture_holds(root, dry_run=False, clock=fixed_clock)
+        self.assertEqual(res1["recovered"], 1)
+        backup_dir_1 = Path(res1["backup_dir"])
+        self.assertTrue(backup_dir_1.is_dir())
+
+        # Re-seed hold 2 with different contents at same URL
+        retries.write("capture", url, {
+            "status": "needs_review", "attempts": 4, "reason": "ConnectTimeout", "next_at": 0
+        })
+        orig_bytes_2 = retries.path("capture", url).read_bytes()
+
+        # Execution 2 with EXACT SAME clock value
+        res2 = audit_capture_holds(root, dry_run=False, clock=fixed_clock)
+        self.assertEqual(res2["recovered"], 1)
+        backup_dir_2 = Path(res2["backup_dir"])
+        self.assertTrue(backup_dir_2.is_dir())
+
+        # Assert two distinct directories were created
+        self.assertNotEqual(backup_dir_1, backup_dir_2)
+
+        # Assert both backup originals are preserved intact and neither was overwritten
+        backup_file_1 = list((backup_dir_1 / "records").rglob("*.json"))[0]
+        backup_file_2 = list((backup_dir_2 / "records").rglob("*.json"))[0]
+        self.assertEqual(backup_file_1.read_bytes(), orig_bytes_1)
+        self.assertEqual(backup_file_2.read_bytes(), orig_bytes_2)
+        self.assertIn('"reason": "gaierror"', backup_file_1.read_text())
+        self.assertIn('"reason": "ConnectTimeout"', backup_file_2.read_text())
+
+    # 27. Audit journal intent and completion logging with durable interruption safety
+    def test_audit_intent_and_completion_journal_with_interruption(self):
+        root = self.root / "journal_interruption_test"
+        retries = StageRetries(root)
+        url1 = "https://ssc.gov.in/notice_transient_1"
+        url2 = "https://ssc.gov.in/notice_transient_2"
+
+        retries.write("capture", url1, {"status": "needs_review", "attempts": 2, "reason": "gaierror", "next_at": 0})
+        retries.write("capture", url2, {"status": "needs_review", "attempts": 3, "reason": "ConnectTimeout", "next_at": 0})
+
+        # Test normal journal: verify intent -> completed sequence
+        res = audit_capture_holds(root, dry_run=False)
+        self.assertEqual(res["recovered"], 2)
+        journal_path = Path(res["journal_path"])
+        self.assertTrue(journal_path.is_file())
+
+        lines = [json.loads(line) for line in journal_path.read_text().strip().split("\n")]
+        # 2 holds * 2 events (intent, completed) = 4 journal entries
+        self.assertEqual(len(lines), 4)
+        self.assertEqual([e["event"] for e in lines], ["intent", "completed", "intent", "completed"])
+
+        # Now test interruption safety:
+        # Re-seed hold
+        retries.write("capture", url1, {"status": "needs_review", "attempts": 2, "reason": "gaierror", "next_at": 0})
+        orig_bytes = retries.path("capture", url1).read_bytes()
+
+        # Simulate interruption during atomic_write of the state file (after backup and intent are written)
+        def fail_on_state_write(path, data):
+            if str(path).endswith(".json") and "backups" not in str(path) and "audit" not in str(path):
+                raise KeyboardInterrupt("Simulated SIGINT / power interruption")
+            atomic_write(path, data)
+
+        with patch("recover_capture_holds.atomic_write", side_effect=fail_on_state_write):
+            with self.assertRaises(KeyboardInterrupt):
+                audit_capture_holds(root, dry_run=False)
+
+        # Locate the new backup directory created for the interrupted run
+        backup_dirs = sorted((root / "backups" / "capture_recovery").iterdir(), key=lambda p: p.stat().st_mtime)
+        interrupted_backup_dir = backup_dirs[-1]
+        interrupted_journal = interrupted_backup_dir / "audit_journal.jsonl"
+        self.assertTrue(interrupted_journal.is_file())
+
+        int_lines = [json.loads(line) for line in interrupted_journal.read_text().strip().split("\n")]
+        # Interrupted execution logged the intent, but could not log completed
+        self.assertEqual(len(int_lines), 1)
+        self.assertEqual(int_lines[0]["event"], "intent")
+        self.assertEqual(int_lines[0]["key_hash"], hashlib.sha256(url1.encode()).hexdigest())
+
+        # Crucially: the backup file was already flushed and exists on disk!
+        interrupted_backup_file = list((interrupted_backup_dir / "records").rglob("*.json"))[0]
+        self.assertEqual(interrupted_backup_file.read_bytes(), orig_bytes)
 
 
 if __name__ == "__main__":
