@@ -10,6 +10,39 @@ from pathlib import Path
 from capture_store import atomic_write
 
 
+@contextmanager
+def file_lock(path):
+    lock_path = Path(path)
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open('a') as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(stream, fcntl.LOCK_UN)
+
+
+def is_valid_stage_record(state, max_attempts=None):
+    if not isinstance(state, dict):
+        return False
+    status = state.get('status')
+    if status not in {'running', 'retry_wait', 'success', 'needs_review'}:
+        return False
+    attempts = state.get('attempts')
+    if type(attempts) is not int or attempts < 0:
+        return False
+    if max_attempts is not None and attempts > max_attempts:
+        return False
+    next_at = state.get('next_at', 0)
+    if type(next_at) not in {int, float} or not math.isfinite(next_at):
+        return False
+    reason = state.get('reason')
+    if reason is not None:
+        if not isinstance(reason, str) or not reason.isidentifier() or len(reason) > 80:
+            return False
+    return True
+
+
 class StageRetries:
     MAX_ATTEMPTS = 3
     MAX_CAPTURE_ATTEMPTS = 10
@@ -29,14 +62,8 @@ class StageRetries:
 
     @contextmanager
     def lock(self, stage, key):
-        path = self.path(stage, key).with_suffix('.lock')
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open('a') as stream:
-            fcntl.flock(stream, fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(stream, fcntl.LOCK_UN)
+        with file_lock(self.path(stage, key).with_suffix('.lock')):
+            yield
 
     def read(self, stage, key):
         path = self.path(stage, key)
@@ -45,14 +72,7 @@ class StageRetries:
         max_attempts = self.MAX_CAPTURE_ATTEMPTS if stage == 'capture' else self.MAX_ATTEMPTS
         try:
             state = json.loads(path.read_text())
-            if (not isinstance(state, dict) or type(state.get('attempts')) is not int
-                    or not 0 <= state['attempts'] <= max_attempts
-                    or state.get('status') not in {'running', 'retry_wait', 'success', 'needs_review'}
-                    or type(state.get('next_at', 0)) not in {int, float}
-                    or not math.isfinite(state.get('next_at', 0))
-                    or (state.get('reason') is not None and (
-                        not isinstance(state['reason'], str) or not state['reason'].isidentifier()
-                        or len(state['reason']) > 80))):
+            if not is_valid_stage_record(state, max_attempts=max_attempts):
                 raise ValueError
             return state
         except (ValueError, OSError):
@@ -107,13 +127,13 @@ class StageRetries:
             retryable = bool(retryable) and is_transient_capture_error(reason)
             delay = self._compute_capture_delay(attempts, key, retry_after)
             next_at = self.clock() + delay if retryable else 0
-            self.write(stage, key, {**state, 'reason': reason,
+            self.write(stage, key, {**state, 'attempts': attempts, 'reason': reason,
                 'status': 'retry_wait' if retryable else 'needs_review',
                 'next_at': next_at})
             return
         retryable = retryable and attempts < self.MAX_ATTEMPTS
         delay = max(30 * 2 ** max(attempts - 1, 0), min(max(retry_after, 0), 86400))
-        self.write(stage, key, {**state, 'reason': reason,
+        self.write(stage, key, {**state, 'attempts': attempts, 'reason': reason,
             'status': 'retry_wait' if retryable else 'needs_review',
             'next_at': self.clock() + delay if retryable else 0})
 

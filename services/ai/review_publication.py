@@ -89,8 +89,15 @@ def validate_receipt_payload(payload, digest, expected_count=None, stage_retries
     if not isinstance(payload, (bytes, bytearray)):
         raise ValueError('Receipt payload must be bytes')
     if stage_retries is not None:
-        rec_sha = stage_retries.read('publication', digest).get('receipt_sha256')
-        if rec_sha and hashlib.sha256(payload).hexdigest() != rec_sha:
+        state = stage_retries.read('publication', digest)
+        if (not isinstance(state, dict)
+                or state.get('reason') == 'corrupt_stage_state'
+                or state.get('status') != 'success'):
+            raise ValueError('Corrupt publication state')
+        rec_sha = state.get('receipt_sha256')
+        if not isinstance(rec_sha, str) or not rec_sha:
+            raise ValueError('Missing receipt checksum in publication state')
+        if hashlib.sha256(payload).hexdigest() != rec_sha:
             raise ValueError('Publication receipt integrity mismatch')
     try:
         receipt = json.loads(payload)

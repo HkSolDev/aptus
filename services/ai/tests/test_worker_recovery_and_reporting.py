@@ -7,6 +7,8 @@ import copy
 import hashlib
 import json
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -17,7 +19,7 @@ from extraction_checkpoint import extract_or_resume
 from generic_pipeline import run_pipeline
 from notice_state import (EXTRACTION_VERSION, NoticeStateManager,
                           compute_evidence_fingerprint)
-from review_publication import approve, publish, is_valid_receipt_file
+from review_publication import approve, publish, is_valid_receipt_file, validate_receipt_payload
 from stage_retry import StageRetries, is_transient_capture_error, capture_failure
 from capture_retry import capture_with_retry
 from recover_capture_holds import audit_capture_holds
@@ -959,6 +961,291 @@ class WorkerRecoveryAndReportingTests(unittest.TestCase):
         # Ineligible capture hold and extraction hold are STRICTLY preserved in needs_review
         self.assertEqual(retries.read("capture", "url_bad_pdf")["status"], "needs_review")
         self.assertEqual(retries.read("extraction", "fp_ai")["status"], "needs_review")
+
+    # 20. Fail-closed publication receipt integrity verification
+    def test_publication_receipt_fail_closed_integrity(self):
+        root = self.root / "receipt_fail_closed"
+        prep = self._sample_prepared_bundle("bnd_receipt_fc")
+        prep_path = root / "bnd_receipt_fc.prepared.json"
+        prep_path.parent.mkdir(parents=True, exist_ok=True)
+        prep_path.write_text(json.dumps(prep))
+
+        # Create draft via pipeline run
+        run_pipeline(
+            root,
+            prepare=lambda *a, **k: [{"source": "ssc", "status": "prepared_for_review",
+                                      "prepared_inputs": 1, "prepared_paths": [str(prep_path)]}],
+            extract=lambda _: {"bundle_id": "bnd_receipt_fc", "facts": self._sample_facts()},
+            validate=lambda *_: {"status": "needs_review", "disposition": "valid_recruitment_review_draft", "errors": []},
+        )
+        draft_file = root / "drafts" / "bnd_receipt_fc.json"
+        draft_sha = hashlib.sha256(draft_file.read_bytes()).hexdigest()
+        receipts_dir = root / "publication" / "receipts"
+        receipts_dir.mkdir(parents=True, exist_ok=True)
+        receipt_file = receipts_dir / f"{draft_sha}.json"
+
+        valid_receipt_dict = {
+            "candidate_id": "cand_real_001",
+            "content_hash": hashlib.sha256(b"content").hexdigest(),
+            "draft_sha256": draft_sha,
+            "post_ids": ["post_001"],
+        }
+        receipt_bytes = json.dumps(valid_receipt_dict).encode("utf-8")
+        receipt_file.write_bytes(receipt_bytes)
+
+        retries = StageRetries(root)
+        pub_state_path = retries.path("publication", draft_sha)
+
+        # Sub-case 1: Missing checksum in publication state
+        retries.write("publication", draft_sha, {"status": "success", "attempts": 1, "next_at": 0, "reason": None})
+        self.assertFalse(is_valid_receipt_file(receipt_file, draft_sha, stage_retries=retries))
+        with self.assertRaises(ValueError) as cm:
+            validate_receipt_payload(receipt_bytes, draft_sha, stage_retries=retries)
+        self.assertIn("Missing receipt checksum", str(cm.exception))
+
+        # Sub-case 2: Corrupt publication state on disk
+        pub_state_path.write_bytes(b"{corrupt json syntax")
+        self.assertFalse(is_valid_receipt_file(receipt_file, draft_sha, stage_retries=retries))
+        with self.assertRaises(ValueError) as cm:
+            validate_receipt_payload(receipt_bytes, draft_sha, stage_retries=retries)
+        self.assertIn("Corrupt publication state", str(cm.exception))
+
+        # Sub-case 3: Mismatched checksum in publication state
+        retries.write("publication", draft_sha, {
+            "status": "success", "attempts": 1, "next_at": 0, "reason": None,
+            "receipt_sha256": "0" * 64
+        })
+        self.assertFalse(is_valid_receipt_file(receipt_file, draft_sha, stage_retries=retries))
+        with self.assertRaises(ValueError) as cm:
+            validate_receipt_payload(receipt_bytes, draft_sha, stage_retries=retries)
+        self.assertIn("Publication receipt integrity mismatch", str(cm.exception))
+
+        # Sub-case 4: publish() fail-closed verification on existing invalid receipt
+        approve(root, draft_file, reviewer="Auditor", note="Valid")
+        with self.assertRaises(ValueError) as cm:
+            publish(root, draft_file)
+        self.assertIn("Publication receipt integrity mismatch", str(cm.exception))
+
+    # 21. Recovery lock parity with downloader and concurrent update handling
+    def test_recovery_lock_parity_and_concurrent_updates(self):
+        root = self.root / "lock_parity_concurrency"
+        url = "https://ssc.gov.in/notice_transient"
+        retries = StageRetries(root)
+
+        # Direct stage path
+        state_file = retries.path("capture", url)
+        lock_file = state_file.with_suffix(".lock")
+
+        # Confirm the state file path and lock file path
+        url_hash = hashlib.sha256(url.encode()).hexdigest()
+        self.assertEqual(state_file.name, f"{url_hash}.json")
+        self.assertEqual(lock_file.name, f"{url_hash}.lock")
+        self.assertEqual(lock_file.parent, root / "state" / "stages" / "capture")
+
+        # Seed eligible hold
+        retries.write("capture", url, {
+            "status": "needs_review", "attempts": 2, "reason": "gaierror", "next_at": 0
+        })
+
+        # Test concurrent update under lock:
+        # A simulated downloader thread holds the exact stage lock and transitions state to success.
+        barrier = threading.Barrier(2)
+        recovered_results = []
+
+        def worker_downloader():
+            with retries.lock("capture", url):
+                barrier.wait()
+                time.sleep(0.05)
+                retries.write("capture", url, {
+                    "status": "success", "attempts": 1, "reason": None, "next_at": 0
+                })
+
+        def worker_recovery():
+            barrier.wait()
+            res = audit_capture_holds(root, dry_run=False)
+            recovered_results.append(res)
+
+        t_dl = threading.Thread(target=worker_downloader)
+        t_rec = threading.Thread(target=worker_recovery)
+        t_dl.start()
+        t_rec.start()
+        t_dl.join()
+        t_rec.join()
+
+        self.assertEqual(len(recovered_results), 1)
+        res = recovered_results[0]
+        # Recovery waited for the downloader lock, read the updated status "success",
+        # and did NOT overwrite it with retry_wait!
+        self.assertEqual(res["recovered"], 0)
+        final_state = retries.read("capture", url)
+        self.assertEqual(final_state["status"], "success")
+
+    # 22. Recovery rejects malformed durable records
+    def test_recovery_rejects_malformed_records(self):
+        root = self.root / "malformed_records"
+        cap_dir = root / "state" / "stages" / "capture"
+        cap_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. needs_review + reason=gaierror + attempts="invalid"
+        p_invalid_attempts = cap_dir / "hash_inv_attempts.json"
+        p_invalid_attempts.write_text(json.dumps({
+            "status": "needs_review", "reason": "gaierror", "attempts": "invalid", "next_at": 0
+        }))
+
+        # 2. attempts is boolean True
+        p_bool_attempts = cap_dir / "hash_bool_attempts.json"
+        p_bool_attempts.write_text(json.dumps({
+            "status": "needs_review", "reason": "gaierror", "attempts": True, "next_at": 0
+        }))
+
+        # 3. Missing status field
+        p_missing_status = cap_dir / "hash_missing_status.json"
+        p_missing_status.write_text(json.dumps({
+            "reason": "gaierror", "attempts": 2, "next_at": 0
+        }))
+
+        # 4. Corrupt JSON syntax on disk
+        p_corrupt_json = cap_dir / "hash_corrupt_json.json"
+        p_corrupt_json.write_bytes(b"{not valid json")
+
+        # 5. Legitimate eligible hold for contrast
+        p_valid = cap_dir / "hash_valid.json"
+        p_valid.write_text(json.dumps({
+            "status": "needs_review", "reason": "gaierror", "attempts": 2, "next_at": 0
+        }))
+
+        res = audit_capture_holds(root, dry_run=False)
+        self.assertEqual(res["total_holds"], 5)
+        self.assertEqual(res["eligible_holds"], 1)
+        self.assertEqual(res["ineligible_holds"], 4)
+        self.assertEqual(res["recovered"], 1)
+
+        # Corrupt and malformed records remain completely unchanged on disk
+        self.assertIn('"attempts": "invalid"', p_invalid_attempts.read_text())
+        self.assertIn('"attempts": true', p_bool_attempts.read_text())
+        self.assertEqual(p_corrupt_json.read_bytes(), b"{not valid json")
+        self.assertEqual(json.loads(p_valid.read_text())["status"], "retry_wait")
+
+    # 23. Durable backup and audit manifest creation
+    def test_recovery_durable_backup_and_audit_manifest(self):
+        root = self.root / "durable_backup_test"
+        retries = StageRetries(root)
+        url = "https://upsc.gov.in/notice_transient"
+        retries.write("capture", url, {
+            "status": "needs_review", "attempts": 3, "reason": "ConnectTimeout", "next_at": 0
+        })
+        orig_bytes = retries.path("capture", url).read_bytes()
+        orig_sha = hashlib.sha256(orig_bytes).hexdigest()
+
+        # 1. In dry_run=True, no backup directory or manifest is created
+        dry_res = audit_capture_holds(root, dry_run=True)
+        self.assertIsNone(dry_res["backup_dir"])
+        self.assertIsNone(dry_res["manifest_path"])
+        self.assertFalse((root / "backups").exists())
+
+        # 2. In dry_run=False, backup and manifest are created durably
+        exec_res = audit_capture_holds(root, dry_run=False)
+        self.assertEqual(exec_res["recovered"], 1)
+        backup_dir = Path(exec_res["backup_dir"])
+        manifest_path = Path(exec_res["manifest_path"])
+
+        self.assertTrue(backup_dir.is_dir())
+        self.assertTrue(manifest_path.is_file())
+
+        # Check backed up original file
+        backup_records_dir = backup_dir / "records"
+        backup_file = list(backup_records_dir.rglob("*.json"))[0]
+        self.assertEqual(backup_file.read_bytes(), orig_bytes)
+
+        # Check audit manifest contents
+        manifest = json.loads(manifest_path.read_text())
+        self.assertEqual(manifest["total_recovered"], 1)
+        self.assertEqual(len(manifest["records"]), 1)
+        rec = manifest["records"][0]
+        self.assertEqual(rec["sha256"], orig_sha)
+        self.assertEqual(rec["previous_state"]["status"], "needs_review")
+        self.assertEqual(rec["previous_state"]["reason"], "ConnectTimeout")
+        self.assertEqual(rec["recovered_state"]["status"], "retry_wait")
+
+    # 24. Transient failure becomes eligible on 6-hour cron run, attempt counter saturates at 10, AI/factual holds preserved
+    def test_transient_failure_cron_recovery_and_saturation(self):
+        root = self.root / "cron_recovery_and_saturation"
+        t0 = 1729900000.0
+        clock = [t0]
+
+        retries = StageRetries(root, clock=lambda: clock[0])
+        url = "https://sarkariresult.com/exam/dns_glitch"
+        fp_ai = "evidence_ai_fp_001"
+        fp_fact = "evidence_fact_fp_002"
+
+        # 1. At t0: Transient capture error occurs
+        retries.failure("capture", url, "gaierror", retryable=True)
+        cap_st = retries.read("capture", url)
+        self.assertEqual(cap_st["status"], "retry_wait")
+        self.assertEqual(cap_st["reason"], "gaierror")
+        self.assertGreater(cap_st["next_at"], t0)
+        self.assertLessEqual(cap_st["next_at"], t0 + 3900)
+
+        # 2. At t0: Uncertain AI error occurs
+        retries.failure("extraction", fp_ai, "provider_completion_uncertain")
+        ai_st = retries.read("extraction", fp_ai)
+        self.assertEqual(ai_st["status"], "needs_review")
+        self.assertEqual(ai_st["reason"], "provider_completion_uncertain")
+
+        # 3. At t0: Factual validation fails
+        retries.failure("extraction", fp_fact, "candidate_validation_blocked")
+        fact_st = retries.read("extraction", fp_fact)
+        self.assertEqual(fact_st["status"], "needs_review")
+        self.assertEqual(fact_st["reason"], "candidate_validation_blocked")
+
+        # 4. Immediate check (10 seconds later, t = t0 + 10):
+        # Capture is in cooldown (delay is at least 30s); AI and factual holds are in needs_review
+        clock[0] = t0 + 10
+        self.assertFalse(retries.begin("capture", url))
+        self.assertFalse(retries.begin("extraction", fp_ai))
+        self.assertFalse(retries.begin("extraction", fp_fact))
+
+        # 5. Fast-forward to the NEXT SIX-HOUR CRON RUN (t = t0 + 21600 seconds):
+        # Simulate process restart: fresh worker process, new StageRetries instance
+        del retries
+        cron_time = t0 + 6 * 3600
+        restarted_retries = StageRetries(root, clock=lambda: cron_time)
+
+        # Capture has expired its cooldown (delay was <= 3900s, 21600s have passed)
+        # It is immediately eligible on the 6-hour cron run!
+        self.assertTrue(restarted_retries.begin("capture", url))
+        # Simulated successful fetch completes
+        restarted_retries.success("capture", url)
+        self.assertEqual(restarted_retries.read("capture", url)["status"], "success")
+
+        # AI hold and Factual hold remain strictly held in needs_review across 6-hour cron and restart
+        self.assertFalse(restarted_retries.begin("extraction", fp_ai))
+        self.assertFalse(restarted_retries.begin("extraction", fp_fact))
+        self.assertEqual(restarted_retries.read("extraction", fp_ai)["status"], "needs_review")
+        self.assertEqual(restarted_retries.read("extraction", fp_ai)["reason"], "provider_completion_uncertain")
+        self.assertEqual(restarted_retries.read("extraction", fp_fact)["status"], "needs_review")
+        self.assertEqual(restarted_retries.read("extraction", fp_fact)["reason"], "candidate_validation_blocked")
+
+        # 6. Prove Attempt Counter Saturation at 10:
+        # Repeated transient capture failures saturate attempts at 10 without blocking future attempts
+        sat_url = "https://sarkariresult.com/exam/persisting_glitch"
+        sat_retries = StageRetries(root, clock=lambda: clock[0])
+        for att in range(1, 15):
+            clock[0] += 5000
+            self.assertTrue(sat_retries.begin("capture", sat_url))
+            sat_retries.failure("capture", sat_url, "gaierror", retryable=True)
+            cur = sat_retries.read("capture", sat_url)
+            self.assertEqual(cur["status"], "retry_wait")
+            if att >= 10:
+                # Attempts saturated at 10
+                self.assertEqual(cur["attempts"], 10)
+                # Max delay saturated at 3600 (+ jitter up to 300)
+                delay = cur["next_at"] - clock[0]
+                self.assertLessEqual(delay, 3900)
+
+        # Even after 15 attempts, scheduled attempts remain allowed!
+        clock[0] += 5000
+        self.assertTrue(sat_retries.begin("capture", sat_url))
 
 
 if __name__ == "__main__":

@@ -73,14 +73,21 @@ In `generic_pipeline.py`, `counts['provider_calls_attempted']` was incremented i
 
 ### B. Bounded Retries, Capped Delayed Recovery, and Jitter
 - **Initial Retries:** Attempt 1 waits 30s (+ jitter); Attempt 2 waits 60s (+ jitter).
-- **Capped Delayed Recovery Cooldown:** When attempts reach 3 or higher, transient capture failures remain in `"status": "retry_wait"` (instead of being marked `"needs_review"`). The delay doubles up to `MAX_CAPTURE_COOLDOWN = 3600` (1 hour) plus jitter.
-- **Deterministic Hash-Based Jitter:** Jitter is calculated as `int(sha256(f"{key}:{attempts}")[:8], 16) % (max_jitter + 1)` (up to 20% of base delay, capped at 300s). This ensures:
-  1. Multiple URLs failing simultaneously wake up at staggered times, preventing retry stampedes.
-  2. Cooldown calculation across process restarts is stable and reproducible.
-  3. Controlled-clock tests can run deterministically without pseudo-random mocking.
+- **Capped Delayed Recovery Cooldown:** When attempts reach 3 or higher, transient capture failures remain in `"status": "retry_wait"` (instead of being marked `"needs_review"`). The delay doubles up to `MAX_CAPTURE_COOLDOWN = 3600` (1 hour) plus deterministic jitter.
+- **Attempt Counter Saturation:** The capture attempt counter saturates at `MAX_CAPTURE_ATTEMPTS = 10` (`next_attempts = min(attempts + 1, 10)`). `StageRetries.begin('capture', url)` never locks capture at attempt limit; attempts remain allowed on future cron runs after cooldown.
+- **Deterministic Hash-Based Jitter:** Jitter is calculated as `int(sha256(f"{key}:{attempts}")[:8], 16) % (max_jitter + 1)` (up to 20% of base delay, capped at 300s). This ensures stable, reproducible cooldowns across process restarts and prevents stampedes during closely spaced retries.
 - **Limited Real Attempts After Cooldown:** When cooldown expires (`clock >= next_at`), `retries.begin('capture', url)` allows exactly ONE real network attempt. If it fails again, `next_at` is immediately updated into the future, guaranteeing no tight loops or stampedes.
 
-### C. Preservation of Strong Holds
+### C. Operational Realities: 6-Hour Cron and Pacing Behavior
+1. **Burst Reality on 6-Hour Cron:**
+   Cron runs every 6 hours (21,600s). Because maximum cooldown delay + jitter is capped at ~3,900s (~1 hour), all previously backoffed URLs will have expired cooldowns when a scheduled 6-hour cron run starts. **Jitter alone does not prevent a request burst across long cron intervals.**
+2. **Existing Per-Host Pacing and Concurrency:**
+   - In `shared_crawl.py`, document discovery runs in a single-threaded `while queue` loop. Concurrency is strictly **1** (sequential) per crawl.
+   - Crawl scope is strictly bounded: `max_fetches` defaults to 12 (hard cap 30) and `max_depth` defaults to 3 (hard cap 4).
+   - Currently, there is no inter-request sleep delay between subsequent URLs in the crawl queue; requests execute sequentially back-to-back as fast as network latency allows.
+   - In keeping with scope discipline, no speculative token-bucket scheduler or altered provider timing was introduced in this fix.
+
+### D. Preservation of Strong Holds
 The following conditions remain strictly locked in `"status": "needs_review"` with `next_at: 0` and are NEVER automatically retried:
 1. **Uncertain paid AI completion:** Any extraction job with `status == 'running'` upon crash/restart is flagged with `provider_completion_uncertain`.
 2. **Corrupt extraction checkpoints:** Checksum mismatches or payload corruption in `.response.json`.
@@ -88,26 +95,21 @@ The following conditions remain strictly locked in `"status": "needs_review"` wi
 4. **Non-transient capture errors:** HTTP 404, `invalid_pdf`, `non_public_destination`, `login_required`.
 5. **Stage extraction/publication limits:** 3-attempt lifetime exhaustion for paid LLM calls and publication delivery.
 
-### D. Honest Diagnostic Reporting
-- `capture_retry.py` returns `CaptureRetryOutcome`, an immutable 3-tuple subclass `(result, reason, retryable)` that preserves complete backward compatibility while exposing `attempted` (bool) and `cooldown_skip` (bool).
-- `shared_crawl.py` tracks `report['capture_attempts']` (actual network attempts made) and `report['cooldown_skips']` (URLs skipped due to active cooldowns), saving historical error reasons on skipped pages.
-- `shared_pipeline.py` propagates `capture_attempts` and `cooldown_skips` to `summary.json`.
-- `generic_pipeline.py` surfaces `capture_attempts` and `cooldown_skips` under `report['sources'][source_id]` and includes `report['summary']['captures'] = {'attempted': ..., 'cooldown_skips': ...}`.
+### E. Fail-Closed Receipt Integrity Verification
+`review_publication.py` exports `validate_receipt_payload` and `is_valid_receipt_file` enforcing strict fail-closed verification:
+- When validating against durable publication state (`stage_retries`), the state record must be valid, have `status == 'success'`, and contain a non-empty `receipt_sha256`.
+- Missing `receipt_sha256` raises `ValueError('Missing receipt checksum in publication state')`.
+- Corrupt state raises `ValueError('Corrupt publication state')`.
+- Checksum mismatch raises `ValueError('Publication receipt integrity mismatch')`.
+- `publish()` fails closed if an on-disk receipt has missing, corrupt, or mismatched publication state.
 
-### E. Fixes for Documented Counter and Receipt Defects
-1. **Publication Receipt Validation:** `review_publication.py` exports `validate_receipt_payload` and `is_valid_receipt_file`. A receipt is accepted as proof of publication only if:
-   - The file is valid JSON and matches the schema: `draft_sha256`, non-empty `candidate_id`, valid 64-hex `content_hash`, and a non-empty, unique list of `post_ids` matching the post count.
-   - If a stage retry record exists for publication, the SHA-256 checksum of the file bytes on disk matches `receipt_sha256`.
-   - Both `generic_pipeline.py` draft reuse and storage backlog calculation now use `is_valid_receipt_file`.
-2. **Actual Extractor Counter Accuracy:** `generic_pipeline.py` wraps `extractor` with a tracked closure. Counter increments for `attempted`, `succeeded`, and `failed` occur inside a `finally` block based strictly on actual invocation of `tracked_extractor`, distinguishing remote provider failures from pre-extraction preparation errors or local checkpoint disk failures (`checkpoint_storage_failed`).
-
-### F. Audited Dry-Run Recovery Procedure (`recover_capture_holds.py`)
-`services/ai/recover_capture_holds.py` provides an offline inspection and remediation tool:
-- Scans `state/stages/capture/*.json` across global and per-source directories.
-- Classifies holds with transient reasons (`gaierror`, `ConnectTimeout`, etc.) as `eligible_for_delayed_recovery`.
-- Classifies non-transient holds (`invalid_pdf`, `http_404`, etc.) and all extraction/publication holds as `ineligible_permanent_hold`.
-- In `--dry-run` mode (default), performs zero disk writes and outputs a structured audit log.
-- In `--execute` mode, safely resets ONLY eligible transient holds to `retry_wait` with `attempts = 1` and `next_at = now`, preserving all strong holds.
+### F. Audited Historical Recovery Utility (`recover_capture_holds.py`)
+`services/ai/recover_capture_holds.py` provides an audited, safe remediation tool:
+- **Lock Parity:** Locks `state_path.with_suffix('.lock')`, which is the exact same path (`state/stages/capture/<hash>.lock`) held by the downloader and `StageRetries.lock('capture', url)`.
+- **Lock Acquisition Before Read:** The lock is acquired *before* reading the state file. Under that lock, state is re-read and validated. If concurrent operations updated the state (e.g. to `success`), recovery does not overwrite it.
+- **Canonical Validation:** Uses `is_valid_stage_record(state, max_attempts=10)` to validate the record. Malformed records (e.g. `attempts="invalid"`, boolean attempts, corrupt JSON) are classified as `ineligible_corrupt_hold` and remain held.
+- **Durable Backup and Audit Manifest:** In `--execute` mode, exact original bytes are saved to `backups/capture_recovery/<run_id>/records/<rel_path>` and an `audit_manifest.json` is durably written with timestamps, paths, and SHA-256 checksums before state is mutated.
+- **Default Mode:** Default remains `--dry-run` (zero disk mutations). Production state was not touched.
 
 ---
 
@@ -115,22 +117,16 @@ The following conditions remain strictly locked in `"status": "needs_review"` wi
 
 | File | Exact Changes Made |
 | --- | --- |
-| `services/ai/stage_retry.py` | Added `is_transient_capture_error` and `capture_failure` policies. Updated `StageRetries` to support capped delayed recovery for capture (`MAX_CAPTURE_COOLDOWN = 3600`, `MAX_CAPTURE_ATTEMPTS = 10`), added deterministic hash jitter (`_compute_capture_delay`), and ensured capture transient errors transition to `retry_wait` while preserving `needs_review` for non-transient capture errors and all extraction/publication holds. |
-| `services/ai/capture_retry.py` | Implemented `CaptureRetryOutcome(tuple)` exposing `attempted` and `cooldown_skip` while maintaining backward compatibility with `(result, reason, retryable)`. Enforces transient error classification through `capture_failure` and forwards `clock` for controlled-time execution. |
-| `services/ai/recover_documents.py` | Preserves `from normalize_pdf import normalize_pdf` and successful PDF normalization. Replaced raw dictionary reason checking with `is_transient_capture_error` and formatted `HTTPStatusError` with concrete status codes (e.g. `http_503` vs `http_404`). |
+| `services/ai/stage_retry.py` | Exported `file_lock` context manager and canonical `is_valid_stage_record` validator. Updated `StageRetries` to support capped delayed recovery for capture (`MAX_CAPTURE_COOLDOWN = 3600`, `MAX_CAPTURE_ATTEMPTS = 10`), added deterministic hash jitter (`_compute_capture_delay`), ensured `failure()` always writes `'attempts'`, and preserved `needs_review` for non-transient capture errors and all extraction/publication holds. |
+| `services/ai/review_publication.py` | Restored fail-closed integrity validation in `validate_receipt_payload`: rejects missing checksums, corrupt publication state, and mismatched checksums when validating durable receipts. |
+| `services/ai/recover_capture_holds.py` | Audited capture hold recovery: uses exact downloader lock (`state_path.with_suffix('.lock')`), locks before reading, validates complete canonical records, keeps corrupt/malformed records held, and durably backs up original records with an audit manifest before modifying state in `--execute` mode. |
+| `services/ai/capture_retry.py` | Implemented `CaptureRetryOutcome(tuple)` exposing `attempted` and `cooldown_skip` while maintaining backward compatibility with `(result, reason, retryable)`. Enforces transient error classification through `capture_failure` and forwards `clock`. |
+| `services/ai/recover_documents.py` | Preserved `from normalize_pdf import normalize_pdf` and successful PDF normalization. Replaced raw dictionary reason checking with `is_transient_capture_error` and formatted `HTTPStatusError` with concrete status codes (e.g. `http_503` vs `http_404`). |
 | `services/ai/shared_crawl.py` | Recorded `page['attempted']`, `page['cooldown_skip']`, and `page['historical_reason']`. Populated `report['capture_attempts']` and `report['cooldown_skips']` in crawl reports. |
 | `services/ai/shared_pipeline.py` | Propagated `capture_attempts` and `cooldown_skips` into source preparation summaries (`summary.json`). |
 | `services/ai/generic_pipeline.py` | Integrated `is_valid_receipt_file` for draft reuse and storage backlog calculation; wrapped extractor with `tracked_extractor` to count actual invocations; aggregated `capture_attempts` and `cooldown_skips` in per-source counts and overall summary (`summary.captures`). |
-| `services/ai/review_publication.py` | Exported `validate_receipt_payload` and `is_valid_receipt_file` to validate receipt schema, unique post IDs, and checksum integrity. |
 | `services/ai/extraction_checkpoint.py` | Separated provider execution catch block from checkpoint persistence catch block, recording `checkpoint_storage_failed` upon disk write errors. |
-| `services/ai/recover_capture_holds.py` | New audited dry-run recovery utility for historical capture holds; defaults to `--dry-run` and protects non-transient holds. |
-| `services/ai/tests/test_worker_recovery_and_reporting.py` | Added 7 comprehensive regression test cases (19 total tests in file) verifying transient capture recovery across restarts, HTTP 503 vs 404 discrimination, stampede prevention with jitter, preservation of strong holds, receipt validation, extractor invocation counters, and the dry-run procedure. |
-
-### Note on `recover_documents.py`
-`recover_documents.py` is the execution boundary where raw HTTP/PDF snapshots from `capture()` are received, validated, and dispatched to either `normalize_pdf()` or `normalize_html()`. This file required modification to:
-1. Preserve specific HTTP error statuses (e.g., mapping `HTTPStatusError` with status code 503 to `http_503`, and 404 to `http_404`), allowing downstream stage retry logic to accurately distinguish transient outages from permanent failures.
-2. Route retryability through `is_transient_capture_error()`.
-3. Preserve `normalize_pdf()` import and invocation intact, ensuring that once capture recovers, PDF extraction continues without degradation.
+| `services/ai/tests/test_worker_recovery_and_reporting.py` | Added 12 comprehensive regression test cases (24 total tests in file) verifying transient capture recovery across restarts, 6-hour cron timeline, attempt counter saturation, HTTP 503 vs 404 discrimination, lock parity, concurrent updates, malformed record preservation, durable backups, receipt integrity, and invocation counters. |
 
 ---
 
@@ -142,8 +138,8 @@ Consider a scenario where the host network or external DNS fails at 10:00:
    - `capture_failure` classifies `gaierror` as transient.
    - `StageRetries` records: `status: "retry_wait"`, `attempts: 1`, `reason: "gaierror"`, `next_at: 10:00:30 + jitter`.
    - Worker report records: `status: "failed"`, `summary.captures.attempted: 1`, `summary.captures.cooldown_skips: 0`.
-2. **Run 2 (10:05 IST, container restarted by monitor):**
-   - Current time is within the backoff lease or next scheduled tick before cooldown expires.
+2. **Run 2 (10:00:10 IST, 10 seconds later):**
+   - Current time is within the initial 30s cooldown window (`clock < next_at`).
    - `capture_with_retry` checks `clock < next_at`.
    - The fetch is skipped without opening a network socket.
    - Report records: `summary.captures.attempted: 0`, `summary.captures.cooldown_skips: 1`, historical reason `"gaierror"` retained.
@@ -151,25 +147,25 @@ Consider a scenario where the host network or external DNS fails at 10:00:
    - Cooldown expired (`clock >= next_at`).
    - Crawler makes exactly 1 bounded network attempt. It fails again.
    - Attempts increment to 3. Capped delayed recovery cooldown applies (`delay = 120s + jitter`). State remains `"retry_wait"`. It does NOT lock into `"needs_review"`.
-4. **Run 4 (16:00 IST, scheduled cron boundary, host network restored):**
+4. **Run 4 (16:00 IST, scheduled 6-hour cron boundary, host network restored):**
    - Cooldown expired hours ago (`clock >= next_at`).
-   - Crawler makes 1 bounded recovery attempt.
+   - Crawler makes 1 bounded recovery attempt across fresh process restart.
    - DNS resolves, HTTP returns 200 OK with notice PDF.
    - `StageRetries.success('capture', url)` is called: state transitions to `"status": "success"`, `attempts: 0`, `reason: null`.
-   - PDF is normalized by `normalize_pdf`, verified into candidate bundles, and an extraction draft is created.
+   - In contrast, any uncertain AI completion holds (`provider_completion_uncertain`) or candidate validation holds (`candidate_validation_blocked`) remain strictly in `"needs_review"` and are never touched.
    - Automatic recovery is complete with zero manual database or container intervention!
 
 ---
 
 ## 5. Exact Commands and Verification Results
 
-### A. Python Regression Suite
+### A. Python Focused Regression Suite
 ```sh
 PYTHONPATH=services/ai:services/ai/tests services/ai/.venv/bin/python -m unittest services/ai/tests/test_worker_recovery_and_reporting.py
 ```
 **Output:**
 ```
-Ran 19 tests in 0.830s
+Ran 24 tests in 0.598s
 OK
 ```
 
@@ -179,7 +175,7 @@ PYTHONPATH=services/ai:services/ai/tests services/ai/.venv/bin/python -m unittes
 ```
 **Output:**
 ```
-Ran 390 tests in 17.508s
+Ran 395 tests in 7.962s
 OK
 ```
 
@@ -195,24 +191,16 @@ pnpm typecheck
 (Exited 0, zero type errors across server and web configurations)
 ```
 
-### D. Audited Dry-Run Recovery Utility Check
-```sh
-PYTHONPATH=services/ai services/ai/.venv/bin/python services/ai/recover_capture_holds.py --help
-```
-**Output:**
-```
-usage: recover_capture_holds.py [-h] [--dry-run | --execute] storage_dir
-positional arguments:
-  storage_dir  Worker storage directory
-options:
-  -h, --help   show this help message and exit
-  --dry-run    Audit without modifying state (default)
-  --execute    Explicitly apply recovery to eligible holds
-```
+---
+
+## 6. Recorded Later Improvement
+
+- **Decoupled Paced Document Capture and Queued AI Extraction:**
+  Separate offline paced document capture from queued AI extraction. This architecture will allow document fetching to run with configurable per-host pacing intervals during standard hours, while queuing extraction bundles for execution during verified off-peak / discounted LLM provider pricing windows, cleanly reusing verified evidence artifacts and durable checkpoints without repeating web fetches.
 
 ---
 
-## 6. Remaining Limitations and What is NOT Implemented
+## 7. Remaining Limitations and What is NOT Implemented
 
 1. **Production State Remains Untouched:**
    - In accordance with safety rules and coordinator boundaries, no production commands, database mutations, or state resets were run against the production environment.
@@ -221,18 +209,3 @@ options:
    - File locking uses `fcntl.flock` on local filesystem paths (`state/stages/`, `capture.lock`). Distributed multi-worker locking across independent virtual machines is not implemented.
 3. **Factual Quality (BHEL / HLL Notices):**
    - This slice resolves transport, retry recovery, and diagnostic reporting. It does not resolve upstream aggregator summarization deficiencies or factual extraction ambiguities (which are planned for the upcoming official evidence enrichment slice).
-4. **Live PostgreSQL Transaction Rollback:**
-   - Publication database rollback tests requiring a live PostgreSQL socket (`TEST_DATABASE_URL`) were verified via unit mocks; live database integration was verified offline against SQLite and mock HTTP responses.
-
----
-
-## 7. Local Git Commit Record
-
-Focused local commits on branch `codex/worker-failure-reporting`:
-- `d98f256`: Initial truthfulness and failure reporting propagation.
-- *(Follow-up commit)*: `fix(worker): implement bounded capture recovery, receipt validation, and invocation tracking`
-  - Captures transient error classification and delayed recovery with jitter.
-  - Cooldown skip tracking and accurate diagnostic reporting.
-  - Fixes publication receipt integrity check and actual extractor invocation counter.
-  - Audited dry-run historical capture hold recovery utility.
-  - 7 new focused regression tests (19 total) and full 390-test suite pass.

@@ -6,12 +6,13 @@ performs dry-run auditing by default without modifying disk state.
 """
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import time
 
 from capture_store import atomic_write
-from stage_retry import StageRetries, is_transient_capture_error
+from stage_retry import StageRetries, file_lock, is_valid_stage_record, is_transient_capture_error
 
 
 def find_capture_state_files(storage_dir):
@@ -42,65 +43,134 @@ def audit_capture_holds(storage_dir, *, dry_run=True, clock=None):
 
     Preserves strong holds (corrupt state, non-transient capture errors,
     AI provider/validation holds) and never touches extraction or publication states.
+    Locks each state using its canonical stage lock before reading, re-validates
+    under the lock, and backs up original records before executing recovery.
     """
-    now = (clock or time.time)()
+    now_time = (clock or time.time)()
+    root = Path(storage_dir)
     files = find_capture_state_files(storage_dir)
     results = {
         "dry_run": dry_run,
-        "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
-        "storage_dir": str(Path(storage_dir).resolve()),
+        "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now_time)),
+        "storage_dir": str(root.resolve()),
         "total_files_inspected": len(files),
         "total_holds": 0,
         "eligible_holds": 0,
         "ineligible_holds": 0,
         "recovered": 0,
+        "backup_dir": None,
+        "manifest_path": None,
         "holds": [],
     }
 
+    backup_records = []
+    backup_dir = None
+    if not dry_run:
+        run_ts = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(now_time))
+        backup_dir = root / "backups" / "capture_recovery" / f"recovery_{run_ts}_{int(now_time)}"
+
     for state_path in files:
-        try:
-            state = json.loads(state_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError, TypeError):
-            continue
+        lock_path = state_path.with_suffix(".lock")
+        with file_lock(lock_path):
+            try:
+                raw_bytes = state_path.read_bytes()
+                state = json.loads(raw_bytes.decode("utf-8"))
+            except (OSError, ValueError, TypeError):
+                # Corrupt or unparseable JSON file
+                results["total_holds"] += 1
+                results["ineligible_holds"] += 1
+                results["holds"].append({
+                    "path": str(state_path.resolve()),
+                    "key_hash": state_path.stem,
+                    "status": "needs_review",
+                    "reason": "corrupt_stage_state",
+                    "attempts": None,
+                    "eligible": False,
+                    "disposition": "ineligible_corrupt_hold",
+                    "action": "preserved_hold",
+                })
+                continue
 
-        if not isinstance(state, dict) or state.get("status") != "needs_review":
-            continue
+            if not is_valid_stage_record(state, max_attempts=StageRetries.MAX_CAPTURE_ATTEMPTS):
+                # Corrupt / malformed durable record (e.g. attempts="invalid")
+                results["total_holds"] += 1
+                results["ineligible_holds"] += 1
+                results["holds"].append({
+                    "path": str(state_path.resolve()),
+                    "key_hash": state_path.stem,
+                    "status": state.get("status") if isinstance(state, dict) else "corrupt",
+                    "reason": state.get("reason") if isinstance(state, dict) else "corrupt_stage_state",
+                    "attempts": state.get("attempts") if isinstance(state, dict) else None,
+                    "eligible": False,
+                    "disposition": "ineligible_corrupt_hold",
+                    "action": "preserved_hold",
+                })
+                continue
 
-        results["total_holds"] += 1
-        reason = state.get("reason") or "unknown_reason"
-        attempts = state.get("attempts", 1)
-        eligible = is_transient_capture_error(reason)
+            if state.get("status") != "needs_review":
+                continue
 
-        hold_info = {
-            "path": str(state_path.resolve()),
-            "key_hash": state_path.stem,
-            "status": "needs_review",
-            "reason": reason,
-            "attempts": attempts,
-            "eligible": eligible,
-            "disposition": "eligible_for_delayed_recovery" if eligible else "ineligible_permanent_hold",
-            "action": ("would_reset_to_retry_wait" if dry_run else "reset_to_retry_wait") if eligible else "preserved_hold",
-        }
-        results["holds"].append(hold_info)
+            results["total_holds"] += 1
+            reason = state.get("reason")
+            attempts = state.get("attempts", 1)
+            eligible = is_transient_capture_error(reason)
 
-        if eligible:
-            results["eligible_holds"] += 1
-            if not dry_run:
-                # Transition eligible hold to retry_wait due for immediate recovery
-                lock_path = state_path.with_suffix(".lock")
-                retries = StageRetries(state_path.parents[3] if "shared" in state_path.parts else state_path.parents[2])
-                with retries.lock("capture", state_path.stem):
+            hold_info = {
+                "path": str(state_path.resolve()),
+                "key_hash": state_path.stem,
+                "status": "needs_review",
+                "reason": reason,
+                "attempts": attempts,
+                "eligible": eligible,
+                "disposition": "eligible_for_delayed_recovery" if eligible else "ineligible_permanent_hold",
+                "action": ("would_reset_to_retry_wait" if dry_run else "reset_to_retry_wait") if eligible else "preserved_hold",
+            }
+            results["holds"].append(hold_info)
+
+            if eligible:
+                results["eligible_holds"] += 1
+                if not dry_run:
+                    # Durably back up the exact original record before mutating
+                    try:
+                        rel_path = state_path.resolve().relative_to(root.resolve())
+                    except ValueError:
+                        rel_path = Path(state_path.name)
+                    backup_file = backup_dir / "records" / rel_path
+                    atomic_write(backup_file, raw_bytes)
+
+                    # Update state under lock
                     new_state = {
                         **state,
                         "status": "retry_wait",
                         "attempts": 1,
-                        "next_at": now,
+                        "next_at": now_time,
                         "reason": reason,
                     }
                     atomic_write(state_path, json.dumps(new_state, ensure_ascii=False, indent=2).encode())
-                results["recovered"] += 1
-        else:
-            results["ineligible_holds"] += 1
+                    results["recovered"] += 1
+
+                    backup_records.append({
+                        "original_path": str(state_path.resolve()),
+                        "backup_path": str(backup_file.resolve()),
+                        "sha256": hashlib.sha256(raw_bytes).hexdigest(),
+                        "previous_state": state,
+                        "recovered_state": new_state,
+                    })
+            else:
+                results["ineligible_holds"] += 1
+
+    if not dry_run and results["recovered"] > 0:
+        manifest = {
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now_time)),
+            "storage_dir": str(root.resolve()),
+            "backup_dir": str(backup_dir.resolve()),
+            "total_recovered": results["recovered"],
+            "records": backup_records,
+        }
+        manifest_path = backup_dir / "audit_manifest.json"
+        atomic_write(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2).encode())
+        results["backup_dir"] = str(backup_dir.resolve())
+        results["manifest_path"] = str(manifest_path.resolve())
 
     return results
 
