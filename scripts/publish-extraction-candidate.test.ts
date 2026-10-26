@@ -115,12 +115,18 @@ print(json.dumps(prepare_storage(r,s,source_name='Illustrative recruitment')))
         where: { id: saved.id },
         data: { sourceName: before.sourceName },
       });
+      // Model remote-database latency beyond the former ten-second deadline.
+      await sql.query(`CREATE FUNCTION "${schema}".delay_publication() RETURNS trigger
+        LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(11); RETURN NEW; END $$`);
+      await sql.query(`CREATE TRIGGER delayed_publication BEFORE INSERT ON "${schema}"."Post"
+        FOR EACH ROW EXECUTE FUNCTION "${schema}".delay_publication()`);
       const first = await publishExtractionCandidate(
         saved.id,
         saved.contentHash,
         'Source-reviewed illustrative fixture',
         db,
       );
+      await sql.query(`DROP TRIGGER delayed_publication ON "${schema}"."Post"`);
       const second = await publishExtractionCandidate(
         saved.id,
         saved.contentHash,

@@ -42,17 +42,21 @@ def main():
                 return
             time.sleep(delay)
             continue
+        status = 'completed'
         try:
             result = run_pipeline(Path(args.storage_dir), sources_path=args.sources,
                                   source_id=args.source, max_fetches=args.max_fetches,
                                   max_depth=args.max_depth, prepare_only=args.prepare_only)
             print(json.dumps(result), flush=True)
+            status = result.get('status', 'completed')
         except (OSError, RuntimeError, TypeError, ValueError):
+            status = 'failed'
             print(json.dumps({'status': 'failed', 'reason': 'pipeline_run_failed'}), flush=True)
         if args.once:
-            return
+            return 1 if status == 'failed' else 0
         time.sleep(max(1, seconds_until_next_run()))
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    sys.exit(main())

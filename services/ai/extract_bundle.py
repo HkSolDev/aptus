@@ -6,6 +6,7 @@ import os
 import re
 
 import httpx
+from provider_metrics import provider_post
 from pydantic import ValidationError
 
 from build_extraction_input import BundleFacts, INSTRUCTIONS, is_extraction_approved
@@ -154,7 +155,7 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
         for attempt, key in enumerate(keys, 1):
             headers = ({'Authorization': f'Bearer {key}'} if provider in {'openai', 'deepseek'}
                        else {'x-goog-api-key': key})
-            response = (client or httpx).post(url, headers=headers, json=payload, timeout=120)
+            response = provider_post(client or httpx, url, headers=headers, json=payload, timeout=120)
             if provider == 'gemini' and invalid_gemini_key(response):
                 if attempt < len(keys):
                     continue

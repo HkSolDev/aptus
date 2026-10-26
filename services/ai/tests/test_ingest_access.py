@@ -35,3 +35,12 @@ class IngestAccessTest(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     push_to_ts({})
                 post.assert_not_called()
+
+    def test_reviewed_delivery_waits_for_publication_without_extending_legacy_calls(self):
+        with patch.dict(os.environ, {"INGEST_TOKEN": TOKEN}, clear=True), patch("pipeline.httpx.post") as post:
+            push_to_ts({"reviewed_candidate_json": "{}", "approval": {}})
+            timeout = post.call_args.kwargs["timeout"]
+            self.assertEqual(timeout.read, 90)
+            self.assertEqual(timeout.connect, 10)
+            push_to_ts({"posts": []})
+            self.assertEqual(post.call_args.kwargs["timeout"], 30)
