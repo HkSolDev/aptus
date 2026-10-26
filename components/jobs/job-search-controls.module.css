@@ -67,10 +67,22 @@
   font-size: 14px;
 }
 
+.mobileFilterToggle {
+  display: none;
+}
+
 @media (min-width: 760px) {
   .search {
     grid-template-columns: minmax(0, 1fr) 220px;
     gap: var(--space-3);
+  }
+
+  .mobileFilterToggle {
+    display: none;
+  }
+
+  .secondaryFilters {
+    display: block !important;
   }
 }
 
@@ -89,10 +101,67 @@
 
 @media (max-width: 759px) {
   .search {
-    gap: var(--space-3);
+    gap: var(--space-2);
     padding: 0;
     border: 0;
     background: none;
+    margin-bottom: 16px;
+  }
+
+  .search :is(.input, .select) {
+    min-height: var(--target);
+    padding: 8px 12px;
+    font-size: 15px;
+  }
+
+  .mobileFilterToggle {
+    display: flex;
+  }
+
+  .filterButton {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: var(--target);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--small-radius);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .filterButton:hover,
+  .filterButton:focus-visible {
+    background: var(--soft);
+    border-color: var(--control-line);
+  }
+
+  .filterChevron {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .secondaryFilters {
+    display: none;
+  }
+
+  .secondaryFilters.isExpanded {
+    display: block;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--small-radius);
+    background: var(--surface);
+  }
+
+  .submit {
+    min-height: var(--target);
+    width: 100%;
+    margin-top: 2px;
+    font-size: 15px;
   }
 
   .sortSelect {

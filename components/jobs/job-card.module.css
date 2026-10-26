@@ -11,8 +11,15 @@
   box-shadow: var(--shadow-xs);
 }
 
+.primary {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .title {
   margin: 0;
+  min-width: 0;
   overflow-wrap: anywhere;
   color: var(--ink);
   font: 650 1.25rem/1.4 var(--sans);
@@ -28,18 +35,36 @@
   text-decoration: underline;
 }
 
-.organization {
+.meta {
   margin-top: 6px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.organization,
+.appointmentType {
+  margin: 0;
   font-size: 14px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.metaLabel {
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .deadline {
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
   font-size: 15px;
   font-weight: 650;
+  min-width: 0;
 }
 
 .facts {
+  min-width: 0;
   display: grid;
   gap: var(--space-2);
   font-size: 14px;
@@ -47,6 +72,7 @@
 
 .qualification,
 .extra {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 
@@ -84,7 +110,20 @@
 
 .secondaryActions {
   display: flex;
-  gap: var(--space-2);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.secondaryActions :global([role='alert']) {
+  display: block;
+  font-size: 12px;
+  color: var(--danger, #d32f2f);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .secondaryActions > :is(a, button) {
@@ -179,45 +218,74 @@
   :global(.home-page) .card {
     display: flex;
     flex-direction: column;
+    gap: var(--space-3);
+    padding: 16px;
+    min-width: 0;
   }
 
   .card {
-    gap: var(--space-4);
-    padding: 20px;
+    gap: var(--space-3);
+    padding: 16px;
+    min-width: 0;
   }
 
   :global(.home-page) .title {
-    font-size: 18px;
+    font-size: 17px;
+    line-height: 1.35;
   }
 
   :global(.home-page) .deadline {
-    margin-top: var(--space-3);
+    margin-top: var(--space-2);
+    font-size: 14px;
+  }
+
+  .meta {
+    margin-top: 4px;
+    gap: 2px;
+  }
+
+  .organization,
+  .appointmentType {
+    font-size: 13px;
   }
 
   .actions {
     align-self: stretch;
     width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .open {
+    flex: 1;
+    min-height: var(--target);
+    padding: var(--space-2) var(--space-3);
   }
 
   .secondaryActions,
   :global(.home-layout-rows) .secondaryActions {
-    flex-direction: row;
-    justify-content: space-between;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .secondaryActions > :is(a, button) {
-    flex: 0 1 auto;
     min-height: var(--target);
-    padding: var(--space-2) 0;
-    border: 0;
-    background: none;
-    text-decoration: underline;
+    min-width: var(--target);
+    padding: var(--space-2) var(--space-3);
+    font-size: 14px;
+    font-weight: 600;
   }
 }
 
 @media (max-width: 759px) {
   :global(.home-page) :global(.home-layout-rows) .card {
-    padding: var(--space-4);
+    padding: 14px var(--space-3);
     gap: var(--space-2);
     border: 0;
     border-bottom: 1px solid var(--line);
@@ -225,33 +293,50 @@
     background: transparent;
     box-shadow: none;
   }
+
   :global(.home-page) :global(.home-layout-rows) .card:last-child {
     border-bottom: 0;
   }
+
   :global(.home-page) :global(.home-layout-rows) .deadline {
-    margin-top: var(--space-2);
+    margin-top: 2px;
   }
+
   :global(.home-layout-rows) .qualification > :global(.muted),
   :global(.home-layout-rows) .extra {
     display: none;
   }
+
   :global(.home-layout-rows) .qualification > p + p {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
   :global(.home-layout-rows) .actions {
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
     align-items: center;
+    width: 100%;
   }
+
   :global(.home-page) :global(.home-layout-rows) .open {
     justify-content: flex-start;
-    padding: var(--space-2) 0;
+    padding: var(--space-1) 0;
     border: 0;
     background: transparent;
     color: var(--ink);
     text-decoration: underline;
     text-underline-offset: var(--space-1);
+    min-height: var(--target);
+  }
+
+  :global(.home-page) :global(.home-layout-rows) .secondaryActions > :is(a, button) {
+    border: 0;
+    background: transparent;
+    text-decoration: underline;
+    padding: var(--space-1) 0;
   }
 }
