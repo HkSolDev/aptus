@@ -2,12 +2,7 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../db.js';
 import { sendJson } from '../lib/http.js';
 import { EducationLevel } from '../../generated/prisma/index.js';
-import {
-  getMatchesForUser,
-  ageOn,
-  getEffectiveMaxAge,
-  getUnverifiedRequirements,
-} from '../../scripts/match.js';
+import { getMatchesForUser, getPostChecks } from '../../scripts/match.js';
 
 const VALID_LEVELS = new Set<string>(Object.values(EducationLevel));
 
@@ -106,7 +101,6 @@ export async function handleMatch(
     });
     const sourcesChecked = sources.map((s) => s.name);
 
-    const userAge = ageOn(user.dob);
     const marksByLevel = new Map(
       user.educations.map((e) => [e.level, e.marksPercent]),
     );
@@ -115,20 +109,23 @@ export async function handleMatch(
     const needsManualCheck = [];
 
     for (const post of matchedPosts) {
-      const { effectiveMaxAge, relaxation } = getEffectiveMaxAge(
-        post,
-        user.category,
-      );
+      const {
+        userAge,
+        effectiveMaxAge,
+        relaxation,
+        unverifiedRequirements,
+        ageNeedsManualCheck,
+      } = getPostChecks(post, user);
 
       const userMarksAtLevel = post.minEducationLevel
         ? marksByLevel.get(post.minEducationLevel)
         : undefined;
       const marksMissing =
         post.minMarksPercent !== null && userMarksAtLevel == null;
-      const unverifiedRequirements = getUnverifiedRequirements(post);
 
       // Unknown inputs and requirements the profile cannot verify stay manual.
       const isNullFieldPost =
+        ageNeedsManualCheck ||
         post.minAge === null ||
         post.maxAge === null ||
         post.minEducationLevel === null ||

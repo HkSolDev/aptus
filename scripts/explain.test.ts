@@ -83,6 +83,8 @@ const savedPost = {
   postName: 'Teacher',
   minAge: 18,
   maxAge: 37,
+  ageAsOnDate: new Date('2026-01-01'),
+  categoryRelaxationApplies: false,
   minEducationLevel: 'BACHELORS' as const,
   minMarksPercent: 60,
   educationRequired: 'Bachelor degree',
