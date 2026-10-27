@@ -18,6 +18,50 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+export function isValidIsoDateTime(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/i.exec(
+      value,
+    );
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+
+  if (month < 1 || month > 12) return false;
+  if (hour > 23 || minute > 59 || second > 59) return false;
+
+  if (match[7] && match[7].toUpperCase() !== 'Z') {
+    const tzHour = Number(match[7].slice(1, 3));
+    const tzMin = Number(match[7].slice(4, 6));
+    if (tzHour > 23 || tzMin > 59) return false;
+  }
+
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const daysInMonth = [
+    31,
+    isLeap ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ];
+  if (day < 1 || day > daysInMonth[month - 1]) return false;
+
+  return !Number.isNaN(Date.parse(value));
+}
+
 function validateSavedJobItem(raw: unknown): SavedJobItem {
   if (!isRecord(raw)) {
     throw new Error('Aptus returned an invalid saved job format.');
@@ -66,7 +110,7 @@ function validateSavedJobItem(raw: unknown): SavedJobItem {
   if (!isRecord(raw.source) || typeof raw.source.name !== 'string') {
     throw new Error('Aptus returned an invalid job source.');
   }
-  if (typeof raw.savedAt !== 'string') {
+  if (!isValidIsoDateTime(raw.savedAt)) {
     throw new Error('Aptus returned an invalid saved timestamp.');
   }
 
@@ -217,13 +261,10 @@ export async function saveJobApi(jobId: string): Promise<boolean> {
     throw new Error(errorMsg || 'Couldn’t save job. Please try again.');
   }
 
-  if (!isRecord(data) || data.saved !== true) {
-    throw new Error('Aptus returned an unexpected response. Please try again.');
-  }
-
   if (
-    data.savedAt !== undefined &&
-    (typeof data.savedAt !== 'string' || !data.savedAt)
+    !isRecord(data) ||
+    data.saved !== true ||
+    !isValidIsoDateTime(data.savedAt)
   ) {
     throw new Error('Aptus returned an unexpected response. Please try again.');
   }

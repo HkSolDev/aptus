@@ -79,7 +79,40 @@ Agent 3 reproduced, diagnosed, and resolved the two assigned contract nonconform
 
 ---
 
-## 5. UI Caller Verification & Accessibility
+## 4. Exact File SHA-256 Hashes
+
+| File Path | SHA-256 Hash | Notes |
+| :--- | :--- | :--- |
+| `frontend/types.ts` | `87c015d5fe78e9f1a601b37c1552f2986f6ca773a1fd0f99841c9cad61f2b580` | Required-but-nullable `educationRequired` |
+| `components/jobs/job-card.tsx` | `22fd41673eefd963a50f4b9929a9181f561ef0b9f905bc17f00b6e44cd882ee4` | Aligned local wire type |
+| `frontend/profile-api.ts` | `0eb0090b18db5c77746895cb6f9c9629cb9f3ccba340ebe75d0d91974839c983` | Runtime envelope validation + calendar DOB validation |
+| `frontend/saved-jobs-api.ts` | `7b13d928f58ba2d2443aca7af771181521af30328d0bbd12aff3c099fa3cc7ea` | Shared `isValidIsoDateTime`: strict calendar bounds + RFC 3339 |
+| `tests/frontend-contract.test.ts` | `8ce6cffb65680f3dd3b6326ba74264564110a924d35938039201ecd93d05267d` | Comprehensive unit tests including Agent 1's exact failing cases |
+| `tests/frontend-malformed-browser.test.mjs` | `84ad88a8db6c96753d50e5547cadb5d2a0f4dcbf630d25c9a0ff527af656517f` | Chromium integration test: verifies impossible dates cannot save |
+| `tests/saved-workspace.test.mjs` | `8b8b17e0ebf943f4883ff64743fc7d3bef557c9f9389a9b21342e2217e4dcbc8` | Contract-compliant route fulfillment with `savedAt` |
+| `package.json` | `626984791e84b146aced69e8f6df1744f61166cd2908fe35cfc429746132d236` | `test:web` includes `tests/frontend-malformed-browser.test.mjs` |
+
+---
+
+## 5. Resolution of Independent Review Findings
+
+1. **Finding F1 & F2 (RESOLVED) — Shared RFC 3339 Date-Time & Calendar Validator (`frontend/saved-jobs-api.ts`):**
+   - Implemented `isValidIsoDateTime(value: unknown): value is string` matching the frozen contract `contracts/http.schema.json:445-458` (`format: "date-time"`):
+     - Strictly checks ISO 8601 / RFC 3339 structure `YYYY-MM-DDTHH:mm:ss(.sss)?(Z|[+-]HH:mm)`.
+     - Validates actual calendar month days including non-leap Feb 29 (e.g. `2025-02-29T00:00:00Z` rejected; `2024-02-29T00:00:00Z` accepted) and 30-day month overflows (e.g. `2026-04-31T00:00:00Z` rejected).
+     - Does not rely on `Date.parse` alone, preventing loose parsing of `"hello 1"`, `"2026/02/31"`, or rollover of `"2026-02-31T00:00:00Z"`.
+     - Verified 100% agreement with Fastify/Ajv contract checker across all probe cases.
+   - Used uniformly in both `saveJobApi` and `validateSavedJobItem` (`fetchSavedJobs`).
+   - Added unit regression tests in `tests/frontend-contract.test.ts` across Agent 1's exact failing probe examples.
+   - Added browser integration check in `tests/frontend-malformed-browser.test.mjs` ensuring an invalid calendar response (e.g. Feb 31) triggers `role="alert"`, displays "Retry saved status", and does NOT update saved state in `#saved-state`.
+2. **DOB Calendar Validation (RESOLVED):**
+   - `frontend/profile-api.ts:37-47`: `validateSavedProfile` strictly checks that parsed UTC date parts match the year, month, and day components of the DOB string, cleanly rejecting impossible dates like `2000-02-31`.
+3. **Browser Test in Normal Test Command (RESOLVED):**
+   - `package.json`: Updated `test:web` script to explicitly include `tests/frontend-malformed-browser.test.mjs` alongside `tests/*.test.ts` and `tests/saved-workspace.test.mjs`. Normal test run now executes both browser suites automatically.
+
+---
+
+## 6. UI Caller Verification & Accessibility
 
 1. **`components/profile/profile-form.tsx`**:
    - On `fetchProfile()` failure: sets `loadStatus = 'error'`, renders `<div className="notice notice-error" role="alert">{loadError}</div>`, disables form inputs, and displays "Try again" button calling `loadData()`.

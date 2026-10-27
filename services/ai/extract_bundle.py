@@ -6,6 +6,7 @@ import os
 import re
 
 import httpx
+from provider_metrics import provider_post
 from pydantic import ValidationError
 
 from build_extraction_input import BundleFacts, INSTRUCTIONS, is_extraction_approved
@@ -13,6 +14,7 @@ from compact_inline import CompactPathError, MissingFactsError, compact_schema, 
 from inline_extraction import InlineFactError
 from normalize_candidate_facts import normalize_candidate_facts
 from providers.openai import _openai_schema
+from provider_schedule import ProviderDeferred, provider_off_peak_delay
 
 
 class ProviderRequestError(RuntimeError):
@@ -76,6 +78,13 @@ class FactDecodingError(RuntimeError):
         paths = sorted({path for path in paths if isinstance(path, str)
                         and any(re.fullmatch(pattern, path) for pattern in patterns)})
         self.details = {'check': check, 'field_count': len(paths), 'field_paths': paths[:20]}
+        self.location_details = {}
+        if isinstance(cause, MissingFactsError) and cause.locations:
+            locations = sorted({path for path in cause.locations if isinstance(path, str)
+                                and any(re.fullmatch(r'posts\.(?:0|[1-9]\d*)\.' + pattern, path)
+                                        for pattern in patterns)})
+            self.location_details = {'location_count': len(locations),
+                                     'field_locations': locations[:20]}
 
 
 def provider_keys(provider):
@@ -111,6 +120,9 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
     provider = provider or os.getenv('LLM_PROVIDER', 'gemini')
     if provider not in {'openai', 'gemini', 'deepseek'}:
         raise ValueError('Use openai, gemini or deepseek')
+    delay = provider_off_peak_delay(provider)
+    if delay:
+        raise ProviderDeferred(delay)
     model = model or os.getenv('LLM_MODEL') or {
         'openai': 'gpt-4o-mini', 'gemini': 'gemini-3.8-flash', 'deepseek': 'deepseek-flash'}[provider]
     if not re.fullmatch(r'[A-Za-z0-9._-]{1,100}', model):
@@ -150,7 +162,7 @@ def request_structured(source, schema, instructions, *, provider=None, model=Non
         for attempt, key in enumerate(keys, 1):
             headers = ({'Authorization': f'Bearer {key}'} if provider in {'openai', 'deepseek'}
                        else {'x-goog-api-key': key})
-            response = (client or httpx).post(url, headers=headers, json=payload, timeout=120)
+            response = provider_post(client or httpx, url, headers=headers, json=payload, timeout=120)
             if provider == 'gemini' and invalid_gemini_key(response):
                 if attempt < len(keys):
                     continue
@@ -304,6 +316,8 @@ if __name__ == '__main__':
         failure = {'status': 'blocked', 'reason': str(error)}
         if isinstance(error, FactDecodingError):
             failure['details'] = error.details
+            if error.location_details:
+                failure['missing_fact_locations'] = error.location_details
         print(json.dumps(failure))
         raise SystemExit(1)
     atomic_write(Path(args.output_json), json.dumps(result, ensure_ascii=False, indent=2).encode())

@@ -1,4 +1,4 @@
-"""Run the Aptus pipeline immediately and then at six-hour India-time boundaries."""
+"""Run the pipeline on India-time boundaries, with optional off-peak billing."""
 
 import argparse
 import json
@@ -8,6 +8,7 @@ from pathlib import Path
 
 from generic_pipeline import run_pipeline
 from source_registry import DEFAULT_SOURCES_PATH
+from provider_schedule import off_peak_schedule_enabled, seconds_until_off_peak
 
 INDIA = timezone(timedelta(hours=5, minutes=30))
 
@@ -31,18 +32,31 @@ def main():
     parser.add_argument('--max-fetches', type=int, default=12)
     parser.add_argument('--max-depth', type=int, default=3)
     args = parser.parse_args()
+    off_peak = off_peak_schedule_enabled()
     while True:
+        delay = seconds_until_off_peak() if off_peak and not args.prepare_only else 0
+        if delay:
+            print(json.dumps({'status': 'deferred', 'reason': 'provider_peak_hours',
+                              'retry_after_seconds': delay}), flush=True)
+            if args.once:
+                return
+            time.sleep(delay)
+            continue
+        status = 'completed'
         try:
             result = run_pipeline(Path(args.storage_dir), sources_path=args.sources,
                                   source_id=args.source, max_fetches=args.max_fetches,
                                   max_depth=args.max_depth, prepare_only=args.prepare_only)
             print(json.dumps(result), flush=True)
+            status = result.get('status', 'completed')
         except (OSError, RuntimeError, TypeError, ValueError):
+            status = 'failed'
             print(json.dumps({'status': 'failed', 'reason': 'pipeline_run_failed'}), flush=True)
         if args.once:
-            return
+            return 1 if status == 'failed' else 0
         time.sleep(max(1, seconds_until_next_run()))
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    sys.exit(main())

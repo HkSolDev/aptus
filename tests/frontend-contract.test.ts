@@ -45,6 +45,13 @@ test('fetchProfile rejects malformed success envelopes and wrong types', async (
     },
     {
       profile: {
+        dob: '2000-02-31', // Impossible calendar date
+        category: null,
+        educations: [],
+      },
+    },
+    {
+      profile: {
         dob: '2000-01-01',
         category: null,
         educations: [{ level: 'TENTH', marksPercent: '80' }],
@@ -163,6 +170,48 @@ test('fetchSavedJobs rejects malformed success envelopes, wrong types and missin
           applicationLastDate: null,
           source: { name: 'SSC' },
           savedAt: '2026-10-25T00:00:00Z',
+        },
+      ],
+      pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+    },
+    {
+      data: [
+        {
+          id: 'job-1',
+          postName: 'Post 1',
+          educationRequired: null,
+          vacancies: 1,
+          applicationLastDate: null,
+          source: { name: 'SSC' },
+          savedAt: '2026-02-31T00:00:00Z', // impossible calendar date
+        },
+      ],
+      pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+    },
+    {
+      data: [
+        {
+          id: 'job-1',
+          postName: 'Post 1',
+          educationRequired: null,
+          vacancies: 1,
+          applicationLastDate: null,
+          source: { name: 'SSC' },
+          savedAt: '2025-02-29T00:00:00Z', // non-leap Feb 29
+        },
+      ],
+      pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+    },
+    {
+      data: [
+        {
+          id: 'job-1',
+          postName: 'Post 1',
+          educationRequired: null,
+          vacancies: 1,
+          applicationLastDate: null,
+          source: { name: 'SSC' },
+          savedAt: 'hello 1', // non-ISO string
         },
       ],
       pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
@@ -310,16 +359,45 @@ test('saveJobApi and unsaveJobApi reject malformed envelopes without silently de
     /Aptus returned an unexpected response/,
   );
 
-  // saveJobApi on { saved: true, savedAt: 12345 } must reject (wrong type for savedAt)
-  globalThis.fetch = mockFetch(200, { saved: true, savedAt: 12345 });
-  await assert.rejects(
-    () => saveJobApi('fixture'),
-    /Aptus returned an unexpected response/,
-  );
+  // saveJobApi must reject missing, empty, malformed, non-ISO, and impossible calendar dates
+  // using Agent 1's exact failing examples:
+  const failingSavePayloads = [
+    { saved: true }, // missing savedAt
+    { saved: true, savedAt: null },
+    { saved: true, savedAt: '' },
+    { saved: true, savedAt: 'not-a-date' },
+    { saved: true, savedAt: '2026-02-31T00:00:00Z' }, // impossible calendar date
+    { saved: true, savedAt: '2026-02-30T12:00:00.000Z' }, // impossible calendar date
+    { saved: true, savedAt: '2026-04-31T00:00:00Z' }, // impossible calendar date
+    { saved: true, savedAt: '2025-02-29T00:00:00Z' }, // non-leap Feb 29
+    { saved: true, savedAt: 'hello 1' }, // non-ISO string
+    { saved: true, savedAt: '2026/02/31' }, // non-ISO format
+    { saved: true, savedAt: 12345 }, // number
+  ];
 
-  // saveJobApi on valid response returns true
-  globalThis.fetch = mockFetch(200, { saved: true, savedAt: '2026-10-27T00:00:00Z' });
-  assert.equal(await saveJobApi('fixture'), true);
+  for (const payload of failingSavePayloads) {
+    globalThis.fetch = mockFetch(200, payload);
+    await assert.rejects(
+      () => saveJobApi('fixture'),
+      /Aptus returned an unexpected response/,
+      `saveJobApi should reject invalid payload: ${JSON.stringify(payload)}`,
+    );
+  }
+
+  // saveJobApi accepts valid timestamps permitted by the contract:
+  const validSaveTimestamps = [
+    '2026-10-27T00:00:00Z',
+    '2026-10-27T00:00:00.000Z',
+    '2026-10-27T12:30:00+05:30',
+    '2026-10-27T08:00:00-04:00',
+    '2024-02-29T00:00:00Z', // valid leap year Feb 29
+    '2000-02-29T12:00:00Z', // valid century leap year Feb 29
+  ];
+
+  for (const savedAt of validSaveTimestamps) {
+    globalThis.fetch = mockFetch(200, { saved: true, savedAt });
+    assert.equal(await saveJobApi('fixture'), true);
+  }
 
   // unsaveJobApi on HTTP 200 {} must reject, NOT silently return false
   globalThis.fetch = mockFetch(200, {});

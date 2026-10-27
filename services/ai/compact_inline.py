@@ -6,9 +6,10 @@ from inline_extraction import CITATION, STATUSES, decode_inline
 
 
 class MissingFactsError(ValueError):
-    def __init__(self, fields):
+    def __init__(self, fields, *, locations=()):
         super().__init__('Required scalar facts were not returned')
         self.fields = fields
+        self.locations = locations
 
 
 class CompactPathError(ValueError):
@@ -201,7 +202,8 @@ def decode_compact(response, source, schema):
             container[key] = skeleton(branch)
         assign(container[key], child, tokens[1:], fact)
 
-    for post in response['posts']:
+    missing_fields, missing_locations = set(), []
+    for post_index, post in enumerate(response['posts']):
         if not isinstance(post, dict) or set(post) != {'facts'} or not isinstance(post['facts'], list):
             raise ValueError('Invalid compact post')
         fields = definitions['CandidatePost']
@@ -231,8 +233,10 @@ def decode_compact(response, source, schema):
                         for field in missing(value, f'{path}.{index}')]
             return []
         unreported = missing(candidate)
-        if unreported:
-            raise MissingFactsError(unreported)
+        missing_fields.update(unreported)
+        missing_locations.extend(f'posts.{post_index}.{path}' for path in unreported)
         tree['posts'].append(candidate)
+    if missing_locations:
+        raise MissingFactsError(sorted(missing_fields), locations=missing_locations)
     # Unreported scalar slots remain bare None and are rejected by the inline decoder.
     return decode_inline(tree, source)

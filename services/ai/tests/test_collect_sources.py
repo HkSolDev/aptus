@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from collect_sources import collect
+from collect_sources import DISABLED_LISTINGS, LISTINGS, collect
 from sources.ssc import NOTICE_BOARD_URL as SSC_NOTICE_BOARD_URL
 from sources.upsc import LISTING_URL as UPSC_LISTING_URL
 from sources.uppsc import LISTING_URL as UPPSC_LISTING_URL
@@ -16,21 +16,6 @@ from sources.mysarkarinaukri import LISTING_URL as MYSARKARINAUKRI_LISTING_URL
 class CollectionTests(unittest.TestCase):
     def test_collects_only_active_sources_and_keeps_rajasthan_disabled(self):
         with tempfile.TemporaryDirectory() as directory:
-            # Adapter behavior must not depend on the operator's current source
-            # selection. Exercise connected, unsupported and disabled entries.
-            urls = {'sarkariresult': 'https://www.sarkariresult.com/feed_rss.xml',
-                    'ssc': SSC_NOTICE_BOARD_URL, 'upsc': UPSC_LISTING_URL,
-                    'uppsc': UPPSC_LISTING_URL, 'hssc': HSSC_LISTING_URL,
-                    'jkssb': JKSSB_LISTING_URL, 'mysarkarinaukri': MYSARKARINAUKRI_LISTING_URL}
-            urls.update({sid: f'https://example.gov.in/{sid}' for sid in
-                         ('ncs', 'employment_news', 'ibps', 'india_post', 'drdo', 'isro')})
-            entries = [dict(id=sid, url=url, enabled=True, kind='official', reason=None)
-                       for sid, url in urls.items()]
-            disabled_url = 'https://example.gov.in/rajasthan'
-            entries.append(dict(id='rajasthan_recruitment', url=disabled_url, enabled=False,
-                                kind='official', reason='public_detail_url_not_verified'))
-            config = Path(directory) / 'sources.json'
-            config.write_text(json.dumps(entries))
             calls = []
             def capture(url, root):
                 calls.append(url)
@@ -129,7 +114,7 @@ class CollectionTests(unittest.TestCase):
                     return {'outcome': 'changed', 'body_path': str(pdf),
                             'snapshot': {'document_kind': 'pdf'}}
                 self.fail(f'unexpected active source: {url}')
-            result = collect(Path(directory) / 'store', capture, sources_path=config)
+            result = collect(Path(directory) / 'store', capture)
             self.assertEqual(result['status'], 'partial_failure')
             for source in ('ncs', 'employment_news', 'ibps', 'india_post', 'drdo', 'isro'):
                 self.assertEqual(result['sources'][source], {
@@ -150,8 +135,17 @@ class CollectionTests(unittest.TestCase):
             self.assertEqual(result['sources']['mysarkarinaukri']['discovered'], 1)
             self.assertEqual(result['sources']['mysarkarinaukri']['captured'], 1)
             self.assertEqual(len(calls), 14)
-            self.assertNotIn(disabled_url, calls)
-            self.assertNotIn('rajasthan_recruitment', result['sources'])
+            self.assertEqual(set(LISTINGS), {'sarkariresult', 'ssc', 'upsc', 'uppsc', 'hssc', 'jkssb', 'mysarkarinaukri',
+                          'ncs', 'employment_news', 'ibps', 'india_post', 'drdo', 'isro'})
+            self.assertEqual(len(DISABLED_LISTINGS), 25)
+            self.assertTrue({
+                'hpsc', 'dsssb',
+                'rajasthan_recruitment', 'times_of_india_jobs',
+            }.issubset(DISABLED_LISTINGS))
+            self.assertEqual(
+                DISABLED_LISTINGS['rajasthan_recruitment']['reason'],
+                'public_detail_url_not_verified',
+            )
             self.assertEqual(json.loads((Path(directory)/'store/latest-run.json').read_text()), result)
 
     def test_overlap_skips_without_fetching(self):

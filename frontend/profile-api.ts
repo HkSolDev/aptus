@@ -37,6 +37,15 @@ function validateSavedProfile(raw: unknown): SavedProfile {
   if (typeof raw.dob !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.dob)) {
     throw new Error('Aptus returned an invalid date of birth.');
   }
+  const [y, m, d] = raw.dob.split('-').map(Number);
+  const parsedDob = new Date(Date.UTC(y, m - 1, d));
+  if (
+    parsedDob.getUTCFullYear() !== y ||
+    parsedDob.getUTCMonth() !== m - 1 ||
+    parsedDob.getUTCDate() !== d
+  ) {
+    throw new Error('Aptus returned an invalid date of birth.');
+  }
   if (!ALLOWED_CATEGORIES.has(raw.category as string | null)) {
     throw new Error('Aptus returned an invalid category.');
   }

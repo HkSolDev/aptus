@@ -63,9 +63,12 @@ jobs:
       - name: Type checking
         if: ${{ !cancelled() }}
         run: pnpm typecheck
+      - name: Frozen contract and consumer audit checks
+        if: ${{ !cancelled() }}
+        run: pnpm check:contracts
       - name: Node and database tests
         if: ${{ !cancelled() }}
-        run: node --import tsx --test --test-concurrency=1 scripts/*.test.ts scripts/contracts/*.test.ts
+        run: pnpm test
       - name: Offline Python tests
         if: ${{ !cancelled() }}
         run: services/ai/.venv/bin/python -m unittest discover -s services/ai/tests -q

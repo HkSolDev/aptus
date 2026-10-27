@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from generic_pipeline import run_pipeline
+from capture_store import atomic_write
 from notice_state import (EXTRACTION_VERSION, NoticeStateManager,
                           compute_evidence_fingerprint)
 
@@ -81,7 +82,7 @@ class NoticeStateTests(unittest.TestCase):
                        draft_fn=None, persist_fn=None, prepare_only=False,
                        version=EXTRACTION_VERSION):
         path = self.root / "prepared.json"
-        path.write_text(json.dumps(prepared_obj, ensure_ascii=False))
+        atomic_write(path, json.dumps(prepared_obj, ensure_ascii=False).encode())
 
         def prepare(_prepared_root, **_opts):
             return [{

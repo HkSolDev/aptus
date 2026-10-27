@@ -51,165 +51,177 @@
   {
     "id": "rrb_chandigarh",
     "url": "https://www.rrbcdg.gov.in/",
-    "enabled": true,
+    "enabled": false,
     "kind": "official",
     "reason": "adapter_not_verified"
   },
   {
     "id": "upsssc",
     "url": "https://upsssc.gov.in/",
-    "enabled": true,
+    "enabled": false,
     "kind": "official",
-    "reason": null
+    "reason": "adapter_not_verified"
   },
   {
     "id": "uppbpb",
-    "url": "https://uppbpb.gov.in/Home/Notice",
-    "enabled": true,
+    "url": "http://uppbpb.gov.in/",
+    "enabled": false,
     "kind": "official",
-    "reason": null
-  }, 
+    "reason": "adapter_not_verified"
+  },
+  {
+    "id": "rojgaar_sangam_up",
+    "url": "https://rojgaarsangam.up.gov.in/",
+    "enabled": false,
+    "kind": "official",
+    "reason": "adapter_not_verified"
+  },
   {
     "id": "hpsc",
-    "url": "https://hpsc.gov.in/en-us/Instructions",
-    "enabled": true,
+    "url": "https://hpsc.gov.in/",
+    "enabled": false,
     "kind": "official",
-    "reason": null
+    "reason": "adapter_not_verified"
   },
   {
     "id": "dsssb",
-    "url": "https://dsssb.delhi.gov.in/recruitment",
-    "enabled":  true, 
+    "url": "https://dsssb.delhi.gov.in/",
+    "enabled": false,
     "kind": "official",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
-    "id": "dsssb_vacancies",
-    "url": "https://dsssb.delhi.gov.in/dsssb-vacancies",
-    "enabled": true,
+    "id": "dsssb_online",
+    "url": "https://dsssbonline.nic.in/",
+    "enabled": false,
     "kind": "official",
-    "reason": null
+    "reason": "application_portal_not_listing"
   },
-
   {
     "id": "jkpsc",
     "url": "https://jkpsc.nic.in/",
-    "enabled": true,
+    "enabled": false,
     "kind": "official",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "rajasthan_recruitment",
     "url": "https://recruitment.rajasthan.gov.in/",
-    "enabled": true,  
+    "enabled": false,
     "kind": "official",
     "reason": "public_detail_url_not_verified"
   },
   {
     "id": "bpsc",
     "url": "https://bpsc.bihar.gov.in/recruitment/",
-    "enabled": true,
+    "enabled": false,
     "kind": "official",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
- 
+  {
+    "id": "bssc",
+    "url": "https://bssc.bihar.gov.in/",
+    "enabled": false,
+    "kind": "official",
+    "reason": "adapter_not_verified"
+  },
   {
     "id": "punjab_recruitments",
     "url": "https://punjab.gov.in/recruitments/",
-    "enabled": true,
+    "enabled": false,
     "kind": "official",
-    "reason": null
+    "reason": "adapter_not_verified"
   },
   {
     "id": "psssb",
     "url": "https://sssb.punjab.gov.in/",
     "enabled": false,
     "kind": "official",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "ukpsc",
     "url": "https://psc.uk.gov.in/",
-    "enabled": true, 
+    "enabled": false,
     "kind": "official",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "uksssc",
     "url": "https://sssc.uk.gov.in/",
-    "enabled": true, 
+    "enabled": false,
     "kind": "official",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "hppsc",
     "url": "https://hppsc.hp.gov.in/Home/",
-    "enabled": true, 
+    "enabled": false,
     "kind": "official",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "testbook_notifications",
     "url": "https://testbook.com/news/notification/",
-    "enabled": true,  
+    "enabled": false,
     "kind": "third_party",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "jobyaari",
     "url": "https://www.jobyaari.com/",
-    "enabled":  true,
+    "enabled": false,
     "kind": "third_party",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "sarkari_job_selection",
     "url": "https://sarkarijobselection.com/",
-    "enabled": true,
+    "enabled": false,
     "kind": "third_party",
     "reason": "listing_not_verified"
   },
   {
     "id": "jagran_josh",
     "url": "https://www.jagranjosh.com/government-jobs",
-    "enabled": true,
+    "enabled": false,
     "kind": "third_party",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "sarkari_result_next",
     "url": "https://sarkariresultnext.com/",
-    "enabled": true,
+    "enabled": false,
     "kind": "third_party",
     "reason": "listing_not_verified"
   },
   {
     "id": "govt_job_guru",
     "url": "https://govtjobguru.in/",
-    "enabled": true,
+    "enabled": false,
     "kind": "third_party",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "amar_ujala_jobs",
     "url": "https://www.amarujala.com/jobs",
-    "enabled": true,
+    "enabled": false,
     "kind": "third_party",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "hindustan_times_employment",
     "url": "https://www.hindustantimes.com/education/employment-news",
-    "enabled": true,
+    "enabled": false,
     "kind": "third_party",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "times_of_india_jobs",
     "url": "https://timesofindia.indiatimes.com/education/jobs",
-    "enabled": true,
+    "enabled": false,
     "kind": "third_party",
-    "reason": ""
+    "reason": "adapter_not_verified"
   },
   {
     "id": "ncs",

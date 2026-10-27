@@ -88,8 +88,11 @@ test('browser handles malformed success envelopes: visible errors, accessible al
   await page.route('**/api/saved-jobs/job-0', async (route) => {
     if (route.request().method() === 'PUT') {
       if (malformedSave) {
-        // Malformed HTTP 200 {}: missing `saved` boolean and `savedAt`
-        await route.fulfill({ status: 200, json: {} });
+        // Malformed HTTP 200: impossible calendar date (Feb 31) that Date.parse alone would normalize
+        await route.fulfill({
+          status: 200,
+          json: { saved: true, savedAt: '2026-02-31T00:00:00Z' },
+        });
       } else {
         await route.fulfill({
           status: 200,
