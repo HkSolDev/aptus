@@ -81,18 +81,13 @@ export async function saveJobForUser(
     return { ok: false, error: 'Job not found', status: 404 };
   }
 
-  const saved = await prisma.savedJob.upsert({
-    where: {
-      authUserId_postId: {
-        authUserId,
-        postId: jobId,
-      },
-    },
-    create: {
-      authUserId,
-      postId: jobId,
-    },
-    update: {},
+  // A database conflict is a successful repeat save, including simultaneous first saves.
+  await prisma.savedJob.createMany({
+    data: [{ authUserId, postId: jobId }],
+    skipDuplicates: true,
+  });
+  const saved = await prisma.savedJob.findUniqueOrThrow({
+    where: { authUserId_postId: { authUserId, postId: jobId } },
   });
 
   return { ok: true, savedAt: saved.savedAt.toISOString() };

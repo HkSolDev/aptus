@@ -7,6 +7,41 @@
 Stages 6 and 7 are implemented locally. Publication remains an explicit operator
 action; scheduling the generic worker only creates review artifacts.
 
+## DeepSeek off-peak scheduling
+
+Set `LLM_PROVIDER=deepseek` and `DEEPSEEK_OFF_PEAK_ONLY=true` in the worker's
+runtime configuration. Production uses **host cron** to launch a one-shot
+`aptus-worker-cron` container at **04:00, 10:00, 16:00 and 22:00 IST** with
+`--once` and Docker restart policy `no`. The container exits after each batch;
+there is no always-running production scheduler. A host `flock` prevents
+overlapping batches. The old managed worker is stopped and retained for rollback,
+and both images reuse the existing `aptus-worker-data:/work` volume.
+
+On a server whose system timezone is UTC, the cron expression is
+`30 4,10,16,22 * * *` (04:30, 10:30, 16:30, 22:30 UTC). On an IST server it
+is `0 4,10,16,22 * * *`. Verify the server timezone before installing cron;
+do not assume a `CRON_TZ` setting is supported by its cron implementation.
+Cron calls `docker start --attach aptus-worker-cron`; credentials remain in
+Docker's private runtime configuration, never in the cron command or a release
+checkout. Existing unrelated cron entries are preserved.
+
+Startup during peak hours defers instead of extracting; `--once` reports the
+deferral and exits without running the pipeline. Prepare-only inspection remains
+available at any time. The legacy daemon mode remains supported for other users.
+
+The provider boundary checks the clock before every DeepSeek request, including
+calls outside the scheduler, so a long batch cannot begin new requests in peak
+hours. It stops five minutes early to leave room for a bounded generation.
+Deferred notices keep their evidence and do not consume provider retry attempts.
+Existing successful checkpoints and drafts remain reusable without provider calls.
+
+[DeepSeek pricing](https://api-docs.deepseek.com/quick_start/pricing/) lists peak
+windows as Monday–Friday **01:00–04:00 and 06:00–10:00 UTC**; other hours are
+half-price. Decisions use UTC weekdays, not server local time. Weekends are
+off-peak. No holiday calendar is required: weekday holidays follow the same
+conservative schedule. This rule uses the published October 2026 windows and
+must be reviewed if the provider changes pricing.
+
 ## Stage 6: resume the failed stage
 
 - Capture failures have durable, URL-scoped attempts under

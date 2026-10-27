@@ -1,21 +1,9 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../db.js';
 import { sendJson } from '../lib/http.js';
-import { EducationLevel } from '../../generated/prisma/index.js';
 import { getMatchesForUser, getPostChecks } from '../../scripts/match.js';
 
-const VALID_LEVELS = new Set<string>(Object.values(EducationLevel));
-
-interface MatchRequestBody {
-  userId?: string;
-  name?: string;
-  dob?: string;
-  category?: string | null;
-  educations?: Array<{
-    level: EducationLevel;
-    marksPercent?: number | string | null;
-  }>;
-}
+type MatchRequestBody = Record<string, unknown>;
 
 export async function handleMatch(
   req: FastifyRequest<{ Body: MatchRequestBody }>,
@@ -37,40 +25,11 @@ export async function handleMatch(
       return;
     }
 
-    // If client submits legacy profile fields, validate them to satisfy existing checks and reject writes
-    if (
-      body.educations !== undefined ||
-      body.dob !== undefined ||
-      body.name !== undefined ||
-      body.category !== undefined
-    ) {
-      if (
-        typeof body.dob !== 'string' ||
-        !body.dob ||
-        Number.isNaN(Date.parse(body.dob))
-      ) {
-        sendJson(res, 400, {
-          error: 'A valid Date of Birth (dob) is required',
-        });
-        return;
-      }
-
-      if (!Array.isArray(body.educations) || body.educations.length === 0) {
-        sendJson(res, 400, {
-          error: 'At least one education entry is required',
-        });
-        return;
-      }
-
-      for (const edu of body.educations) {
-        const eduObj = edu as Record<string, unknown>;
-        if (!eduObj || !VALID_LEVELS.has(String(eduObj.level))) {
-          sendJson(res, 400, {
-            error: `Invalid education level: ${String(eduObj?.level)}`,
-          });
-          return;
-        }
-      }
+    if (Object.keys(body).length > 0) {
+      sendJson(res, 409, {
+        error: 'Refresh Aptus and use Save profile before checking matches.',
+      });
+      return;
     }
 
     // Only the verified account selects ownership; reads the saved profile without writing.
@@ -86,7 +45,6 @@ export async function handleMatch(
       });
       return;
     }
-
     if (!user) {
       sendJson(res, 400, {
         error: 'Please save your profile before checking matches.',

@@ -140,7 +140,7 @@ await test('match handler keeps unverified qualifications/experience manual even
     const response = await app.inject({
       method: 'POST',
       url: '/match',
-      payload: { dob: '1995-01-01', educations: [{ level: 'DIPLOMA' }] },
+      payload: {},
     });
     assert.equal(response.statusCode, 200);
     const body = response.json<{

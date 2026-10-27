@@ -16,7 +16,7 @@
     "docs/contracts/worker-frontend.md": "16b18269a54be77f92205898b660e16548f39cb1d529ce383737b1b358cdc0ac",
     "scripts/contracts/artifacts.test.ts": "552d1815ea52aad352cdaf2e144be0be53956697e460b5068d5e39fb0d0e2273",
     "scripts/contracts/audit-consumers.ts": "64bcf59238c6f87910d7ba1024d8f9b3ebc8d57efb9b88e9a63cb7e66eabb367",
-    "scripts/contracts/frontend-backend.test.ts": "c27c2d04be713ca2014bc2c467afdae3664db580734f75d6612c06b561f99493",
+    "scripts/contracts/frontend-backend.test.ts": "83439e2d13b7f6455927877199b56c05e5c5f0330c7945b968fa26150a0fcde3",
     "scripts/contracts/support.ts": "b96f6086e1963ae3e871127f3601b899bbcdb21a5efad4baf42688766b9a74db",
     "scripts/contracts/worker-backend.test.ts": "a7500aca54b8a75d03f1f399f6875f4df447a337f4e41f39f503638a90d90989",
     "tests/triangle-contract.test.ts": "3c146ba2ab25eac50d4a4b027bee14a034d4245789d61f92d2599e630f5bed58",

@@ -93,7 +93,19 @@ test('Save and Remove clients consume real route receipts and preserve account o
   stub(
     t,
     prisma.savedJob,
-    'upsert',
+    'createMany',
+    async (args: { data: unknown; skipDuplicates: boolean }) => {
+      assert.deepEqual(args.data, [
+        { authUserId: 'contract-account', postId: 'contract-job' },
+      ]);
+      assert.equal(args.skipDuplicates, true);
+      return { count: 1 };
+    },
+  );
+  stub(
+    t,
+    prisma.savedJob,
+    'findUniqueOrThrow',
     async (args: { where: { authUserId_postId: unknown } }) => {
       assert.deepEqual(args.where.authUserId_postId, {
         authUserId: 'contract-account',
@@ -121,6 +133,9 @@ test('Save and Remove clients consume real route receipts and preserve account o
           ...Object.fromEntries(new Headers(options.headers)),
           origin,
         },
+        ...(options.body === undefined
+          ? {}
+          : { payload: String(options.body) }),
       });
       assert.equal(result.statusCode, 200, result.body);
       await check.assert(

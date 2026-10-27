@@ -90,7 +90,6 @@ function validateSavedProfile(raw: unknown): SavedProfile {
     educations,
   };
 }
-
 export async function fetchProfile(): Promise<SavedProfile | null> {
   let response: Response;
   try {

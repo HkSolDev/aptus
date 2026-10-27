@@ -484,6 +484,7 @@ test('recommendations-preview and job-card safely handle educationRequired:null 
         id: 'null-edu-job',
         postName: 'Scientific Assistant',
         organization: 'Example Research Council',
+        appointmentType: 'Direct Recruitment',
         vacancies: 5,
         applicationLastDate: '2026-12-01',
         educationRequired: null,

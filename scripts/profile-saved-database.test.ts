@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createHmac, randomUUID } from 'node:crypto';
+import { mockGoogle } from './helpers/google-fixture.js';
 import { authDatabase } from './helpers/auth-database.js';
 import { prisma } from '../src/db.js';
 import { createAuth } from '../src/auth/auth.js';
@@ -48,21 +50,30 @@ test(
         minEducationLevel: 'TENTH',
       },
     });
-    const auth = createAuth({
+    const config = {
       origin: 'https://aptus.example',
       secret: 'fictional-test-only-secret-not-for-production-0123456789',
       googleClientId: 'example.apps.googleusercontent.com',
       googleClientSecret: 'fictional-client-secret',
-    });
+    };
+    mockGoogle(t, config.googleClientId);
+    const auth = createAuth(config, database);
+    const cookies = new Map<string, string>();
+    for (const id of ['fixture-a', 'fixture-b']) {
+      const token = randomUUID();
+      await database.authSession.create({
+        data: { userId: id, token, expiresAt: new Date(Date.now() + 60000) },
+      });
+      const signature = createHmac('sha256', config.secret)
+        .update(token)
+        .digest('base64');
+      cookies.set(
+        id,
+        '__Secure-aptus.session_token=' +
+          encodeURIComponent(`${token}.${signature}`),
+      );
+    }
     let identity: string | null = 'fixture-a';
-    t.mock.method(auth.api, 'getSession', async () =>
-      identity
-        ? {
-            user: { id: identity },
-            session: { expiresAt: new Date(Date.now() + 60000) },
-          }
-        : null,
-    );
     const app = buildApp(auth);
     t.after(() => app.close());
     const request = (
@@ -73,7 +84,10 @@ test(
       app.inject({
         method,
         url,
-        headers: { origin: 'https://aptus.example' },
+        headers: {
+          origin: 'https://aptus.example',
+          cookie: identity ? (cookies.get(identity) ?? '') : '',
+        },
         ...(payload ? { payload } : {}),
       });
     const profile = {
@@ -114,11 +128,16 @@ test(
       }),
       beforeMatch,
     );
-    for (let i = 0; i < 2; i++)
-      assert.equal(
-        (await request('PUT', `/api/saved-jobs/${post.id}`)).statusCode,
-        200,
-      );
+    const saves = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        request('PUT', `/api/saved-jobs/${post.id}`),
+      ),
+    );
+    for (const response of saves) assert.equal(response.statusCode, 200);
+    assert.equal(
+      new Set(saves.map((response) => response.json().savedAt)).size,
+      1,
+    );
     assert.equal(await database.savedJob.count(), 1);
     assert.equal(
       (await request('GET', '/api/saved-jobs')).json().pagination.totalItems,
@@ -170,5 +189,13 @@ test(
         200,
       );
     assert.equal(await database.savedJob.count(), 0);
+    await database.authSession.deleteMany({ where: { userId: 'fixture-a' } });
+    assert.equal((await request('GET', '/api/profile')).statusCode, 401);
+    identity = 'fixture-b';
+    await database.authSession.updateMany({
+      where: { userId: identity },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    assert.equal((await request('GET', '/api/saved-jobs')).statusCode, 401);
   },
 );

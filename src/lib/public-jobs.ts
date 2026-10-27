@@ -78,12 +78,28 @@ export function listPublicJobs(
   return prisma.$transaction(
     async (db) => {
       const totalItems = await db.post.count({ where });
-      const data = await db.post.findMany({
+      const posts = await db.post.findMany({
         skip: (page - 1) * pageSize,
         take: pageSize,
         where,
         orderBy,
-        select: publicFields,
+        select: {
+          ...publicFields,
+          reviewedDetails: true,
+        },
+      });
+      const data = posts.map((post) => {
+        const reviewed = post.reviewedDetails as Record<string, unknown> | null;
+        const appointmentType =
+          typeof reviewed?.employment_type === 'string' &&
+          reviewed.employment_type.trim()
+            ? reviewed.employment_type.trim()
+            : null;
+        const { reviewedDetails: _, ...item } = post;
+        return {
+          ...item,
+          appointmentType,
+        };
       });
       return {
         data,

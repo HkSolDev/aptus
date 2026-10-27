@@ -620,3 +620,22 @@ including the successful-logout invalidation, passed all seven tests; typecheck,
 Next typecheck and lint also passed after the final source edits. The disposable
 PostgreSQL cluster was stopped; its data directory and JavaScript backup remain
 under `/private/tmp` for review, with no deletion performed.
+
+### Release follow-up superseding the baseline blocker
+
+See [the scoped release record](PROFILE_SAVED_RELEASE_2026-10-25.md). Investigation
+found provider discovery initialized before the Google mock in the passkey test.
+The fixture now installs the mock first; Node 24's existing security assertions
+pass. The earlier runtime/environment-only attribution is superseded. The release
+also verifies actual stored sessions/signed cookies for profile/Saved endpoints,
+and fixes concurrent first Save requests using database duplicate skipping.
+
+### Strict matching input and coordinated legacy caller
+
+Matching rejects stale profile-bearing requests with 409 instead of silently
+ignoring edited values and matching a different stored profile. Ownership IDs
+remain rejected with 400. Both current and legacy callers now save through
+PUT /api/profile before canonical empty-body matching; failed saves do not match.
+Profile date/marks/education validation has its own persistent contract coverage.
+The added regression failed with actual 200 / expected 409 before this fix;
+132 Node/database and 34 browser tests pass afterward, with no skipped checks.
