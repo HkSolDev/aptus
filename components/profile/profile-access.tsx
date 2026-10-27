@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useWorkspace } from '@/components/providers/workspace-provider';
 
@@ -20,8 +20,8 @@ export function SignedOutProfile() {
 }
 
 export function ProfileAccess({ children }: { children: ReactNode }) {
-  const { accountName, sessionChecked } = useWorkspace();
+  const { accountName, sessionChecked, sessionVersion } = useWorkspace();
   if (!sessionChecked) return <p role="status">Checking your sign-in…</p>;
   if (accountName === null) return <SignedOutProfile />;
-  return children;
+  return <Fragment key={sessionVersion}>{children}</Fragment>;
 }

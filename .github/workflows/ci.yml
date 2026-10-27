@@ -65,7 +65,7 @@ jobs:
         run: pnpm typecheck
       - name: Node and database tests
         if: ${{ !cancelled() }}
-        run: node --import tsx --test --test-concurrency=1 scripts/**/*.test.ts
+        run: node --import tsx --test --test-concurrency=1 scripts/*.test.ts scripts/contracts/*.test.ts
       - name: Offline Python tests
         if: ${{ !cancelled() }}
         run: services/ai/.venv/bin/python -m unittest discover -s services/ai/tests -q

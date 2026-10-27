@@ -1,5 +1,9 @@
 # Aptus: what I should learn, own, and delegate
 
+<!-- aptus-checkpoint-2026-10-24 -->
+**Learning priority — 24 October 2026:** [Evidence-based review and publication](PRODUCTION_REVIEW_CHECKPOINT_2026-10-24.md#learning-before-implementation). Learn contracts, semantic grounding, review states and reliable publication before implementing the private inbox and optional AI reviewer. These are planned extensions, not deployed features.
+
+
 Created: 2 October 2026. Companion: [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md).
 
 ## The goal

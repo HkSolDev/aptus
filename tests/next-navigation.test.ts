@@ -354,7 +354,9 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
         },
       ]);
       await page.route('**/api/auth/get-session', (route) =>
-        route.fulfill({ json: { user: { name: 'Example User' } } }),
+        route.fulfill({
+          json: { user: { id: 'fictional-account', name: 'Example User' } },
+        }),
       );
       await page.route('**/api/auth/passkey/status', (route) =>
         route.fulfill({ json: { enabled: true, recent: true } }),
@@ -428,6 +430,12 @@ test('Next.js keyboard skip, detail navigation and Back preserve the public list
         page.getByRole('button', { name: 'Continue with Google' }),
       ).toBeVisible();
       profileSessionStatus = 401;
+      await page.route('**/api/auth/get-session', (route) =>
+        route.fulfill({
+          status: 401,
+          json: { error: 'Please sign in again.' },
+        }),
+      );
       await page.goto(`${origin}/profile`);
       await expect(page.locator('#profile-fields')).toHaveCount(0);
     },

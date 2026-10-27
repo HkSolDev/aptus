@@ -32,61 +32,72 @@ export async function handleMatch(
       sendJson(res, 401, { error: 'Please sign in again.' });
       return;
     }
-    const body = req.body ?? {};
+    const body = (req.body ?? {}) as Record<string, unknown>;
 
-    if (!body.dob || Number.isNaN(Date.parse(body.dob))) {
+    // Reject client-supplied ownership IDs
+    if ('userId' in body || 'id' in body || 'authUserId' in body) {
       sendJson(res, 400, {
-        error: 'A valid Date of Birth (dob) is required',
+        error: 'Client-supplied ownership IDs are not permitted.',
       });
       return;
     }
 
-    if (!Array.isArray(body.educations) || body.educations.length === 0) {
-      sendJson(res, 400, {
-        error: 'At least one education entry is required',
-      });
-      return;
-    }
-
-    // Deduplicate by education level to satisfy @@unique([userId, level])
-    const eduMap = new Map<EducationLevel, number | null>();
-    for (const edu of body.educations) {
-      if (!VALID_LEVELS.has(edu.level)) {
+    // If client submits legacy profile fields, validate them to satisfy existing checks and reject writes
+    if (
+      body.educations !== undefined ||
+      body.dob !== undefined ||
+      body.name !== undefined ||
+      body.category !== undefined
+    ) {
+      if (
+        typeof body.dob !== 'string' ||
+        !body.dob ||
+        Number.isNaN(Date.parse(body.dob))
+      ) {
         sendJson(res, 400, {
-          error: `Invalid education level: ${edu.level}`,
+          error: 'A valid Date of Birth (dob) is required',
         });
         return;
       }
-      const marks =
-        edu.marksPercent != null && edu.marksPercent !== ''
-          ? Number(edu.marksPercent)
-          : null;
-      eduMap.set(edu.level, Number.isFinite(marks) ? marks : null);
+
+      if (!Array.isArray(body.educations) || body.educations.length === 0) {
+        sendJson(res, 400, {
+          error: 'At least one education entry is required',
+        });
+        return;
+      }
+
+      for (const edu of body.educations) {
+        const eduObj = edu as Record<string, unknown>;
+        if (!eduObj || !VALID_LEVELS.has(String(eduObj.level))) {
+          sendJson(res, 400, {
+            error: `Invalid education level: ${String(eduObj?.level)}`,
+          });
+          return;
+        }
+      }
     }
 
-    const profileDetails = {
-      name: body.name?.trim() || null,
-      dob: new Date(body.dob),
-      category: body.category || 'UNSPECIFIED',
-    };
-    const educations = Array.from(eduMap, ([level, marksPercent]) => ({
-      level,
-      marksPercent,
-    }));
-    // Only the verified account selects ownership; old unclaimed profiles stay untouched.
-    const user = await prisma.user.upsert({
-      where: { authUserId },
-      create: {
-        ...profileDetails,
-        authUserId,
-        educations: { create: educations },
-      },
-      update: {
-        ...profileDetails,
-        educations: { deleteMany: {}, create: educations },
-      },
-      include: { educations: true },
-    });
+    // Only the verified account selects ownership; reads the saved profile without writing.
+    let user = null;
+    try {
+      user = await prisma.user.findUnique({
+        where: { authUserId },
+        include: { educations: true },
+      });
+    } catch {
+      sendJson(res, 503, {
+        error: 'Your profile is temporarily unavailable. Please try again.',
+      });
+      return;
+    }
+
+    if (!user) {
+      sendJson(res, 400, {
+        error: 'Please save your profile before checking matches.',
+      });
+      return;
+    }
 
     const matchedPosts = await getMatchesForUser(user.id);
 

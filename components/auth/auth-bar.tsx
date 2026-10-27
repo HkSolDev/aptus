@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useWorkspace } from '@/components/providers/workspace-provider';
@@ -47,13 +47,21 @@ async function authRequest(
 }
 
 interface SessionView {
+  id: string;
   name: string;
   needsRefresh: boolean;
 }
 
 function readSession(status: number, data: unknown): SessionView | null {
-  if (status !== 200 || !isRecord(data) || !isRecord(data.user)) return null;
+  if (
+    status !== 200 ||
+    !isRecord(data) ||
+    !isRecord(data.user) ||
+    typeof data.user.id !== 'string'
+  )
+    return null;
   return {
+    id: data.user.id,
     name: typeof data.user.name === 'string' ? data.user.name : '',
     needsRefresh: data.needsRefresh === true,
   };
@@ -68,15 +76,17 @@ export function AuthBar({
   const hiddenHeader = pathname === '/sign-in' && presentation === 'header';
   const errorId = `${presentation}-auth-error`;
   const {
-    clearWorkspace,
+    setAccountId,
     accountName: userName,
     setAccountName: setUserName,
     setSessionChecked,
   } = useWorkspace();
+  const sessionRequestRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const checkSession = useCallback(async () => {
+    const request = ++sessionRequestRef.current;
     try {
       const checked = await authRequest('/api/auth/get-session', 'GET', '');
       let session = readSession(checked.status, checked.data);
@@ -84,23 +94,29 @@ export function AuthBar({
         const renewed = await authRequest('/api/auth/get-session', 'POST', '');
         session = readSession(renewed.status, renewed.data);
       }
+      if (request !== sessionRequestRef.current) return;
       if (session) {
+        setAccountId(session.id);
         setUserName(session.name);
       } else {
         setUserName(null);
-        clearWorkspace();
+        setAccountId(null);
       }
     } catch {
+      if (request !== sessionRequestRef.current) return;
       setUserName(null);
-      clearWorkspace();
+      setAccountId(null);
     } finally {
-      setSessionChecked(true);
+      if (request === sessionRequestRef.current) setSessionChecked(true);
     }
-  }, [clearWorkspace, setUserName, setSessionChecked]);
+  }, [setAccountId, setUserName, setSessionChecked]);
 
   useEffect(() => {
     if (hiddenHeader) return;
     void checkSession();
+    return () => {
+      sessionRequestRef.current += 1;
+    };
   }, [checkSession, hiddenHeader, pathname]);
 
   const handleGoogleSignIn = async () => {
@@ -165,6 +181,7 @@ export function AuthBar({
   };
 
   const handleSignOut = async () => {
+    sessionRequestRef.current += 1;
     setError(null);
     setLoading(true);
     try {
@@ -174,8 +191,9 @@ export function AuthBar({
         'Couldn’t sign out. Please try again.',
       );
       if (status === 200 || status === 401) {
+        sessionRequestRef.current += 1;
         setUserName(null);
-        clearWorkspace();
+        setAccountId(null);
         if (presentation === 'header') {
           requestAnimationFrame(() =>
             document

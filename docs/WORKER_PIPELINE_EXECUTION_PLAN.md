@@ -1,5 +1,9 @@
 # Worker pipeline execution plan
 
+<!-- aptus-checkpoint-2026-10-24 -->
+**Current checkpoint — 24 October 2026:** [Production, worker results and review-system next steps](PRODUCTION_REVIEW_CHECKPOINT_2026-10-24.md). Frontend `d577942`, backend/worker `94ccc9d` deployed. Worker saves drafts but has published zero new jobs in the observed runs. Earlier snapshots below are historical.
+
+
 Status: proposed on 23 October 2026. This document fixes the implementation
 order for the generic worker. It does not claim that these stages are deployed
 or connected to PostgreSQL.
@@ -196,3 +200,42 @@ with stable row IDs. Production deployment/public-job approval are not included.
 Implement and test one numbered stage at a time. Do not begin a later stage
 until the current stage has a focused fixture-based check and a short written
 result.
+
+## Planned improvement — conditional marks requirements
+
+Recorded 24 October 2026. **Planned / not started**; this is a future worker
+improvement with application-side dependencies, not a new numbered pipeline stage.
+[Notion planning note](https://app.notion.com/p/403354a1ec59811e8006f85bdb83b5ed)
+records the detailed sequence and acceptance criteria.
+
+**Problem:** a notice requiring General applicants to have 60% and SC/ST applicants
+to have 55% cannot safely become one global `minMarksPercent = 60`. An SC applicant
+with 57% could be incorrectly excluded. Current `EducationOption` stores numeric
+marks and free-text `conditions`, but has no structured category selector for marks.
+`scripts/match.ts` applies the flat marks filter before the detailed-route manual
+verification warning, so that warning alone does not prevent false exclusion.
+
+**Planned sequence:**
+
+1. Define a versioned, citation-backed contract tying numeric marks thresholds to
+   category and qualification route. Resolve exceptions and reservation-specific
+   applicability explicitly; unknown conditions remain unresolved.
+2. Update worker extraction, decoding and validation to preserve thresholds with
+   their conditions, including table headings and footnotes. Review completeness
+   as well as citation presence; avoid treating category variants as global ORs.
+3. Preserve the contract through TypeScript ingestion, storage and reviewed
+   publication; define legacy compatibility and bump the extraction version when
+   the contract changes.
+4. Update deterministic matching to select the applicable rule. Unresolved scope
+   must return “Verify manually” while keeping the job discoverable, rather than
+   rejecting the applicant against an inapplicable flat threshold.
+5. Display the applicable threshold and source; retain explicit reviewed approval.
+
+**Done when:** end-to-end fixtures prove SC 57% passes a cited SC/ST 55% marks
+requirement while General 57% fails General 60%; exact boundaries, qualification
+routes, unknown inputs, conflicting rules, footnote exceptions and legacy records
+behave safely. No source condition may be silently flattened or invented. Passing
+this marks check alone must not imply overall job eligibility.
+
+This entry authorizes planning only. No runtime changes, provider calls, database
+writes, publication or deployment were performed for it.

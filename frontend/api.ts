@@ -66,8 +66,8 @@ async function postJson(path: string, body: unknown): Promise<unknown> {
   return data;
 }
 
-export async function matchProfile(profile: Profile): Promise<MatchResponse> {
-  const data = await postJson('/api/match', profile);
+export async function matchProfile(profile?: Profile): Promise<MatchResponse> {
+  const data = await postJson('/api/match', profile ?? {});
   // Types disappear at compilation; check the server response at this boundary.
   if (!isMatchResponse(data))
     throw new Error(

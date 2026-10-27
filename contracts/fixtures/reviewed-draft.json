@@ -1,0 +1,664 @@
+{
+  "bundle_id": "9f68c36377130d33e07efeb5",
+  "source_url": "https://jobs.example.gov.in/main.pdf",
+  "source_name": "Illustrative contract notice",
+  "facts": {
+    "purpose": "recruitment",
+    "purpose_evidence": [
+      {
+        "evidence_id": "main:unit-0",
+        "quote": "Recruitment Notice"
+      }
+    ],
+    "document_purposes": [
+      {
+        "document_id": "main",
+        "purpose": "recruitment",
+        "evidence": [
+          {
+            "evidence_id": "main:unit-0",
+            "quote": "Recruitment Notice"
+          }
+        ]
+      },
+      {
+        "document_id": "update",
+        "purpose": "amendment",
+        "evidence": [
+          {
+            "evidence_id": "update:unit-0",
+            "quote": "Vacancies have been updated"
+          }
+        ]
+      }
+    ],
+    "amendment": {
+      "amendment_type": "vacancy_revision",
+      "effective_date": null,
+      "target_advertisement_number": null,
+      "target_campaign_name": null,
+      "target_post_names": [],
+      "changes_description": null,
+      "evidence": [
+        {
+          "evidence_id": "update:unit-0",
+          "quote": "Vacancies have been updated"
+        }
+      ]
+    },
+    "posts": [
+      {
+        "post_name": "Engineer",
+        "recruiting_body": "Example",
+        "vacancies": null,
+        "application_last_date": null,
+        "age_as_on_date": null,
+        "min_age": null,
+        "max_age": 30,
+        "education_required": null,
+        "post_group": null,
+        "pay_level": null,
+        "min_education_level": null,
+        "min_marks_percent": null,
+        "category_relaxation_applies": null,
+        "category_relaxation_rules": null,
+        "eligibility_rules": {
+          "gender_requirement": null,
+          "category_requirement": [],
+          "education_options": [],
+          "age_rules": [],
+          "relaxation_combination_rule": null
+        },
+        "advertisement_number": null,
+        "application_start_date": null,
+        "fee_payment_last_date": null,
+        "exam_dates": [],
+        "nationality_requirement": null,
+        "locations": [],
+        "employment_type": null,
+        "vacancy_breakdown": [],
+        "experience_rules": [],
+        "fee_rules": [],
+        "pay": null,
+        "selection_process": [],
+        "application_steps": [],
+        "documents_required": [],
+        "language_requirements": [],
+        "other_requirements": [],
+        "official_site_url": null,
+        "apply_url": null
+      }
+    ],
+    "evidence": [
+      {
+        "field_path": "posts.0.post_name",
+        "evidence_id": "main:unit-0",
+        "quote": "Engineer"
+      },
+      {
+        "field_path": "posts.0.max_age",
+        "evidence_id": "main:unit-0",
+        "quote": "Age limit: 21–30 years"
+      },
+      {
+        "field_path": "posts.0.recruiting_body",
+        "evidence_id": "main:unit-0",
+        "quote": "Issuer: Example"
+      }
+    ],
+    "missing_fields": [
+      {
+        "field_path": "posts.0.vacancies",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.application_last_date",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.age_as_on_date",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.min_age",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.education_required",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.post_group",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.pay_level",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.min_education_level",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.min_marks_percent",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.category_relaxation_applies",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.category_relaxation_rules",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.eligibility_rules.gender_requirement",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.eligibility_rules.relaxation_combination_rule",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.advertisement_number",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.application_start_date",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.fee_payment_last_date",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.nationality_requirement",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.employment_type",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.pay",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.official_site_url",
+        "reason": "not_located: Not located in supplied evidence."
+      },
+      {
+        "field_path": "posts.0.apply_url",
+        "reason": "not_located: Not located in supplied evidence."
+      }
+    ]
+  },
+  "review": {
+    "status": "needs_review",
+    "warnings": [
+      {
+        "field_path": "source",
+        "reason": "amendment_or_cancellation_scope_needs_review"
+      },
+      {
+        "field_path": "facts",
+        "reason": "semantic_support_requires_review"
+      },
+      {
+        "field_path": "posts.0.vacancies",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.application_last_date",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.age_as_on_date",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.min_age",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.education_required",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.post_group",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.pay_level",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.min_education_level",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.min_marks_percent",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.category_relaxation_applies",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.category_relaxation_rules",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.eligibility_rules.gender_requirement",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.eligibility_rules.relaxation_combination_rule",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.advertisement_number",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.application_start_date",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.fee_payment_last_date",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.nationality_requirement",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.employment_type",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.pay",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.official_site_url",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.apply_url",
+        "reason": "detail_not_supported"
+      },
+      {
+        "field_path": "posts.0.eligibility_rules.category_requirement",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.eligibility_rules.education_options",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.eligibility_rules.age_rules",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.exam_dates",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.locations",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.vacancy_breakdown",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.experience_rules",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.fee_rules",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.selection_process",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.application_steps",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.documents_required",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.language_requirements",
+        "reason": "array_coverage_unconfirmed"
+      },
+      {
+        "field_path": "posts.0.other_requirements",
+        "reason": "array_coverage_unconfirmed"
+      }
+    ],
+    "semantic_support_verified": false,
+    "publication_allowed": false,
+    "bundle_identity": {
+      "issuer": "Example",
+      "advertisement_number": null,
+      "campaign": "Engineers",
+      "year": "2026"
+    },
+    "field_checks": [
+      {
+        "field_path": "posts.0.post_name",
+        "status": "found",
+        "scope": "post",
+        "reason": null,
+        "evidence": [
+          {
+            "evidence_id": "main:unit-0",
+            "quote": "Engineer"
+          }
+        ],
+        "scope_evidence": [
+          {
+            "evidence_id": "main:unit-0",
+            "quote": "Engineer"
+          }
+        ]
+      },
+      {
+        "field_path": "posts.0.recruiting_body",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.vacancies",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.application_last_date",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.age_as_on_date",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.min_age",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.max_age",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.education_required",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.post_group",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.pay_level",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.min_education_level",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.min_marks_percent",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.category_relaxation_applies",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.category_relaxation_rules",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.eligibility_rules.gender_requirement",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.eligibility_rules.relaxation_combination_rule",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.advertisement_number",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.application_start_date",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.fee_payment_last_date",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.nationality_requirement",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.employment_type",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.pay",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.official_site_url",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      },
+      {
+        "field_path": "posts.0.apply_url",
+        "status": "not_located",
+        "scope": "post",
+        "reason": "Not located in supplied evidence.",
+        "evidence": [],
+        "scope_evidence": []
+      }
+    ]
+  },
+  "evidence_units": [
+    {
+      "evidence_id": "main:unit-0",
+      "document_id": "main",
+      "source_url": "https://jobs.example.gov.in/main.pdf",
+      "role": "main_notice",
+      "authority": "official_host_candidate",
+      "locations": [
+        {
+          "page": 2,
+          "block_id": "page-2-native",
+          "line_range": [1, 7]
+        }
+      ]
+    },
+    {
+      "evidence_id": "update:unit-0",
+      "document_id": "update",
+      "source_url": "https://jobs.example.gov.in/update",
+      "role": "corrigendum",
+      "authority": "official_host_candidate",
+      "locations": [
+        {
+          "block": 0
+        }
+      ]
+    }
+  ],
+  "disposition": "valid_recruitment_review_draft",
+  "evidence_fingerprint": null,
+  "extraction_version": null,
+  "source_evidence": [
+    {
+      "document_id": "main",
+      "source_url": "https://jobs.example.gov.in/main.pdf",
+      "format": "pdf",
+      "role": "main_notice",
+      "authority": "official_host_candidate",
+      "title": null,
+      "identity_context": null,
+      "amendment_scope": null,
+      "quality": {
+        "status": null,
+        "coverage": {}
+      },
+      "warnings": [],
+      "sections": [
+        {
+          "document_id": "main",
+          "evidence_id": "main:unit-0",
+          "text": "Recruitment Notice\nIssuer: Example\nCampaign: Engineers\nRecruitment Year: 2026\nPost: Engineer\nAge limit: 21–30 years\nCandidates must possess professional registration.",
+          "locations": [
+            {
+              "page": 2,
+              "block_id": "page-2-native",
+              "line_range": [1, 7]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "document_id": "update",
+      "source_url": "https://jobs.example.gov.in/update",
+      "format": "html",
+      "role": "corrigendum",
+      "authority": "official_host_candidate",
+      "title": "Corrigendum",
+      "identity_context": null,
+      "amendment_scope": {
+        "changes": ["vacancies"],
+        "applies_to": ["Annexure I"],
+        "evidence": [
+          {
+            "changes": ["vacancies"],
+            "applies_to": ["Annexure I"],
+            "quote": "Issuer: Example\nCampaign: Engineers\nRecruitment Year: 2026\nVacancies have been updated in Annexure I.",
+            "locations": [
+              {
+                "block": 0
+              }
+            ]
+          }
+        ],
+        "unchanged_evidence": [],
+        "status": "candidate_scope"
+      },
+      "quality": {
+        "status": null,
+        "coverage": {}
+      },
+      "warnings": [],
+      "sections": [
+        {
+          "document_id": "update",
+          "evidence_id": "update:unit-0",
+          "text": "Issuer: Example\nCampaign: Engineers\nRecruitment Year: 2026\nVacancies have been updated in Annexure I.",
+          "locations": [
+            {
+              "block": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {}
+}
