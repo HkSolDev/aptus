@@ -1,0 +1,911 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "Aptus custom JSON APIs",
+    "version": "1.0.0",
+    "description": "Observed local boundary contract; read known gaps and legacy branch in docs/contracts. Auth library and legacy HTML routes are inventoried in prose, not specified here."
+  },
+  "paths": {
+    "/api/jobs": {
+      "get": {
+        "operationId": "getApiJobs",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/JobsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "HTTP 405; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "qualification",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "TENTH",
+                "TWELFTH",
+                "DIPLOMA",
+                "BACHELORS",
+                "MASTERS",
+                "PHD",
+                ""
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "enum": ["soonest", "furthest"],
+              "default": "soonest"
+            }
+          }
+        ]
+      }
+    },
+    "/api/jobs/{id}": {
+      "get": {
+        "operationId": "getApiJobs{Id}",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/JobDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "HTTP 405; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/profile": {
+      "get": {
+        "operationId": "getApiProfile",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/ProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "putApiProfile",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/ProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "http.schema.json#/definitions/ProfileInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/saved-jobs": {
+      "get": {
+        "operationId": "getApiSaved-Jobs",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/SavedJobsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/saved-jobs/status": {
+      "get": {
+        "operationId": "getApiSaved-JobsStatus",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/SavedStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "description": "Comma-separated <=50 job IDs; blank means empty.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/saved-jobs/{id}": {
+      "put": {
+        "operationId": "putApiSaved-Jobs{Id}",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/SaveResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "description": "The current browser transports an empty JSON object through the proxy. It carries no mutation data: identity comes from the session and the target from the path.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteApiSaved-Jobs{Id}",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/UnsaveResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "description": "The current browser transports an empty JSON object through the proxy. It carries no mutation data: identity comes from the session and the target from the path.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/match": {
+      "post": {
+        "operationId": "postApiMatch",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/MatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409 when a stale client sends a nonempty body; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "maxProperties": 0,
+                "description": "Exactly an empty object. Profile data is saved with PUT /api/profile; identity comes from the session. Ownership keys receive 400 and other nonempty bodies receive 409. See frontend-backend.md."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/explain": {
+      "post": {
+        "operationId": "postApiExplain",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/ExplainResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "postId": {
+                    "type": "string"
+                  },
+                  "userId": {
+                    "type": "string"
+                  }
+                },
+                "required": ["postId"],
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/ingest": {
+      "post": {
+        "operationId": "postApiInternalIngest",
+        "security": [
+          {
+            "ingestBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see prose for semantic invariants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "http.schema.json#/definitions/PublicationReceipt"
+                    },
+                    {
+                      "$ref": "http.schema.json#/definitions/LegacyReceipt"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "HTTP 413; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Legacy ingestion storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "http.schema.json#/definitions/ReviewedRequest"
+                  },
+                  {
+                    "$ref": "http.schema.json#/definitions/LegacyRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "description": "Two existing branches: reviewed draft when either reviewed_candidate_json or approval is present; otherwise legacy post delivery. Legacy schema describes current Python producer, not complete legacy runtime enforcement."
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Secure-aptus.session_token",
+        "description": "Configured HTTPS Better Auth cookie (cookiePrefix aptus; secure cookies on HTTPS). Local HTTP uses aptus.session_token. Server derives ownership from the verified session."
+      },
+      "ingestBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

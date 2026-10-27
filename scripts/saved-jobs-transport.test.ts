@@ -8,7 +8,10 @@ import { saveJobApi, unsaveJobApi } from '../frontend/saved-jobs-api.js';
 test('save and remove survive a proxy that forwards a chunked request body', async () => {
   const app = Fastify();
   let saved = false;
-  app.put('/api/saved-jobs/job', async () => ({ saved: (saved = true) }));
+  app.put('/api/saved-jobs/job', async () => ({
+    saved: (saved = true),
+    savedAt: '2026-10-27T00:00:00.000Z',
+  }));
   app.delete('/api/saved-jobs/job', async () => ({ saved: (saved = false) }));
   await app.listen({ host: '127.0.0.1', port: 0 });
   const upstream = app.server.address();

@@ -101,8 +101,11 @@ test('saved workspace browser regressions: batching, retry, session isolation an
       await new Promise((resolve) => {
         releaseSave = resolve;
       });
+    const isSave = route.request().method() === 'PUT';
     await route.fulfill({
-      json: { saved: route.request().method() === 'PUT' },
+      json: isSave
+        ? { saved: true, savedAt: new Date().toISOString() }
+        : { saved: false },
     });
   });
   await page.goto(origin);

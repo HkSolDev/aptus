@@ -1,0 +1,25 @@
+{
+  "revision": "local-v1.1",
+  "approval": "Coordinator record updated with Hemant's 27 October 2026 approval to reconcile wording with tested runtime behavior; semantic revisions still require Hemant review per protocol.",
+  "sha256": {
+    "contracts/baseline.json": "8618bb2c9a9a90b9ff2e464276068c315a6db62803f6da1d7073d18e572db47b",
+    "contracts/fixtures/reviewed-draft.json": "798e0f15d6333ea7c4e600daebf506011fdabae82b131dba0c596c113469736e",
+    "contracts/fixtures/worker-input.json": "09fd1ed54a475709681fb828aafab2fbcc464be017e6826013b20e7af4c0c5c1",
+    "contracts/http.openapi.json": "a61bb57f62d633ad710b23522658aba9b83c9186ed5da74f249250b757df33fc",
+    "contracts/http.schema.json": "d945be46b41cee09846e0e00b1a145b14c9b1ccbcb227767c768b8e48e59aed7",
+    "contracts/legacy-post.schema.json": "2d88d3c84899c10edf329c78469e10463fce34ca704a2c41b45f2a4c60666144",
+    "contracts/worker-probe.py": "a7e7a0c2704f83fe458cd375a889fd660ec4dac7cbfdbbce426788af03f3a07e",
+    "docs/contracts/README.md": "e1f62f8ba4c7be4f83a2dae488d52fc41908263023a256f6c191ac6f70fa7d77",
+    "docs/contracts/analysis-and-sources.md": "150d15668b6477faae3bd4d2c275189cf676c24eaac17a95c720a43ba7cf7c5c",
+    "docs/contracts/frontend-backend.md": "d1f0e4d20236c6b8d4356779b6f526fd0e80e12dac11184bce1ec29f636168e8",
+    "docs/contracts/worker-backend.md": "31cfdb862c5a112ef5ec08b503209a5bf1752cf63c127226f91a5a8710421181",
+    "docs/contracts/worker-frontend.md": "5b2d57ed84230535e95792c944cbb1324a916753bdd54c655edcf0261320d60e",
+    "scripts/contracts/artifacts.test.ts": "99257e0b4e2ee006569c0e5ab6aaafc9b881be7d48d5b05f07fa8b045976e688",
+    "scripts/contracts/audit-consumers.ts": "64bcf59238c6f87910d7ba1024d8f9b3ebc8d57efb9b88e9a63cb7e66eabb367",
+    "scripts/contracts/frontend-backend.test.ts": "83439e2d13b7f6455927877199b56c05e5c5f0330c7945b968fa26150a0fcde3",
+    "scripts/contracts/support.ts": "b96f6086e1963ae3e871127f3601b899bbcdb21a5efad4baf42688766b9a74db",
+    "scripts/contracts/worker-backend.test.ts": "a7500aca54b8a75d03f1f399f6875f4df447a337f4e41f39f503638a90d90989",
+    "tests/triangle-contract.test.ts": "3c146ba2ab25eac50d4a4b027bee14a034d4245789d61f92d2599e630f5bed58",
+    "services/ai/candidate-storage.schema.json": "d6573617caf64705510772c9535641731ef548ee235814a04e6b05f96975226a"
+  }
+}

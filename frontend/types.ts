@@ -62,7 +62,7 @@ export interface PublicJobItem {
   appointmentType?: string | null;
   vacancies: number | null;
   applicationLastDate: string | null;
-  educationRequired: string;
+  educationRequired: string | null;
   payLevel?: string | null;
   source: {
     name: string;

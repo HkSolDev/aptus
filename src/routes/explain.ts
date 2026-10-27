@@ -15,7 +15,10 @@ type ExplainedPost = Pick<
   | 'payLevel'
   | 'categoryRelaxationRules'
   | 'eligibilityRules'
->;
+> &
+  Partial<
+    Pick<Post, 'ageAsOnDate' | 'categoryRelaxationApplies' | 'reviewedDetails'>
+  >;
 
 export function explainStoredPost(
   post: ExplainedPost,
@@ -36,11 +39,15 @@ export function explainStoredPost(
           ? 'needs manual verification'
           : 'passes saved requirements';
     lines.push(
-      `Candidate age: ${checks.userAge}.`,
-      `Age check: ${status(checks.ageOk, post.minAge === null || checks.effectiveMaxAge === null)}.`,
+      `Candidate age: ${checks.userAge ?? 'requires a valid notification age reference date'}.`,
+      `Age check: ${status(checks.ageOk, checks.ageNeedsManualCheck)}.`,
       `Education check: ${status(checks.educationOk, post.minEducationLevel === null)}.`,
       `Marks check: ${status(checks.marksOk, post.minMarksPercent === null || checks.marksAtRequiredLevel == null)}.`,
     );
+    if (checks.unverifiedRequirements.length)
+      lines.push(
+        `Manual verification: ${checks.unverifiedRequirements.join('; ')}.`,
+      );
     if (checks.relaxation > 0) {
       lines.push(
         `Saved category relaxation: ${checks.relaxation} years; effective maximum age: ${checks.effectiveMaxAge ?? 'not specified'}.`,

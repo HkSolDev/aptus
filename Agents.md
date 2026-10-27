@@ -1,5 +1,13 @@
 # aptus — project rules for AI coding assistants
 
+## Multi-agent coordination
+
+Before coordinated agent work, read `docs/AGENT_CONTRACT_PROTOCOL.md` and the
+concrete boundary contracts in `docs/contracts/README.md`, then the coordinator's
+batch record. Implementers must follow the frozen contracts and
+must not revise shared semantics, schemas or acceptance checks unilaterally.
+Report mismatches to the main coordinator; Hemant approves semantic revisions.
+
 ## Security and change checklist
 
 Follow the project-wide, always-on rules in

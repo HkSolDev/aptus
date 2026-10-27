@@ -78,6 +78,13 @@ class FactDecodingError(RuntimeError):
         paths = sorted({path for path in paths if isinstance(path, str)
                         and any(re.fullmatch(pattern, path) for pattern in patterns)})
         self.details = {'check': check, 'field_count': len(paths), 'field_paths': paths[:20]}
+        self.location_details = {}
+        if isinstance(cause, MissingFactsError) and cause.locations:
+            locations = sorted({path for path in cause.locations if isinstance(path, str)
+                                and any(re.fullmatch(r'posts\.(?:0|[1-9]\d*)\.' + pattern, path)
+                                        for pattern in patterns)})
+            self.location_details = {'location_count': len(locations),
+                                     'field_locations': locations[:20]}
 
 
 def provider_keys(provider):
@@ -309,6 +316,8 @@ if __name__ == '__main__':
         failure = {'status': 'blocked', 'reason': str(error)}
         if isinstance(error, FactDecodingError):
             failure['details'] = error.details
+            if error.location_details:
+                failure['missing_fact_locations'] = error.location_details
         print(json.dumps(failure))
         raise SystemExit(1)
     atomic_write(Path(args.output_json), json.dumps(result, ensure_ascii=False, indent=2).encode())

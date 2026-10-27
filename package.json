@@ -10,7 +10,7 @@
     "serve": "pnpm build:web && tsx --env-file=.env src/server.ts",
     "build:web": "tsc -p tsconfig.web.json",
     "dev:web": "tsc -p tsconfig.web.json --watch",
-    "test:web": "pnpm build:web && pnpm next:build && node --import ./tests/css-module-hook.mjs --import tsx --test --test-concurrency=1 tests/*.test.ts tests/saved-workspace.test.mjs",
+    "test:web": "pnpm build:web && pnpm next:build && node --import ./tests/css-module-hook.mjs --import tsx --test --test-concurrency=1 tests/*.test.ts tests/saved-workspace.test.mjs tests/frontend-malformed-browser.test.mjs",
     "next:dev": "next dev -p 8080",
     "next:build": "next build",
     "next:start": "next start -p 8080",
@@ -18,8 +18,11 @@
     "extract": "tsx --env-file=.env scripts/extract.ts",
     "match": "tsx --env-file=.env scripts/match.ts",
     "lint": "eslint .",
+    "test:contracts": "node --import ./tests/css-module-hook.mjs --import tsx --test --test-concurrency=1 scripts/contracts/*.test.ts tests/triangle-contract.test.ts",
+    "audit:contracts": "node --import tsx scripts/contracts/audit-consumers.ts",
+    "check:contracts": "pnpm test:contracts && pnpm audit:contracts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.web.json --noEmit",
-    "test": "node --import ./tests/css-module-hook.mjs --import tsx --test scripts/**/*.test.ts"
+    "test": "node --import ./tests/css-module-hook.mjs --import tsx --test --test-concurrency=1 scripts/*.test.ts scripts/contracts/*.test.ts"
   },
   "keywords": [],
   "author": "",

@@ -1,12 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../db.js';
 import { sendJson } from '../lib/http.js';
-import {
-  getMatchesForUser,
-  ageOn,
-  getEffectiveMaxAge,
-  getUnverifiedRequirements,
-} from '../../scripts/match.js';
+import { getMatchesForUser, getPostChecks } from '../../scripts/match.js';
 
 type MatchRequestBody = Record<string, unknown>;
 
@@ -50,7 +45,6 @@ export async function handleMatch(
       });
       return;
     }
-
     if (!user) {
       sendJson(res, 400, {
         error: 'Please save your profile before checking matches.',
@@ -65,7 +59,6 @@ export async function handleMatch(
     });
     const sourcesChecked = sources.map((s) => s.name);
 
-    const userAge = ageOn(user.dob);
     const marksByLevel = new Map(
       user.educations.map((e) => [e.level, e.marksPercent]),
     );
@@ -74,20 +67,23 @@ export async function handleMatch(
     const needsManualCheck = [];
 
     for (const post of matchedPosts) {
-      const { effectiveMaxAge, relaxation } = getEffectiveMaxAge(
-        post,
-        user.category,
-      );
+      const {
+        userAge,
+        effectiveMaxAge,
+        relaxation,
+        unverifiedRequirements,
+        ageNeedsManualCheck,
+      } = getPostChecks(post, user);
 
       const userMarksAtLevel = post.minEducationLevel
         ? marksByLevel.get(post.minEducationLevel)
         : undefined;
       const marksMissing =
         post.minMarksPercent !== null && userMarksAtLevel == null;
-      const unverifiedRequirements = getUnverifiedRequirements(post);
 
       // Unknown inputs and requirements the profile cannot verify stay manual.
       const isNullFieldPost =
+        ageNeedsManualCheck ||
         post.minAge === null ||
         post.maxAge === null ||
         post.minEducationLevel === null ||

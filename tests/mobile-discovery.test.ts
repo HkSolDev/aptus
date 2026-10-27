@@ -80,7 +80,12 @@ test('Mobile discovery: compact layouts, accessible filters, truth in fields, an
       if (req.method === 'PUT') {
         savedJobsSet.add(jobId);
         res.statusCode = 200;
-        res.end(JSON.stringify({ saved: true }));
+        res.end(
+          JSON.stringify({
+            saved: true,
+            savedAt: '2026-10-27T00:00:00.000Z',
+          }),
+        );
       } else if (req.method === 'DELETE') {
         savedJobsSet.delete(jobId);
         res.statusCode = 200;
