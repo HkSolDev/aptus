@@ -1,23 +1,22 @@
 # Aptus frontend, backend and worker contracts
 
-Revision: local-v1, 27 October 2026. Coordinator-owned. Read the
+Revision: local-v1.1, 27 October 2026. Coordinator-owned. Read the
 [coordination protocol](../AGENT_CONTRACT_PROTOCOL.md) before changing this set.
 
 ## Scope and authority
 
-These contracts describe the code inspected in the **current dirty local
-checkout**, based on HEAD `d930a69e0093a440ef5ad99c92a6ab19326cec17`.
-They do not describe verified origin/main, another agent's worktree or production.
-The source hashes in `contracts/baseline.json` identify the inspected local
-files independently of HEAD; they are provenance, not an instruction to freeze
-all implementation files forever. This batch adds documentation, schema
-artifacts and verification tools. It changes no runtime endpoint or data policy.
+These contracts describe the local integration candidate at
+`4fa532ef74df0ac015199204cf270beb3c564d3f`, reconciled with recorded released
+revision `7e974cc098f405475f7093567bcf26cde4c40a4a`. They do not prove a remote
+branch, deployed image or production runtime. The source hashes in
+`contracts/baseline.json` remain historical provenance for the original
+local-v1 inspection. This revision corrects observed transport and matcher
+wording; it changes no runtime endpoint or data policy.
 
-The invariant rules below preserve existing project decisions. Known violations
-are recorded separately and are **not accepted behavior** merely because they
-exist today. `local-v1` is a reviewable baseline; the entire system cannot be
-declared contract-conformant while the consumer audit has findings. Do not launch
-dependent implementation against an unreviewed semantic change.
+The invariant rules below preserve existing project decisions. Historical
+findings remain evidence, not accepted behavior merely because they existed in
+the original local-v1 snapshot. This revised record reflects the tested
+integration candidate; do not treat it as proof of a remote or production release.
 
 | Relationship                | Concrete contract                                                    | Executable artifacts                                                                                                                  |
 | --------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -73,10 +72,10 @@ pnpm lint
 ```
 
 `test:contracts` checks selected real boundary paths and frozen artifacts.
-`audit:contracts` checks known consumer defects and exits nonzero while they
-remain. **Both matter.** A passing boundary suite is not blanket acceptance.
-`check:contracts` combines both as the handoff gate. It currently fails on the
-known audit findings; do not report full compatibility from the first stage alone.
+`audit:contracts` checks the protected consumers and matcher behavior. **Both
+matter.** A passing boundary suite is not blanket acceptance. `check:contracts`
+combines both as the handoff gate. On the integration candidate it passes with
+zero audit findings; this still does not prove deployment or production behavior.
 Commands require no provider calls, production reads/writes or live credentials.
 The suite substitutes database operations and session lookup only; it does not
 connect to PostgreSQL. It does not load `.env` intentionally.
@@ -87,8 +86,10 @@ Those need an explicitly disposable local `TEST_DATABASE_URL` and are not
 substituted by the offline suite. The Node package and CI commands now name root
 and nested contract tests explicitly: `scripts/*.test.ts scripts/contracts/*.test.ts`.
 This prevents shell expansion from selecting only nested tests after the new
-directory exists. CI was not executed remotely here. The consumer audit is not yet a mandatory
-CI step. No branch protection or reviewer permission has been configured.
+directory exists. The candidate CI workflow runs `pnpm check:contracts` before
+the Node test command. Remote CI and required-check enforcement remain separate
+release evidence; GitHub branch-protection access is unavailable for this private
+repository's current plan.
 
 ## Protection and change control
 

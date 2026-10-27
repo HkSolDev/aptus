@@ -494,7 +494,18 @@
               "pattern": "^[a-zA-Z0-9_-]{1,128}$"
             }
           }
-        ]
+        ],
+        "requestBody": {
+          "required": false,
+          "description": "The current browser transports an empty JSON object through the proxy. It carries no mutation data: identity comes from the session and the target from the path.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
       },
       "delete": {
         "operationId": "deleteApiSaved-Jobs{Id}",
@@ -575,7 +586,18 @@
               "pattern": "^[a-zA-Z0-9_-]{1,128}$"
             }
           }
-        ]
+        ],
+        "requestBody": {
+          "required": false,
+          "description": "The current browser transports an empty JSON object through the proxy. It carries no mutation data: identity comes from the session and the target from the path.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
       }
     },
     "/api/match": {
@@ -627,6 +649,16 @@
               }
             }
           },
+          "409": {
+            "description": "HTTP 409 when a stale client sends a nonempty body; existing safe error shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "http.schema.json#/definitions/Error"
+                }
+              }
+            }
+          },
           "500": {
             "description": "HTTP 500; existing safe error shape.",
             "content": {
@@ -654,7 +686,8 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Current frontend sends {}. Legacy fields accepted/validated without profile writes; ownership IDs rejected. See frontend-backend.md."
+                "maxProperties": 0,
+                "description": "Exactly an empty object. Profile data is saved with PUT /api/profile; identity comes from the session. Ownership keys receive 400 and other nonempty bodies receive 409. See frontend-backend.md."
               }
             }
           }

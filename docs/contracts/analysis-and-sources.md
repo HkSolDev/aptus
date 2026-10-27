@@ -1,7 +1,12 @@
 # Contract analysis, findings and research
 
-Inspected: 27 October 2026, local checkout identified in [README](README.md).
-This is a code-boundary audit and verification record, not production proof.
+Inspected: 27 October 2026, original local-v1 checkout identified in
+[README](README.md). This is a historical code-boundary audit and verification
+record, not production proof. The integration candidate corrected the
+FB-NULL-EDUCATION and FB-MALFORMED-SUCCESS findings and added matcher coverage
+for WF-AGE-REFERENCE, WF-RELAXATION-FLAG and WF-CONDITIONAL-GATES; its current
+result is `pnpm check:contracts` passing with zero audit findings. The evidence
+below records the original failures and must not be read as the current verdict.
 
 ## How the contract design was selected
 

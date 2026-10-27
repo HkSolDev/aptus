@@ -87,19 +87,18 @@ from containers, source connectivity or production throughput.
   review-page search count; the same test passed alone. No deterministic code
   cause was established. Both subsequent full local runs passed, including the
   final restored mobile suite. Treat remote clean CI as the next confirmation.
-- The local-v1 prose/OpenAPI was frozen from an older checkout. It still
-  describes accepted legacy matching input and omits the already-released 409
-  stale-client rejection. Save transport prose says no body while released
-  clients send empty JSON through the streaming proxy. This discrepancy is
-  explicit; prose/OpenAPI were not silently revised or represented as complete
-  descriptions of the reconciled production baseline. Any formal contract
-  revision needs the documented review process. Current schemas/checks passing
-  is not proof that the prose has no gaps.
+- Hemant authorized a documentation-only reconciliation after this verification.
+  Contract revision `local-v1.1` records the real empty-JSON transport for saved
+  mutations, the exact empty `{}` match request, and the 409 stale-client
+  rejection. It updates the protected lock and passes `pnpm check:contracts`.
+  This did not change runtime behavior, request ownership, wire response shapes
+  or eligibility policy.
 - GitHub's branch-protection read returned HTTP 403 with a plan requirement for
   this private repository. Required-check enforcement was not verified or
   configured. No repository visibility, plan or settings changes were made.
-- No remote CI run on this candidate, push, PR, merge into main, registry push,
-  staging deployment, production migration or production verification occurred.
+- Remote CI still needs to run on the final branch. Until it passes, there is no
+  GitHub merge, registry push, staging deployment, production migration or
+  production verification claim.
 - Worker diagnostics explain omissions; they do not improve extraction success,
   clear factual holds or approve publication.
 - Performance/navigation implementation remains a separate queued task.

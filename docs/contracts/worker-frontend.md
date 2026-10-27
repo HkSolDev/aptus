@@ -12,7 +12,7 @@ endpoint, paid extraction on click, public draft access or a new message bus.
 | recruiting_body                 | organization                                      | Employer/recruiting body; never the scraper label                              |
 | vacancies                       | vacancies                                         | Integer count/null; zero is retained                                           |
 | application_last_date           | applicationLastDate                               | Calendar deadline serialized as ISO timestamp; India-time catalogue visibility |
-| age_as_on_date                  | ageAsOnDate                                       | Stated age reference date; current matcher ignores it (WF-AGE-REFERENCE)       |
+| age_as_on_date                  | ageAsOnDate                                       | Stated age reference date used by deterministic age comparison                 |
 | min_age / max_age               | minAge / maxAge                                   | Years/null; do not substitute zero or infer missing bounds                     |
 | education_required              | educationRequired                                 | Source qualification text/null; numeric marks remain separate                  |
 | min_education_level             | minEducationLevel                                 | Enumerated coarse level/null; subject/professional conditions remain detailed  |
@@ -64,11 +64,10 @@ Catalogue qualification/search filters discover jobs. Matching reads the
 authenticated saved profile and deterministic rules. Unknown/unsupported facts
 must remain manual-verification cases rather than eligible. The worker never
 computes user eligibility, and frontend labels cannot override backend results.
-Do not infer permanence from pay level/probation or suitability from similarity. These are
-required invariants, not a claim of full current compliance: the audit reproduces
-ignored age reference dates, ignored relaxation flags and missing manual gates
-for some detailed conditions. See WF-AGE-REFERENCE, WF-RELAXATION-FLAG and
-WF-CONDITIONAL-GATES in the findings document.
+Age reference dates, per-notification relaxation flags and conditional
+requirements are handled by the deterministic matcher or exposed as a
+manual-check reason. Do not infer permanence from pay level/probation or
+suitability from similarity.
 
 ## Executable proof and remaining proof
 

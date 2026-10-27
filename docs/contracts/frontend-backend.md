@@ -6,18 +6,18 @@ Semantic rules here supplement schemas; they are not replaced by TypeScript.
 
 ## Routes and callers
 
-| Operation                    | Caller / provider                                                              | Request and success                                                    | Failure behavior                                                                                                          |
-| ---------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| GET `/api/jobs`              | `components/jobs/catalogue-grid.tsx` → `src/routes/jobs.ts` / `listPublicJobs` | `page`, `pageSize`, `q`, `qualification`, `sort`; `{data, pagination}` | 400 invalid filters/page; 405 other methods; 503 storage outage                                                           |
-| GET `/api/jobs/:id`          | `app/jobs/[id]/page.tsx` → `src/routes/job-detail.ts` / `getPublicJob`         | Safe ID → one public detail object                                     | 404 invalid/missing ID; 405 other methods; 503 storage outage                                                             |
-| GET `/api/profile`           | `frontend/profile-api.ts` → `src/routes/profile.ts`                            | Session → `{profile: object or null}`                                  | 401 no session; 503 auth unavailable or storage error                                                                     |
-| PUT `/api/profile`           | Same client/provider                                                           | Profile input → `{profile: saved object}`                              | 400 invalid payload; 403 origin mismatch; 401 no session; 503 unavailable                                                 |
-| GET `/api/saved-jobs`        | `frontend/saved-jobs-api.ts` → saved-job routes/library                        | Page → `{data: saved jobs, pagination}`                                | 400 invalid page; 401 no session; 503 unavailable                                                                         |
-| GET `/api/saved-jobs/status` | Same client/provider                                                           | `ids` comma list → `{savedIds: string[]}`                              | 400 >50/invalid IDs; 401 no session; storage exceptions reach generic error handler                                       |
-| PUT `/api/saved-jobs/:id`    | Same client/provider                                                           | No body → `{saved: true, savedAt: ISO timestamp}`                      | 400 invalid ID; 404 missing post; 403 origin; 401 session; 503 storage                                                    |
-| DELETE `/api/saved-jobs/:id` | Same client/provider                                                           | No body → `{saved: false}` even if already absent                      | 400 invalid ID; 403 origin; 401 session; 503 storage                                                                      |
-| POST `/api/match`            | Profile form / `frontend/api.ts` → `src/routes/match.ts`                       | Preferred `{}`; backend loads saved profile; `MatchResponse`           | 400 missing profile/forged ownership/invalid legacy fields; 403 origin; 401 session; 503 profile read; 500 other failures |
-| POST `/api/explain`          | Explanation box / `frontend/api.ts` → `src/routes/explain.ts`                  | `{postId, userId?}` → `{explanation: string}`                          | 400 missing post ID; 404 missing job/profile; 401 session; 503 auth unavailable; 500 other failure                        |
+| Operation                    | Caller / provider                                                              | Request and success                                                                           | Failure behavior                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/api/jobs`              | `components/jobs/catalogue-grid.tsx` → `src/routes/jobs.ts` / `listPublicJobs` | `page`, `pageSize`, `q`, `qualification`, `sort`; `{data, pagination}`                        | 400 invalid filters/page; 405 other methods; 503 storage outage                                                                     |
+| GET `/api/jobs/:id`          | `app/jobs/[id]/page.tsx` → `src/routes/job-detail.ts` / `getPublicJob`         | Safe ID → one public detail object                                                            | 404 invalid/missing ID; 405 other methods; 503 storage outage                                                                       |
+| GET `/api/profile`           | `frontend/profile-api.ts` → `src/routes/profile.ts`                            | Session → `{profile: object or null}`                                                         | 401 no session; 503 auth unavailable or storage error                                                                               |
+| PUT `/api/profile`           | Same client/provider                                                           | Profile input → `{profile: saved object}`                                                     | 400 invalid payload; 403 origin mismatch; 401 no session; 503 unavailable                                                           |
+| GET `/api/saved-jobs`        | `frontend/saved-jobs-api.ts` → saved-job routes/library                        | Page → `{data: saved jobs, pagination}`                                                       | 400 invalid page; 401 no session; 503 unavailable                                                                                   |
+| GET `/api/saved-jobs/status` | Same client/provider                                                           | `ids` comma list → `{savedIds: string[]}`                                                     | 400 >50/invalid IDs; 401 no session; storage exceptions reach generic error handler                                                 |
+| PUT `/api/saved-jobs/:id`    | Same client/provider                                                           | Client transports `{}`; it carries no mutation data → `{saved: true, savedAt: ISO timestamp}` | 400 invalid ID; 404 missing post; 403 origin; 401 session; 503 storage                                                              |
+| DELETE `/api/saved-jobs/:id` | Same client/provider                                                           | Client transports `{}`; it carries no mutation data → `{saved: false}` even if already absent | 400 invalid ID; 403 origin; 401 session; 503 storage                                                                                |
+| POST `/api/match`            | Profile form / `frontend/api.ts` → `src/routes/match.ts`                       | Exactly `{}`; backend loads saved profile; `MatchResponse`                                    | 400 missing profile/forged ownership; 409 nonempty stale-client body; 403 origin; 401 session; 503 profile read; 500 other failures |
+| POST `/api/explain`          | Explanation box / `frontend/api.ts` → `src/routes/explain.ts`                  | `{postId, userId?}` → `{explanation: string}`                                                 | 400 missing post ID; 404 missing job/profile; 401 session; 503 auth unavailable; 500 other failure                                  |
 
 Errors are currently `{error: string}` for these custom routes, not a newly
 invented `{code,message}` protocol. Framework errors are sanitized by `src/app.ts`.
@@ -109,20 +109,24 @@ GET null means no profile; malformed JSON or a missing `profile` key must not be
 treated as proof that no profile exists (current consumer gap).
 
 Match reads the saved account profile without saving submitted profile fields.
-The current Next form sends `{}`. Legacy fields are still validated for older
-callers; accepting them does not mean they select the candidate. Null ages,
+The current Next form sends exactly `{}`. `userId`, `id` and `authUserId` are
+rejected with 400; every other nonempty object is rejected with 409 so stale
+clients cannot treat match as a profile-write endpoint. Null ages,
 unknown education, missing required marks and unsupported conditional rules
 belong in `needsManualCheck`, with reasons, never optimistic matches. Matching
 is not paginated today; do not claim the planned pagination stage is complete.
 Explain uses stored facts and the deterministic matcher, not a fresh LLM call.
-Current compliance is partial: the audit reproduces age-reference, relaxation-flag
-and gender/nationality manual-check gaps in scripts/match.ts. A correct JSON
-shape does not establish that every eligibility requirement was evaluated.
+The matcher uses the notification age reference date and records unsupported or
+conditional eligibility requirements as manual checks. A correct JSON shape
+still does not establish that every notification fact was extracted correctly.
 
 Save PUT is idempotent per `(authUserId,postId)` and preserves savedAt on repeat;
-DELETE is idempotent for that account. Profile PUT describes replacement, not
-a patch. A client timeout alone cannot establish whether a mutation committed.
-Do not add blind retries or show success from a Boolean cast of a missing field.
+DELETE is idempotent for that account. The browser sends an empty JSON object on
+both mutation methods because the Next proxy requires a JSON request body; the
+server derives all mutation data from session identity and the path ID, and does
+not treat this body as input. Profile PUT describes replacement, not a patch. A
+client timeout alone cannot establish whether a mutation committed. Do not add
+blind retries or show success from a Boolean cast of a missing field.
 
 ## Other exposed surfaces
 

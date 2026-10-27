@@ -7,7 +7,7 @@ import { contractChecker, fixture } from './support.js';
 
 test('protected contract artifacts match the coordinator-reviewed lock', () => {
   const lock = fixture('lock.json');
-  assert.equal(lock.revision, 'local-v1');
+  assert.equal(lock.revision, 'local-v1.1');
   for (const [path, hash] of Object.entries(lock.sha256)) {
     assert.equal(
       createHash('sha256').update(readFileSync(path)).digest('hex'),
