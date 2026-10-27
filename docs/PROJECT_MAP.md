@@ -1,8 +1,8 @@
 # Aptus — start here
 
 <!-- aptus-checkpoint-2026-10-24 -->
-**Current checkpoint — 24 October 2026:** [Production, worker results and review-system next steps](PRODUCTION_REVIEW_CHECKPOINT_2026-10-24.md). Frontend `d577942`, backend/worker `94ccc9d` deployed. Worker saves drafts but has published zero new jobs in the observed runs. Earlier snapshots below are historical.
 
+**Current checkpoint — 24 October 2026:** [Production, worker results and review-system next steps](PRODUCTION_REVIEW_CHECKPOINT_2026-10-24.md). Frontend `d577942`, backend/worker `94ccc9d` deployed. Worker saves drafts but has published zero new jobs in the observed runs. Earlier snapshots below are historical.
 
 **Worker integration — 18 October:** local branch `codex/worker-pipeline-integration`
 starts from GitHub main `e7ddbd0`. Single validated source registry is connected.

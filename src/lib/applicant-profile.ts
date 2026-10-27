@@ -63,8 +63,7 @@ export interface ValidatedProfileInput {
 }
 
 export type ValidationResult =
-  | { ok: true; data: ValidatedProfileInput }
-  | { ok: false; error: string };
+  { ok: true; data: ValidatedProfileInput } | { ok: false; error: string };
 
 export function formatProfileDob(date: Date): string {
   const year = date.getUTCFullYear();

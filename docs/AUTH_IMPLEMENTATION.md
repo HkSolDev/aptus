@@ -526,13 +526,13 @@ Scope: five correctness findings in the uncommitted frontend/backend implementat
 on `codex/next-aptus-work` (base `d930a69`). No worker changes, dependency upgrades,
 production migrations, commit, push, merge or deployment in this fix slice.
 
-| Requirement | Implementation | Observable acceptance |
-| --- | --- | --- |
-| Save reaches the backend | `frontend/saved-jobs-api.ts` omits JSON Content-Type for bodyless PUT | Actual Fastify route accepts the frontend request; isolated PostgreSQL stores one row across repeated saves |
+| Requirement                           | Implementation                                                                                                                                                                                                                          | Observable acceptance                                                                                                                                                     |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Save reaches the backend              | `frontend/saved-jobs-api.ts` omits JSON Content-Type for bodyless PUT                                                                                                                                                                   | Actual Fastify route accepts the frontend request; isolated PostgreSQL stores one row across repeated saves                                                               |
 | Account changes discard old responses | `workspace-provider.tsx` uses authoritative account ID, session generation and per-job mutation versions; `auth-bar.tsx` supplies session ID and ignores superseded auth checks; profile/Saved/button subtrees reset on session changes | Delayed status, save, list and profile responses cannot restore account A data after switching to B, including equal display names; old status cannot undo a newer unsave |
-| Status failure remains retryable | Status API rejects errors; workspace only confirms successful IDs, drains batches of at most 50, and retries failed IDs | 60 buttons get checked in bounded batches; a 503 does not become confirmed unsaved; retry recovers all failed IDs; visible accessible errors |
-| Outage differs from absent profile | `src/routes/match.ts` performs one ownership lookup without fallback-on-error | Null returns actionable 400; lookup failure returns sanitized 503; matching performs no profile writes |
-| Last-page removal remains navigable | `saved-jobs-view.tsx` clamps page and reloads canonical data; request versions ignore stale list results | With 21 saved jobs, removing page 2's only item returns to page 1 containing 20 jobs; stale account list stays discarded |
+| Status failure remains retryable      | Status API rejects errors; workspace only confirms successful IDs, drains batches of at most 50, and retries failed IDs                                                                                                                 | 60 buttons get checked in bounded batches; a 503 does not become confirmed unsaved; retry recovers all failed IDs; visible accessible errors                              |
+| Outage differs from absent profile    | `src/routes/match.ts` performs one ownership lookup without fallback-on-error                                                                                                                                                           | Null returns actionable 400; lookup failure returns sanitized 503; matching performs no profile writes                                                                    |
+| Last-page removal remains navigable   | `saved-jobs-view.tsx` clamps page and reloads canonical data; request versions ignore stale list results                                                                                                                                | With 21 saved jobs, removing page 2's only item returns to page 1 containing 20 jobs; stale account list stays discarded                                                  |
 
 Additional protection: `profile-form.tsx` disables editing after a failed profile
 load, so an unreadable saved profile cannot be overwritten from a blank form.
@@ -603,6 +603,7 @@ also had a separate auth raw-console assertion failure; Node 26 is not offered
 as a workaround or a verified runtime upgrade.
 
 Logs retained under `/private/tmp/`:
+
 - `aptus-profile-saved-serial-suite.log`: final pinned backend suite.
 - `aptus-baseline-passkey-node24.log`: unchanged-HEAD reproduction.
 - `aptus-saved-workspace-verified.log`: passing new browser regressions.

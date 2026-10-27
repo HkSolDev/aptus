@@ -21,8 +21,8 @@ function isFormDirty(
   if (!saved) {
     return Boolean(
       currentDob ||
-        currentCat ||
-        currentEdu.some((e) => e.level !== '' || e.marksPercent !== null),
+      currentCat ||
+      currentEdu.some((e) => e.level !== '' || e.marksPercent !== null),
     );
   }
   if (currentDob !== saved.dob) return true;
@@ -39,12 +39,8 @@ function isFormDirty(
 
 export function ProfileForm() {
   const router = useRouter();
-  const {
-    savedProfile,
-    setSavedProfile,
-    setResults,
-    markStale,
-  } = useWorkspace();
+  const { savedProfile, setSavedProfile, setResults, markStale } =
+    useWorkspace();
   const formId = useId();
 
   const [loadStatus, setLoadStatus] = useState<'loading' | 'error' | 'ready'>(
@@ -168,12 +164,7 @@ export function ProfileForm() {
     return set.size === levels.length;
   };
 
-  const hasUnsavedEdits = isFormDirty(
-    savedProfile,
-    dob,
-    category,
-    educations,
-  );
+  const hasUnsavedEdits = isFormDirty(savedProfile, dob, category, educations);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,8 +254,7 @@ export function ProfileForm() {
       });
 
       const data = (await response.json().catch(() => null)) as
-        | (MatchResponse & { error?: string })
-        | null;
+        (MatchResponse & { error?: string }) | null;
 
       if (!response.ok) {
         throw new Error(
@@ -457,7 +447,9 @@ export function ProfileForm() {
               id="submit-profile"
               className="button button-primary"
               type="button"
-              disabled={submitting || saving || hasUnsavedEdits || !savedProfile}
+              disabled={
+                submitting || saving || hasUnsavedEdits || !savedProfile
+              }
               onClick={() => void handleFindMatches()}
             >
               {submitting ? 'Checking your matches…' : 'Find my matches ↗'}

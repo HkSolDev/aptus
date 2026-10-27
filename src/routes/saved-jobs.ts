@@ -18,8 +18,7 @@ export function registerSavedJobsRoutes(
     ? requireSession(auth)
     : async (_request: FastifyRequest, reply: FastifyReply) =>
         reply.code(503).send({
-          error:
-            'Sign-in is temporarily unavailable. Please try again later.',
+          error: 'Sign-in is temporarily unavailable. Please try again later.',
         });
 
   // GET /api/saved-jobs?page=1

@@ -66,8 +66,7 @@ export async function saveJobForUser(
   authUserId: string,
   jobId: string,
 ): Promise<
-  | { ok: true; savedAt: string }
-  | { ok: false; error: string; status: number }
+  { ok: true; savedAt: string } | { ok: false; error: string; status: number }
 > {
   if (!JOB_ID_REGEX.test(jobId)) {
     return { ok: false, error: 'Invalid job ID', status: 400 };

@@ -69,8 +69,7 @@ export function registerProfileRoutes(
     ? requireSession(auth)
     : async (_request: FastifyRequest, reply: FastifyReply) =>
         reply.code(503).send({
-          error:
-            'Sign-in is temporarily unavailable. Please try again later.',
+          error: 'Sign-in is temporarily unavailable. Please try again later.',
         });
 
   app.get(

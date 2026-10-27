@@ -146,12 +146,12 @@ and passing-after cases, exact commands and commit.
 
 ## 130-minute schedule and acceptance
 
-| Elapsed | Agents | Coordinator and Hemant |
-| --- | --- | --- |
-| 0–15 min | Baseline, contracts, scope and reproductions | Record four owners; resolve worktree/snapshot conflicts |
-| 15–35 min | Evidence and smallest fix proposals; server counts | Decide ambiguous matching policies; choose one worker slice |
-| 35–85 min | Implement bounded accepted fixes and focused checks | Review reported decisions and dependencies; no fifth coding lane |
-| 85–105 min | Finish tests, fixed commits and handoffs | Compare results with contract and inspect evidence |
+| Elapsed     | Agents                                               | Coordinator and Hemant                                                                          |
+| ----------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| 0–15 min    | Baseline, contracts, scope and reproductions         | Record four owners; resolve worktree/snapshot conflicts                                         |
+| 15–35 min   | Evidence and smallest fix proposals; server counts   | Decide ambiguous matching policies; choose one worker slice                                     |
+| 35–85 min   | Implement bounded accepted fixes and focused checks  | Review reported decisions and dependencies; no fifth coding lane                                |
+| 85–105 min  | Finish tests, fixed commits and handoffs             | Compare results with contract and inspect evidence                                              |
 | 105–130 min | Answer review questions; assigned independent checks | Assign combined verification to an available agent; record accepted/blocked work and next tasks |
 
 At minute 85 stop adding scope. At minute 105 freeze implementations for review.
