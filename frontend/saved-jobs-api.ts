@@ -188,9 +188,7 @@ export async function fetchSavedJobs(page = 1): Promise<SavedJobsResponse> {
   if (!response.ok) {
     const errorMsg =
       isRecord(data) && typeof data.error === 'string' ? data.error : null;
-    throw new Error(
-      errorMsg || 'Couldn’t load saved jobs. Please try again.',
-    );
+    throw new Error(errorMsg || 'Couldn’t load saved jobs. Please try again.');
   }
 
   return validateSavedJobsResponse(data);

@@ -45,14 +45,24 @@ was not expanded during implementation.
 Reason remains provider_fact_decoding_failed. Legacy details remains:
 
 ```json
-{"check":"unreported_scalar_fields","field_count":1,"field_paths":["category_relaxation_rules"]}
+{
+  "check": "unreported_scalar_fields",
+  "field_count": 1,
+  "field_paths": ["category_relaxation_rules"]
+}
 ```
 
 Before: no post locations; decoder stopped at the first post.
 After: separate location diagnostics:
 
 ```json
-{"location_count":2,"field_locations":["posts.0.category_relaxation_rules","posts.1.category_relaxation_rules"]}
+{
+  "location_count": 2,
+  "field_locations": [
+    "posts.0.category_relaxation_rules",
+    "posts.1.category_relaxation_rules"
+  ]
+}
 ```
 
 Original response remains rejected. No null facts or relaxation years are added.

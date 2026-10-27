@@ -1,8 +1,7 @@
-import {
-  EDUCATION_LEVELS,
-  type EducationLevel,
-  type SavedProfile,
-  type SavedProfileEducation,
+import type {
+  EducationLevel,
+  SavedProfile,
+  SavedProfileEducation,
 } from './types.js';
 
 export interface PutProfilePayload {
@@ -28,7 +27,18 @@ const ALLOWED_CATEGORIES: ReadonlySet<string | null> = new Set([
   'PwBD',
 ]);
 
-const ALLOWED_LEVELS: ReadonlySet<string> = new Set(EDUCATION_LEVELS);
+const EDUCATION_LEVEL_MAP = {
+  TENTH: true,
+  TWELFTH: true,
+  DIPLOMA: true,
+  BACHELORS: true,
+  MASTERS: true,
+  PHD: true,
+} satisfies Record<EducationLevel, true>;
+
+const ALLOWED_LEVELS: ReadonlySet<string> = new Set(
+  Object.keys(EDUCATION_LEVEL_MAP),
+);
 
 function validateSavedProfile(raw: unknown): SavedProfile {
   if (!isRecord(raw)) {
@@ -94,7 +104,9 @@ export async function fetchProfile(): Promise<SavedProfile | null> {
       signal: AbortSignal.timeout(10000),
     });
   } catch {
-    throw new Error('Couldn’t reach Aptus. Check your connection and try again.');
+    throw new Error(
+      'Couldn’t reach Aptus. Check your connection and try again.',
+    );
   }
 
   if (response.status === 401) {
@@ -140,7 +152,9 @@ export async function saveProfileApi(
       signal: AbortSignal.timeout(10000),
     });
   } catch {
-    throw new Error('Couldn’t reach Aptus. Check your connection and try again.');
+    throw new Error(
+      'Couldn’t reach Aptus. Check your connection and try again.',
+    );
   }
 
   if (response.status === 401) {

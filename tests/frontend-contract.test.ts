@@ -28,7 +28,13 @@ test('fetchProfile rejects malformed success envelopes and wrong types', async (
     { profile: 'not-an-object' },
     { profile: 12345 },
     { profile: { dob: 'not-a-date' } },
-    { profile: { dob: '2000-01-01', category: 'InvalidCategory', educations: [] } },
+    {
+      profile: {
+        dob: '2000-01-01',
+        category: 'InvalidCategory',
+        educations: [],
+      },
+    },
     {
       profile: {
         dob: '2000-01-01',
@@ -153,7 +159,10 @@ test('fetchSavedJobs rejects malformed success envelopes, wrong types and missin
 
   const malformedPayloads = [
     {}, // missing data and pagination
-    { data: null, pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } },
+    {
+      data: null,
+      pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+    },
     { data: [] }, // missing pagination
     { pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } }, // missing data
     {
@@ -287,7 +296,10 @@ test('fetchSavedJobs preserves valid list envelopes including educationRequired:
   };
   globalThis.fetch = mockFetch(200, stringEducationResponse);
   const stringResult = await fetchSavedJobs(1);
-  assert.equal(stringResult.data[0].educationRequired, 'Diploma in Civil Engineering');
+  assert.equal(
+    stringResult.data[0].educationRequired,
+    'Diploma in Civil Engineering',
+  );
 });
 
 test('fetchSavedStatus validates item types and rejects malformed envelopes', async (t) => {
@@ -329,7 +341,10 @@ test('fetchSavedStatus validates item types and rejects malformed envelopes', as
 
   // Valid string[]
   globalThis.fetch = mockFetch(200, { savedIds: ['job-1', 'job-2'] });
-  assert.deepEqual(await fetchSavedStatus(['job-1', 'job-2']), ['job-1', 'job-2']);
+  assert.deepEqual(await fetchSavedStatus(['job-1', 'job-2']), [
+    'job-1',
+    'job-2',
+  ]);
 });
 
 test('saveJobApi and unsaveJobApi reject malformed envelopes without silently defaulting', async (t) => {
@@ -423,4 +438,59 @@ test('saveJobApi and unsaveJobApi reject malformed envelopes without silently de
   // unsaveJobApi on valid response returns false
   globalThis.fetch = mockFetch(200, { saved: false });
   assert.equal(await unsaveJobApi('fixture'), false);
+});
+
+test('recommendations-preview and job-card safely handle educationRequired:null without fabricating qualifications', async () => {
+  const { tsImport } = await import('tsx/esm/api');
+  const { createElement } = await import('react');
+  const { renderToStaticMarkup } = await import('react-dom/server');
+  const {
+    matchesPreviewQualification,
+  }: typeof import('../components/results/recommendations-preview') =
+    await tsImport('../components/results/recommendations-preview.tsx', {
+      parentURL: import.meta.url,
+      tsconfig: 'tsconfig.next.json',
+    });
+  const { JobCard }: typeof import('../components/jobs/job-card') =
+    await tsImport('../components/jobs/job-card.tsx', {
+      parentURL: import.meta.url,
+      tsconfig: 'tsconfig.next.json',
+    });
+
+  // Unfiltered view keeps jobs with educationRequired:null visible
+  assert.equal(matchesPreviewQualification(null, ''), true);
+  assert.equal(matchesPreviewQualification(undefined, ''), true);
+
+  // Unknown education is never counted as a confirmed qualification match
+  assert.equal(matchesPreviewQualification(null, 'TWELFTH'), false);
+  assert.equal(matchesPreviewQualification(null, 'DIPLOMA'), false);
+  assert.equal(matchesPreviewQualification(null, 'BACHELORS'), false);
+  assert.equal(matchesPreviewQualification('', 'BACHELORS'), false);
+
+  // Known qualification strings match only their corresponding filter
+  assert.equal(
+    matchesPreviewQualification('BTech in Mechanical Engineering', 'BACHELORS'),
+    true,
+  );
+  assert.equal(
+    matchesPreviewQualification('BTech in Mechanical Engineering', 'DIPLOMA'),
+    false,
+  );
+
+  // JobCard omits qualification row when educationRequired is null without fabricating text
+  const html = renderToStaticMarkup(
+    createElement(JobCard, {
+      job: {
+        id: 'null-edu-job',
+        postName: 'Scientific Assistant',
+        organization: 'Example Research Council',
+        vacancies: 5,
+        applicationLastDate: '2026-12-01',
+        educationRequired: null,
+        source: { name: 'Example source' },
+      },
+    }),
+  );
+  assert.match(html, /Scientific Assistant/);
+  assert.doesNotMatch(html, /Qualification|Not specified/);
 });
