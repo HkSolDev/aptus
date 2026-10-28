@@ -2,10 +2,12 @@
   {
     "mode": "candidate",
     "profile": "desktop",
-    "feedbackDelayMs": 19,
-    "rscRequestCount": 11,
-    "rscPayloadBytes": 23680,
-    "totalTimeMs": 48,
+    "feedbackDelayMs": 23,
+    "prefetchAndInitialRequestCount": 8,
+    "sortTriggeredRequestCount": 3,
+    "rscRequestCount": 3,
+    "rscPayloadBytes": 9657,
+    "totalTimeMs": 51,
     "initialCardIds": [
       "job-a",
       "job-b1",
@@ -23,15 +25,17 @@
       "job-n2"
     ],
     "cardsPreservedWhileHeld": true,
-    "finalUrl": "http://127.0.0.1:18877/?sort=furthest&layout=rows&recLayout=cards&recSort=soonest#jobs"
+    "finalUrl": "http://127.0.0.1:50425/?sort=furthest&layout=rows&recLayout=cards&recSort=soonest#jobs"
   },
   {
     "mode": "candidate",
     "profile": "mobile-throttled",
-    "feedbackDelayMs": 37,
+    "feedbackDelayMs": 40,
+    "prefetchAndInitialRequestCount": 0,
+    "sortTriggeredRequestCount": 5,
     "rscRequestCount": 5,
     "rscPayloadBytes": 1075,
-    "totalTimeMs": 179,
+    "totalTimeMs": 185,
     "initialCardIds": [
       "job-a",
       "job-b1",
@@ -49,6 +53,6 @@
       "job-n2"
     ],
     "cardsPreservedWhileHeld": true,
-    "finalUrl": "http://127.0.0.1:18877/?sort=furthest&layout=rows&recLayout=cards&recSort=soonest#jobs"
+    "finalUrl": "http://127.0.0.1:50425/?sort=furthest&layout=rows&recLayout=cards&recSort=soonest#jobs"
   }
 ]

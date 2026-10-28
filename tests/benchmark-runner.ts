@@ -2,9 +2,29 @@ import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { createServer, type Server } from 'node:http';
 import { setTimeout } from 'node:timers/promises';
-import { chromium, type Browser, type BrowserContext, type Page, type CDPSession } from 'playwright/test';
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+  type CDPSession,
+} from 'playwright/test';
+
+const ROOT_DIR = fileURLToPath(new URL('..', import.meta.url));
+async function getFreePort(): Promise<number> {
+  const srv = createServer();
+  srv.listen(0, '127.0.0.1');
+  await once(srv, 'listening');
+  const a = srv.address();
+  assert(a && typeof a !== 'string');
+  const port = a.port;
+  await new Promise<void>((r) => srv.close(() => r()));
+  return port;
+}
 
 interface FixtureJob {
   id: string;
@@ -74,7 +94,10 @@ const FIXTURE_JOBS: FixtureJob[] = [
   },
 ];
 
-function sortJobs(jobs: FixtureJob[], sortOrder: 'soonest' | 'furthest'): FixtureJob[] {
+function sortJobs(
+  jobs: FixtureJob[],
+  sortOrder: 'soonest' | 'furthest',
+): FixtureJob[] {
   return [...jobs].sort((a, b) => {
     if (a.applicationLastDate === null && b.applicationLastDate === null) {
       return a.id.localeCompare(b.id);
@@ -92,7 +115,9 @@ function sortJobs(jobs: FixtureJob[], sortOrder: 'soonest' | 'furthest'): Fixtur
 interface BenchmarkMeasurement {
   mode: string;
   profile: string;
-  feedbackDelayMs: number | null;
+  feedbackDelayMs: number | null; // Playwright observation latency (test-runner wall clock), NOT paint timing
+  prefetchAndInitialRequestCount: number;
+  sortTriggeredRequestCount: number;
   rscRequestCount: number;
   rscPayloadBytes: number;
   totalTimeMs: number;
@@ -102,7 +127,9 @@ interface BenchmarkMeasurement {
   finalUrl: string;
 }
 
-async function runBenchmark(mode: 'baseline' | 'candidate'): Promise<BenchmarkMeasurement[]> {
+async function runBenchmark(
+  mode: 'baseline' | 'candidate',
+): Promise<BenchmarkMeasurement[]> {
   const measurements: BenchmarkMeasurement[] = [];
   let gateRelease: (() => void) | null = null;
   let gatePromise: Promise<void> | null = null;
@@ -124,7 +151,9 @@ async function runBenchmark(mode: 'baseline' | 'candidate'): Promise<BenchmarkMe
 
     if (rawUrl.startsWith('/api/jobs')) {
       const parsed = new URL(rawUrl, 'http://localhost');
-      const sortParam = (parsed.searchParams.get('sort') as 'soonest' | 'furthest') ?? 'soonest';
+      const sortParam =
+        (parsed.searchParams.get('sort') as 'soonest' | 'furthest') ??
+        'soonest';
 
       if (gatePromise) {
         await gatePromise;
@@ -155,17 +184,17 @@ async function runBenchmark(mode: 'baseline' | 'candidate'): Promise<BenchmarkMe
   const address = api.address();
   assert(address && typeof address !== 'string');
 
-  const testPort = '18877';
+  const testPort = String(await getFreePort());
   const next: ChildProcess = spawn(
     process.execPath,
     ['node_modules/next/dist/bin/next', 'start', '-p', testPort],
     {
-      cwd: '/private/tmp/aptus-agent2-sort-verification',
+      cwd: ROOT_DIR,
       env: {
         ...process.env,
         BACKEND_INTERNAL_URL: `http://127.0.0.1:${address.port}`,
       },
-      stdio: 'ignore',
+      stdio: 'pipe',
     },
   );
 
@@ -180,7 +209,10 @@ async function runBenchmark(mode: 'baseline' | 'candidate'): Promise<BenchmarkMe
     }
     await setTimeout(100);
   }
-  assert(ready, 'Production Next.js server must start');
+  assert(
+    ready,
+    `Production Next.js server must start on allocated port ${testPort}`,
+  );
 
   const bundled = chromium.executablePath();
   const browser: Browser = await chromium.launch({
@@ -206,13 +238,33 @@ async function runBenchmark(mode: 'baseline' | 'candidate'): Promise<BenchmarkMe
   };
 
   const profiles = [
-    { name: 'desktop', viewport: { width: 1280, height: 800 }, isMobile: false, throttle: false },
-    { name: 'mobile-throttled', viewport: { width: 390, height: 844 }, isMobile: true, throttle: true },
+    {
+      name: 'desktop',
+      viewport: { width: 1280, height: 800 },
+      isMobile: false,
+      throttle: false,
+    },
+    {
+      name: 'mobile-throttled',
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      throttle: true,
+    },
   ];
 
   for (const prof of profiles) {
-    const tracePath = `/private/tmp/aptus-agent2-sort-verification/outputs/traces/${mode}-${prof.name}.zip`;
-    const harPath = `/private/tmp/aptus-agent2-sort-verification/outputs/traces/${mode}-${prof.name}.har`;
+    const tracePath = path.join(
+      ROOT_DIR,
+      'outputs',
+      'traces',
+      `${mode}-${prof.name}.zip`,
+    );
+    const harPath = path.join(
+      ROOT_DIR,
+      'outputs',
+      'traces',
+      `${mode}-${prof.name}.har`,
+    );
 
     const context: BrowserContext = await browser.newContext({
       viewport: prof.viewport,
@@ -240,7 +292,10 @@ async function runBenchmark(mode: 'baseline' | 'candidate'): Promise<BenchmarkMe
     let rscBytes = 0;
     page.on('response', async (res) => {
       const url = res.url();
-      if (url.includes('_rsc=') || res.headers()['content-type']?.includes('text/x-component')) {
+      if (
+        url.includes('_rsc=') ||
+        res.headers()['content-type']?.includes('text/x-component')
+      ) {
         rscCount++;
         try {
           const body = await res.body();
@@ -253,8 +308,11 @@ async function runBenchmark(mode: 'baseline' | 'candidate'): Promise<BenchmarkMe
 
     await page.goto(origin);
     const initialCardIds = await getVisibleCardIds(page);
+    const prefetchAndInitialRequestCount = rscCount;
+    rscCount = 0;
+    rscBytes = 0; // reset counters immediately before sorting; initial/prefetch reported separately
 
-    // Setup gate to hold response for exactly 600ms
+    // Setup gate to hold the response until explicitly released below (no fixed hold duration).
     createGate();
 
     const sortSelect = page.getByRole('combobox', { name: 'Sort all jobs' });
@@ -301,6 +359,8 @@ async function runBenchmark(mode: 'baseline' | 'candidate'): Promise<BenchmarkMe
       mode,
       profile: prof.name,
       feedbackDelayMs,
+      prefetchAndInitialRequestCount,
+      sortTriggeredRequestCount: rscCount,
       rscRequestCount: rscCount,
       rscPayloadBytes: rscBytes,
       totalTimeMs,
@@ -326,7 +386,7 @@ runBenchmark(targetMode)
   .then((res) => {
     console.log(JSON.stringify(res, null, 2));
     writeFileSync(
-      `/private/tmp/aptus-agent2-sort-verification/outputs/benchmark-${targetMode}.json`,
+      path.join(ROOT_DIR, 'outputs', `benchmark-${targetMode}.json`),
       JSON.stringify(res, null, 2),
     );
   })
