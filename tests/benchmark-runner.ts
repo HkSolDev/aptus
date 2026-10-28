@@ -120,6 +120,7 @@ interface BenchmarkMeasurement {
   sortTriggeredRequestCount: number;
   rscRequestCount: number;
   rscPayloadBytes: number;
+  unreadableRscBodyCount: number;
   totalTimeMs: number;
   initialCardIds: string[];
   finalCardIds: string[];
@@ -279,7 +280,8 @@ async function runBenchmark(
       client = await context.newCDPSession(page);
       // 4x CPU slowdown
       await client.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-      // Fast 3G network conditions: 562.5 kb/s down, 500 ms latency
+      // CDP network emulation as configured below: 100 ms latency,
+      // 1.5 Mbps download, 750 kbps upload, plus 4x CPU throttling above.
       await client.send('Network.emulateNetworkConditions', {
         offline: false,
         latency: 100,
@@ -290,27 +292,38 @@ async function runBenchmark(
 
     let rscCount = 0;
     let rscBytes = 0;
-    page.on('response', async (res) => {
+    let unreadableBodies = 0;
+    const bodyReads: Promise<void>[] = [];
+    page.on('response', (res) => {
       const url = res.url();
       if (
         url.includes('_rsc=') ||
         res.headers()['content-type']?.includes('text/x-component')
       ) {
         rscCount++;
-        try {
-          const body = await res.body();
-          rscBytes += body.length;
-        } catch {
-          // ignore
-        }
+        // Track each payload read; totals are only reported after all settle.
+        bodyReads.push(
+          res
+            .body()
+            .then((body) => {
+              rscBytes += body.length;
+            })
+            .catch(() => {
+              // Browser may not retain prefetch bodies; count, never guess bytes.
+              unreadableBodies++;
+            }),
+        );
       }
     });
 
     await page.goto(origin);
     const initialCardIds = await getVisibleCardIds(page);
+    await Promise.all(bodyReads); // finish initial/prefetch payload reads first
     const prefetchAndInitialRequestCount = rscCount;
     rscCount = 0;
-    rscBytes = 0; // reset counters immediately before sorting; initial/prefetch reported separately
+    rscBytes = 0;
+    unreadableBodies = 0;
+    bodyReads.length = 0; // reset counters immediately before sorting; initial/prefetch reported separately
 
     // Setup gate to hold the response until explicitly released below (no fixed hold duration).
     createGate();
@@ -352,6 +365,7 @@ async function runBenchmark(
 
     // Wait for URL and reconciliation
     await page.waitForURL(/sort=furthest/, { timeout: 5000 });
+    await Promise.all(bodyReads); // await payload reads before reporting bytes
     const finalCardIds = await getVisibleCardIds(page);
     const totalTimeMs = Date.now() - startTime;
 
@@ -363,6 +377,7 @@ async function runBenchmark(
       sortTriggeredRequestCount: rscCount,
       rscRequestCount: rscCount,
       rscPayloadBytes: rscBytes,
+      unreadableRscBodyCount: unreadableBodies,
       totalTimeMs,
       initialCardIds,
       finalCardIds,
