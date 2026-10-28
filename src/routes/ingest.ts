@@ -99,6 +99,19 @@ export async function handleIngest(
     }
 
     for (const [index, post] of body.posts.entries()) {
+      if (
+        post.post_name !== undefined &&
+        post.post_name !== null &&
+        typeof post.post_name !== 'string'
+      ) {
+        sendJson(res, 400, {
+          error: `posts[${index}].post_name must be a string or null when supplied`,
+        });
+        return;
+      }
+    }
+
+    for (const [index, post] of body.posts.entries()) {
       const organization = post.recruiting_body;
       if (
         organization != null &&
@@ -111,6 +124,20 @@ export async function handleIngest(
         });
         return;
       }
+    }
+
+    if (
+      body.posts.length > 0 &&
+      !body.posts.some(
+        (post) =>
+          typeof post.post_name === 'string' &&
+          post.post_name.trim().length > 0,
+      )
+    ) {
+      sendJson(res, 400, {
+        error: 'at least one nonblank post_name is required',
+      });
+      return;
     }
 
     const existing = await prisma.source.findUnique({
