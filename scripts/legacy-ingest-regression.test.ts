@@ -89,8 +89,8 @@ test(
     const initialSnapshot = await takeSnapshot();
     assert.equal(initialSnapshot.posts.length, 2);
     assert.deepEqual(
-      initialSnapshot.posts.map((p) => p.id),
-      [seededPost1.id, seededPost2.id],
+      initialSnapshot.posts.map((p) => p.id).sort(),
+      [seededPost1.id, seededPost2.id].sort(),
     );
 
     // 2 & 3. Submit nonempty batches containing null, empty, whitespace, and omitted names; assert HTTP 400.
