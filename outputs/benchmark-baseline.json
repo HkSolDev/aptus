@@ -1,0 +1,54 @@
+[
+  {
+    "mode": "baseline",
+    "profile": "desktop",
+    "feedbackDelayMs": null,
+    "rscRequestCount": 11,
+    "rscPayloadBytes": 10732,
+    "totalTimeMs": 307,
+    "initialCardIds": [
+      "job-a",
+      "job-b1",
+      "job-b2",
+      "job-d",
+      "job-n1",
+      "job-n2"
+    ],
+    "finalCardIds": [
+      "job-d",
+      "job-b1",
+      "job-b2",
+      "job-a",
+      "job-n1",
+      "job-n2"
+    ],
+    "cardsPreservedWhileHeld": true,
+    "finalUrl": "http://127.0.0.1:18877/?q=&qualification=&layout=rows&recLayout=cards&recSort=soonest&sort=furthest"
+  },
+  {
+    "mode": "baseline",
+    "profile": "mobile-throttled",
+    "feedbackDelayMs": null,
+    "rscRequestCount": 11,
+    "rscPayloadBytes": 14173,
+    "totalTimeMs": 356,
+    "initialCardIds": [
+      "job-a",
+      "job-b1",
+      "job-b2",
+      "job-d",
+      "job-n1",
+      "job-n2"
+    ],
+    "finalCardIds": [
+      "job-d",
+      "job-b1",
+      "job-b2",
+      "job-a",
+      "job-n1",
+      "job-n2"
+    ],
+    "cardsPreservedWhileHeld": true,
+    "finalUrl": "http://127.0.0.1:18877/?q=&qualification=&layout=rows&recLayout=cards&recSort=soonest&sort=furthest"
+  }
+]

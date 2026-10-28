@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore, useTransition, useEffect } from 'react';
 import Form from 'next/form';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { type HomeView, homeSearchParams } from '@/frontend/home-view';
 import { HomeViewFields } from './home-layout-controls';
 import styles from './job-search-controls.module.css';
@@ -122,6 +123,14 @@ export function JobSortControl({
   filters: JobFilters;
   view: HomeView;
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [sortValue, setSortValue] = useState(filters.sort);
+
+  useEffect(() => {
+    setSortValue(filters.sort);
+  }, [filters.sort]);
+
   return (
     <Form action="/" scroll={false} className={styles.sort}>
       <input type="hidden" name="q" value={filters.q} />
@@ -133,12 +142,33 @@ export function JobSortControl({
           className={styles.sortSelect}
           name="sort"
           aria-label="Sort all jobs"
-          value={filters.sort}
-          onChange={(event) => event.currentTarget.form?.requestSubmit()}
+          aria-busy={isPending}
+          value={sortValue}
+          onChange={(event) => {
+            const nextSort = event.target.value as 'soonest' | 'furthest';
+            setSortValue(nextSort);
+            startTransition(() => {
+              const params = homeSearchParams(
+                { ...filters, sort: nextSort },
+                1,
+                view,
+              );
+              router.push(`/?${params}#jobs`, { scroll: false });
+            });
+          }}
         >
           <option value="soonest">Deadline: soonest first</option>
           <option value="furthest">Deadline: furthest first</option>
         </select>
+        {isPending && (
+          <span
+            className="muted"
+            aria-live="polite"
+            style={{ fontSize: '0.8rem', marginLeft: '0.25rem' }}
+          >
+            Updating…
+          </span>
+        )}
       </label>
       <noscript>
         <button className="button button-secondary" type="submit">
