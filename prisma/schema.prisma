@@ -207,3 +207,64 @@ model ExtractionCandidate {
 
   @@index([bundleId, createdAt])
 }
+
+// Private held-candidate review workflow: items, immutable human revisions, and validation tasks.
+model ReviewItem {
+  id                String           @id @default(cuid())
+  bundleId          String           @unique
+  sourceUrl         String
+  sourceName        String
+  status            String           @default("held")
+  holdReason        String?
+  currentRevisionId String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  revisions         ReviewRevision[]
+  currentRevision   ReviewRevision?  @relation("CurrentRevision", fields: [currentRevisionId], references: [id], onDelete: SetNull)
+
+  @@index([status, updatedAt])
+}
+
+model ReviewRevision {
+  id               String           @id @default(cuid())
+  reviewItemId     String
+  reviewItem       ReviewItem       @relation(fields: [reviewItemId], references: [id], onDelete: Cascade)
+  revisionNumber   Int
+  parentRevisionId String?
+  parentRevision   ReviewRevision?  @relation("RevisionHierarchy", fields: [parentRevisionId], references: [id], onDelete: SetNull)
+  childRevisions   ReviewRevision[] @relation("RevisionHierarchy")
+
+  facts            Json
+  sourceEvidence   Json
+  evidenceUnits    Json
+  rawDigest        String?
+  canonicalHash    String
+  changeReason     String?
+  createdBy        String           @default("worker_import")
+  createdAt        DateTime         @default(now())
+  validationState  String           @default("none")
+
+  isCurrentFor     ReviewItem[]     @relation("CurrentRevision")
+  validationTasks  ValidationTask[]
+
+  @@unique([reviewItemId, revisionNumber])
+  @@index([canonicalHash])
+}
+
+model ValidationTask {
+  id               String         @id @default(cuid())
+  reviewRevisionId String
+  reviewRevision   ReviewRevision @relation(fields: [reviewRevisionId], references: [id], onDelete: Cascade)
+  status           String         @default("pending")
+  validatorVersion String         @default("aptus-val-v1")
+  claimToken       String?
+  claimExpiresAt   DateTime?
+  result           Json?
+  errorDetails     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([status, claimExpiresAt])
+  @@index([reviewRevisionId, validatorVersion])
+}

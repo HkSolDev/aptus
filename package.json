@@ -18,6 +18,7 @@
     "extract": "tsx --env-file=.env scripts/extract.ts",
     "match": "tsx --env-file=.env scripts/match.ts",
     "lint": "eslint .",
+    "test:review": "node --import tsx --test scripts/review-workflow.test.ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.web.json --noEmit",
     "test": "node --import ./tests/css-module-hook.mjs --import tsx --test scripts/**/*.test.ts"
   },

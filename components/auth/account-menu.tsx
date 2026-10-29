@@ -8,11 +8,13 @@ export function AccountMenu({
   loading,
   onSignOut,
   errorId,
+  isOperator = false,
 }: {
   name: string;
   loading: boolean;
   onSignOut: () => void;
   errorId?: string;
+  isOperator?: boolean;
 }) {
   const disclosure = useRef<HTMLDetailsElement>(null);
   const initials = name
@@ -89,6 +91,14 @@ export function AccountMenu({
         >
           Sign-in &amp; security
         </Link>
+        {isOperator && (
+          <Link
+            href="/admin/review"
+            onClick={() => disclosure.current?.removeAttribute('open')}
+          >
+            Review jobs
+          </Link>
+        )}
         <button
           id="sign-out"
           type="button"

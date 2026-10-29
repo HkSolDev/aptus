@@ -75,6 +75,7 @@ export function AuthBar({
   } = useWorkspace();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOperator, setIsOperator] = useState(false);
 
   const checkSession = useCallback(async () => {
     try {
@@ -86,12 +87,23 @@ export function AuthBar({
       }
       if (session) {
         setUserName(session.name);
+        try {
+          const opRes = await fetch('/api/admin/review-drafts/operator-status', {
+            credentials: 'same-origin',
+            signal: AbortSignal.timeout(5000),
+          });
+          setIsOperator(opRes.ok);
+        } catch {
+          setIsOperator(false);
+        }
       } else {
         setUserName(null);
+        setIsOperator(false);
         clearWorkspace();
       }
     } catch {
       setUserName(null);
+      setIsOperator(false);
       clearWorkspace();
     } finally {
       setSessionChecked(true);
@@ -212,6 +224,7 @@ export function AuthBar({
           loading={loading}
           onSignOut={handleSignOut}
           errorId={error ? errorId : undefined}
+          isOperator={isOperator}
         />
       ) : userName !== null ? (
         <div id="auth-user">
