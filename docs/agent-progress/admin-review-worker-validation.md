@@ -255,33 +255,91 @@ $$\text{Existing held candidate} \longrightarrow \text{Inspect evidence} \longri
 
 ---
 
-## 9. Real production risk review
+## 11. Review by real production risk
 
-| Risk / Failure mode | Severity | Likelihood | Defense location | Concrete test | Residual risk |
-|---|---|---|---|---|---|
-| **1. Reviewer silently overwrites another reviewer's work** | Medium | Possible | Backend API & DB (`If-Match` header check in `saveReviewCorrection`) | `scripts/review-workflow.test.ts: Stale revision save returns 412` | Reviewer who receives 412 must manually refresh and re-enter diff if their edits conflicted. |
-| **2. Worker crashes midway through validation task** | Medium | Possible | Database lease timeout (`claimExpiresAt` in `claimValidationTask`) | `scripts/review-workflow.test.ts: Expired claim re-claimed after lease timeout` | While task is claimed, task appears "checking" until the 5-minute lease expires and another worker claims it. |
-| **3. Reviewer enters valid JSON that contradicts captured source evidence** | High | Expected | Worker runtime (`validate_candidate` quotation gate via `extract_bundle.py:check_evidence`) | `scripts/review-workflow.test.ts: Worker flags ungrounded fact as completed_with_issues` | Automated validation checks lexical presence and structural validity, but cannot verify semantic nuance (explicitly labeled `semantic_support_verified: false`). |
-| **4. Unauthenticated user or unauthorized email accesses review page or API endpoints** | High | Rare | Server-side `requireOperator` guard, session verification, verified email allowlist | `scripts/review-workflow.test.ts: Access control suite (guest, non-operator, unverified email, missing allowlist)` | Operator email allowlist misconfiguration in deployment environment (missing environment variable safely fails closed to deny all access). |
-| **5. Reviewer bypasses UI and calls publication directly** | Critical | Rare | Codebase architecture (No publication endpoints exist on review items; `publish-extraction-candidate.ts` requires existing `ExtractionCandidate` record and is untouched) | `scripts/review-workflow.test.ts: Public catalogue isolation (zero changes to Post)` | Future publication workflow slice will require independent transactional authorization and publisher gates. |
-| **6. Worker reports validation success for a stale revision** | Medium | Rare | Backend API revision token check (`submitValidationResult` verifies `task.revisionHash === body.revision_hash`) | `scripts/review-workflow.test.ts: Worker submits result for obsolete revision returns 409` | None; mismatched results are immediately rejected by the backend. |
+For every identified bug or concern, findings are scored using **Likelihood (1–10) × Impact (1–10) = Score**:
+
+| Finding | Confirmed or speculative | Trigger | Evidence | Likelihood 1–10 | Impact 1–10 | Score | Action |
+|---|---|---|---|---:|---:|---:|---|
+| **1. Reviewer silently overwrites another reviewer's work** | Confirmed | Two operators/tabs edit base revision R1 concurrently; second save overwrites first | `scripts/review-workflow.test.ts: Stale revision save returns 412` | 4 | 7 | 28 | **Fixed**: Enforce `If-Match` header matching base revision token; return `412 Precondition Failed` on stale edits. |
+| **2. Worker crashes or hangs midway through validation task** | Confirmed | Worker process killed or network stalls after claiming a task | `scripts/review-workflow.test.ts: Expired claim re-claimed after lease timeout` | 3 | 6 | 18 | **Fixed**: Database lease timeout (`claimExpiresAt` 5 mins) automatically frees expired claims for redelivery. |
+| **3. Reviewer enters fact contradicting source evidence** | Confirmed | Operator hallucinates or mistypes eligibility criteria not present in source text | `scripts/review-workflow.test.ts: Worker flags ungrounded fact as completed_with_issues` | 5 | 8 | 40 | **Fixed**: `validate_candidate` enforces exact substring quotation matching against captured source text. |
+| **4. Unauthenticated or unauthorized access to review queue/details** | Confirmed | Direct GET/POST to `/admin/review` or `/api/admin/review-drafts` | `scripts/review-workflow.test.ts: Access control suite (guest, non-operator, unverified email)` | 2 | 9 | 18 | **Fixed**: Server-side `requireOperator` verifies active session, verified email, and `APTUS_REVIEW_OPERATOR_EMAILS`. |
+| **5. CSRF mutation on operator endpoints** | Confirmed | Malicious cross-origin script triggers state change on review items | `scripts/review-workflow.test.ts: Origin mismatch returns 403` | 2 | 8 | 16 | **Fixed**: Fastify preHandler validates request `Origin` / `Referer` headers against allowed application origins. |
+| **6. Worker reports validation result for an obsolete revision** | Confirmed | Worker completes slow validation for R1 after operator has already saved R2 | `scripts/review-workflow.test.ts: Worker submits result for obsolete revision returns 409` | 2 | 6 | 12 | **Fixed**: `submitValidationResult` verifies `task.revisionHash === body.revision_hash`; returns `409 Conflict` on mismatch. |
+| **7. Private review drafts leak into public catalogue queries** | Confirmed | Public job search or applicant matching queries unvetted review items | `scripts/review-workflow.test.ts: Public catalogue isolation (zero changes to Post)` | 1 | 10 | 10 | **Fixed**: Review workflow uses dedicated tables (`ReviewItem`, `ReviewRevision`, `ValidationTask`); `Post` table is untouched. |
+| **8. Missing operator allowlist configuration opens admin access** | Speculative | `APTUS_REVIEW_OPERATOR_EMAILS` unset or empty in production deployment | `src/auth/require-operator.ts: getOperatorAllowlist() returns [] and denies` | 2 | 9 | 18 | **Fixed**: Empty or missing allowlist safely fails closed and denies all access. |
 
 ---
 
-## 10. Handoff notes
+## 12. Handoff for independent review
 
-### For Hemant & Coordinator:
+### Summary of deliverables:
 - **Baseline commit**: `d930a69e0093a440ef5ad99c92a6ab19326cec17`
-- **Task worktree**: `/Users/mrblackghost/Work/Projects/aptus-admin-review-worker-validation`
-- **Task branch**: `codex/admin-review-worker-validation`
-- **Original checkout**: `/Users/mrblackghost/Work/Projects/aptus-next` remains completely untouched.
-- **Verification commands to replicate**:
-  ```bash
-  cd /Users/mrblackghost/Work/Projects/aptus-admin-review-worker-validation
-  pnpm typecheck
-  pnpm lint
-  TEST_DATABASE_URL="postgresql://aptus:aptus@127.0.0.1:5432/aptus" DATABASE_URL="postgresql://aptus:aptus@127.0.0.1:5432/aptus" pnpm test:review
-  PYTHONPATH=services/ai:services/ai/tests services/ai/.venv/bin/python -m unittest discover -s services/ai/tests -q
-  ```
-- **Operator accounts configured**:
-  `hemantkumar4213@gmail.com`, `mrdevghost@gmail.com`.
+- **Reviewed implementation revision**: `52d5a7fbedae57478ea551a137552b6f4f0872e7` (and follow-up caching header update)
+- **Worktree**: `/Users/mrblackghost/Work/Projects/aptus-admin-review-worker-validation`
+- **Branch**: `codex/admin-review-worker-validation`
+- **Changed-file list**:
+  - `app/admin/review/page.tsx` (Queue page)
+  - `app/admin/review/[id]/page.tsx` (Candidate detail & editor page)
+  - `components/admin/candidate-detail-view.tsx` (Candidate editor, evidence viewer, status panels)
+  - `components/admin/review-queue-view.tsx` (Accessible queue view table)
+  - `components/admin/review.module.css` (Accessible CSS module)
+  - `components/auth/account-menu.tsx` ("Review jobs" link)
+  - `components/auth/auth-bar.tsx` (Operator status fetching)
+  - `docs/agent-progress/admin-review-worker-validation.md` (Task progress & audit ledger)
+  - `docs/agent-progress/admin-review-worker-validation-contract-proposal.md` (Contract proposal)
+  - `next.config.ts` (Private caching headers for `/admin/:path*`)
+  - `package.json` (Added `test:review` script)
+  - `prisma/migrations/20261029160000_add_admin_review_workflow/migration.sql` (Additive migration)
+  - `prisma/schema.prisma` (`ReviewItem`, `ReviewRevision`, `ValidationTask` models)
+  - `scripts/review-workflow.test.ts` (Integration test suite)
+  - `services/ai/review_validation_worker.py` (Python validation worker runtime)
+  - `services/ai/tests/test_review_validation_worker.py` (Python worker unit tests)
+  - `src/app.ts` (Registered review routes)
+  - `src/auth/require-operator.ts` (Authoritative operator session and allowlist guard)
+  - `src/lib/review-drafts.ts` (Storage operations, canonical hashing, lease management)
+  - `src/routes/review-drafts.ts` (Admin review and worker API endpoints)
+  - `tests/fixtures/review_candidate_fixture.json` (Representative grounded candidate fixture)
+
+### Contract revision / outstanding proposal:
+- Submitted `docs/agent-progress/admin-review-worker-validation-contract-proposal.md` for coordinator review. Contracts remain protected and frozen; no existing shared semantics or schemas were weakened.
+
+### Reproduction commands:
+```bash
+cd /Users/mrblackghost/Work/Projects/aptus-admin-review-worker-validation
+pnpm typecheck
+pnpm lint
+pnpm build:web
+TEST_DATABASE_URL="postgresql://aptus:aptus@127.0.0.1:5432/aptus" \
+DATABASE_URL="postgresql://aptus:aptus@127.0.0.1:5432/aptus" \
+pnpm test:review
+PYTHONPATH=services/ai:services/ai/tests services/ai/.venv/bin/python -m unittest discover -s services/ai/tests -q
+```
+
+### Protected-file diff review:
+- No existing contract definitions or locks modified.
+- Existing publication publisher (`scripts/publish-extraction-candidate.ts`) and ingestion routes (`src/routes/reviewed-ingest.ts`) untouched.
+- `DOTENV_CONFIG_PATH=/dev/null pnpm test:contracts` passes 12/12 tests cleanly in main repo.
+
+### Local run instructions:
+1. Start PostgreSQL 17 container on port 5432.
+2. Run migrations: `DATABASE_URL="postgresql://aptus:aptus@127.0.0.1:5432/aptus" pnpm prisma migrate deploy`
+3. Start backend: `DATABASE_URL="postgresql://aptus:aptus@127.0.0.1:5432/aptus" APTUS_REVIEW_OPERATOR_EMAILS="hemantkumar4213@gmail.com,mrdevghost@gmail.com" pnpm serve`
+4. Start Next.js frontend: `pnpm next:dev`
+5. Open browser at `http://localhost:8080/admin/review`.
+
+### Unexecuted follow-up / Deployment notes:
+- Database migration `prisma/migrations/20261029160000_add_admin_review_workflow` is additive and must be run in deployment environments via `prisma migrate deploy`.
+- Configure `APTUS_REVIEW_OPERATOR_EMAILS="hemantkumar4213@gmail.com,mrdevghost@gmail.com"` in deployment environment variables.
+
+### Independent-review checklist for Hemant's Coordinator:
+- [ ] Confirm baseline commit is `d930a69e0093a440ef5ad99c92a6ab19326cec17`.
+- [ ] Verify original checkout `/Users/mrblackghost/Work/Projects/aptus-next` is untouched.
+- [ ] Verify `pnpm typecheck` and `pnpm lint` pass with 0 errors.
+- [ ] Verify `pnpm test:review` passes all 4 integration suites against PostgreSQL.
+- [ ] Verify Python validation runner executes offline with 0 model/network calls.
+- [ ] Verify `If-Match` returns `412 Precondition Failed` on stale edits.
+- [ ] Verify unauthenticated and non-operator users receive `401`/`403` and cannot view review queue or evidence.
+- [ ] Verify zero mutations to public `Post` table.
+- [ ] Inspect proposed contract boundaries in `docs/agent-progress/admin-review-worker-validation-contract-proposal.md`.
