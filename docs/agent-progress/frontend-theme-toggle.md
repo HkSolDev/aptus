@@ -151,7 +151,9 @@ evidence is Playwright + screenshots rather than DevTools panels.
 
 ## Final commit
 
-- Implementation commit: `PENDING`
+- Implementation commit: `245eb2c9bdd155bf3f68175734d449ef4be8233a`
+  (this line was added by the docs-only follow-up commit on the same
+  branch, so the branch HEAD is that follow-up)
 - This document is committed with the implementation; the commit that adds
   the recorded implementation SHA is a docs-only follow-up on the same
   branch. No merge, push, or deploy was performed.
