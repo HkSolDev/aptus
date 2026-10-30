@@ -11,6 +11,7 @@ const completeReviewSource = {
 const jobs = [
   {
     id: 'review-technical-assistant',
+    publishedAt: '2026-10-14',
     postName: 'Technical Assistant — Physics and Electronics',
     organization: 'Example Public Research Institute',
     applicationLastDate: '2026-11-30',
@@ -99,6 +100,7 @@ const jobs = [
   },
   {
     id: 'review-laboratory-assistant',
+    publishedAt: '2026-10-11',
     postName: 'Laboratory Assistant',
     organization: 'Example Public Institute',
     applicationLastDate: null,
@@ -109,6 +111,7 @@ const jobs = [
   },
   {
     id: 'review-assistant-engineer',
+    publishedAt: '2026-10-12',
     postName:
       'Assistant Engineer — Mechanical Maintenance and Workshop Operations',
     organization: 'Example Infrastructure Corporation',
@@ -120,6 +123,7 @@ const jobs = [
   },
   {
     id: 'review-office-assistant',
+    publishedAt: '2026-10-13',
     postName: 'Office Support Assistant',
     organization: 'Example Education Board',
     applicationLastDate: '2026-12-12',
@@ -220,6 +224,15 @@ export function createDesignReviewApi() {
             job.levels.includes(filters.qualification)),
       )
       .sort((a, b) => {
+        if (filters.sort === 'newest') {
+          // Fixture jobs carry no first-publication time; unknown sorts
+          // last and equal/unknown values keep the fixture order.
+          const aPublished = (a as { publishedAt?: string }).publishedAt;
+          const bPublished = (b as { publishedAt?: string }).publishedAt;
+          if (!aPublished) return bPublished ? 1 : 0;
+          if (!bPublished) return -1;
+          return bPublished.localeCompare(aPublished);
+        }
         if (!a.applicationLastDate) return b.applicationLastDate ? 1 : 0;
         if (!b.applicationLastDate) return -1;
         return (

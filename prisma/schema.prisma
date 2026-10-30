@@ -188,9 +188,14 @@ model Post {
   reviewedDetails           Json?
   reviewedAt                DateTime?
   reviewNote                String?
+  // First publication of this post in Aptus. Set only on creation in the
+  // publication paths; never overwritten on update. Null means the row
+  // predates this field and its first-publication time is unknown.
+  publishedAt               DateTime?
   savedBy                   SavedJob[]
 
   @@unique([extractionCandidateId, candidatePostIndex])
+  @@index([publishedAt])
 }
 
 // Account-owned saved jobs shortlist, independent of profile completion.

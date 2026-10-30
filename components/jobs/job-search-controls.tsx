@@ -148,9 +148,10 @@ export function JobSortControl({
           name="sort"
           aria-label="Sort all jobs"
           aria-busy={isPending}
+          disabled={isPending}
           value={sortValue}
           onChange={(event) => {
-            const nextSort = event.target.value as 'soonest' | 'furthest';
+            const nextSort = event.target.value as JobFilters['sort'];
             setSortValue(nextSort);
             startTransition(() => {
               const params = homeSearchParams(
@@ -162,15 +163,13 @@ export function JobSortControl({
             });
           }}
         >
+          <option value="newest">Newest</option>
           <option value="soonest">Deadline: soonest first</option>
           <option value="furthest">Deadline: furthest first</option>
         </select>
         {isPending && (
-          <span
-            className="muted"
-            aria-live="polite"
-            style={{ fontSize: '0.8rem', marginLeft: '0.25rem' }}
-          >
+          <span className={styles.updating} role="status">
+            <span className={styles.spinner} aria-hidden="true" />
             Updating…
           </span>
         )}

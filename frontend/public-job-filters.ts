@@ -10,7 +10,7 @@ export const JOB_QUALIFICATIONS = [
 export interface JobFilters {
   q: string;
   qualification: (typeof JOB_QUALIFICATIONS)[number]['value'] | '';
-  sort: 'soonest' | 'furthest';
+  sort: 'newest' | 'soonest' | 'furthest';
 }
 
 export function readJobFilters(params: URLSearchParams): JobFilters | null {
@@ -27,8 +27,9 @@ export function readJobFilters(params: URLSearchParams): JobFilters | null {
     JOB_QUALIFICATIONS.find((option) => option.value === rawQualification)
       ?.value ?? '';
   if (rawQualification && !qualification) return null;
-  const sort = params.get('sort') ?? 'soonest';
-  if (sort !== 'soonest' && sort !== 'furthest') return null;
+  const sort = params.get('sort') ?? 'newest';
+  if (sort !== 'newest' && sort !== 'soonest' && sort !== 'furthest')
+    return null;
   return { q, qualification, sort };
 }
 

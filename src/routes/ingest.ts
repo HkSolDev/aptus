@@ -11,6 +11,7 @@ import {
   Prisma,
 } from '../../generated/prisma/index.js';
 import { validatePost } from '../../scripts/validate-post.js';
+import { notifyJobsRevalidated } from '../lib/notify-jobs-revalidation.js';
 import {
   isEligibilityRules,
   type EligibilityRules,
@@ -57,7 +58,10 @@ export async function handleIngest(
 
     if ('reviewed_candidate_json' in body || 'approval' in body) {
       try {
-        sendJson(res, 200, await ingestReviewedCandidate(body));
+        const published = await ingestReviewedCandidate(body);
+        // Publication has committed; cache refresh is best-effort after it.
+        await notifyJobsRevalidated();
+        sendJson(res, 200, published);
       } catch (error) {
         // Safe to resend the identical approved draft after transient failures.
         const conflict =
@@ -234,6 +238,9 @@ export async function handleIngest(
         categoryRelaxationApplies: raw.category_relaxation_applies,
         categoryRelaxationRules: validated.categoryRelaxationRules,
         eligibilityRules: raw.eligibility_rules ?? Prisma.DbNull,
+        // This legacy path replaces the source's whole post set without stable
+        // per-post identity. Replacement time cannot establish first publication.
+        publishedAt: null,
       });
     }
 
@@ -246,6 +253,7 @@ export async function handleIngest(
       prisma.post.createMany({ data: toCreate }),
     ]);
 
+    await notifyJobsRevalidated();
     sendJson(res, 200, {
       sourceId: source.id,
       created: toCreate.length,

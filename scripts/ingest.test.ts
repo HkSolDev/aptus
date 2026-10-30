@@ -5,6 +5,66 @@ import { prisma } from '../src/db.js';
 
 const token = 'fictional-ingest-credential-for-tests-only';
 
+await test('legacy replacement does not invent first-publication dates', async (t) => {
+  const server = buildApp(undefined, {
+    AUTH_ENABLED: 'false',
+    INGEST_TOKEN: token,
+  });
+  t.after(() => server.close());
+  const restores: Array<() => void> = [];
+  function replace(target: object, key: string, value: unknown) {
+    const original = Object.getOwnPropertyDescriptor(target, key);
+    Object.defineProperty(target, key, { configurable: true, value });
+    restores.push(() => {
+      if (original) Object.defineProperty(target, key, original);
+      else Reflect.deleteProperty(target, key);
+    });
+  }
+  t.after(() => restores.reverse().forEach((restore) => restore()));
+  replace(prisma.source, 'findUnique', async () => ({
+    id: 'fixture-source',
+    rawHash: 'old',
+  }));
+  replace(prisma.source, 'upsert', async () => ({ id: 'fixture-source' }));
+  replace(prisma.post, 'deleteMany', async () => ({ count: 1 }));
+  const dates: unknown[] = [];
+  replace(
+    prisma.post,
+    'createMany',
+    async (args: { data: Array<{ publishedAt?: Date | null }> }) => {
+      dates.push(...args.data.map((row) => row.publishedAt));
+      return { count: args.data.length };
+    },
+  );
+  replace(prisma, '$transaction', async (operations: Promise<unknown>[]) =>
+    Promise.all(operations),
+  );
+  // Isolate the post-commit notification; never contact a configured frontend.
+  t.mock.method(globalThis, 'fetch', async () => new Response('{}'));
+  for (const raw_hash of ['changed-once', 'changed-again']) {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/api/internal/ingest',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        source_url: 'https://example.invalid/notice',
+        source_name: 'Fixture',
+        raw_hash,
+        posts: [
+          {
+            post_name: 'Existing role',
+            min_age: null,
+            max_age: null,
+            min_marks_percent: null,
+          },
+        ],
+      },
+    });
+    assert.equal(response.statusCode, 200);
+  }
+  assert.deepEqual(dates, [null, null]);
+});
+
 await test('ingestion rejects malformed rules before accessing the database', async (t) => {
   const server = buildApp(undefined, {
     AUTH_ENABLED: 'false',

@@ -62,17 +62,20 @@ export function listPublicJobs(
     });
   }
   const where: Prisma.PostWhereInput = { AND: conditions };
-  // The legacy HTML caller keeps its existing alphabetic order.
+  // Sorting applies to the entire matching set before pagination.
+  // Unknown values (missing deadline / unknown first publication) sort last.
   const orderBy: Prisma.PostOrderByWithRelationInput[] = filters
-    ? [
-        {
-          applicationLastDate: {
-            sort: filters.sort === 'soonest' ? 'asc' : 'desc',
-            nulls: 'last',
+    ? filters.sort === 'newest'
+      ? [{ publishedAt: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }]
+      : [
+          {
+            applicationLastDate: {
+              sort: filters.sort === 'soonest' ? 'asc' : 'desc',
+              nulls: 'last',
+            },
           },
-        },
-        { id: 'asc' },
-      ]
+          { id: 'asc' },
+        ]
     : [{ postName: 'asc' }, { id: 'asc' }];
   // Count and rows share a snapshot while the extraction pipeline updates jobs.
   return prisma.$transaction(
