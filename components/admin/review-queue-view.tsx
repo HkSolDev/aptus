@@ -28,14 +28,44 @@ interface ReviewQueueViewProps {
   initialItems: QueueItem[];
   totalItems: number;
   countsAsOf: string;
+  initialNextCursor: string | null;
+  initialError: string | null;
 }
 
 export function ReviewQueueView({
   initialItems,
   totalItems,
   countsAsOf,
+  initialNextCursor,
+  initialError,
 }: ReviewQueueViewProps) {
-  const [items] = useState<QueueItem[]>(initialItems);
+  const [items, setItems] = useState<QueueItem[]>(initialItems);
+  const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    setLoadError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/review-drafts?limit=20&cursor=${encodeURIComponent(nextCursor)}`,
+        { credentials: 'same-origin', cache: 'no-store' },
+      );
+      if (!res.ok) throw new Error('queue page failed');
+      const data = await res.json();
+      setItems((prev) => {
+        const known = new Set(prev.map((i) => i.id));
+        return [...prev, ...(data.items as QueueItem[]).filter((i) => !known.has(i.id))];
+      });
+      setNextCursor(data.next_cursor ?? null);
+    } catch {
+      setLoadError('Could not load the next page. Please retry.');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const getValidationBadge = (state?: string) => {
     switch (state) {
@@ -67,7 +97,7 @@ export function ReviewQueueView({
 
       <div className={styles.noticeBar}>
         <div>
-          <strong>{totalItems}</strong> notices imported ({totalRoles} roles) as of{' '}
+          <strong>{totalItems}</strong> notices imported ({totalRoles} roles on this page) as of{' '}
           {new Date(countsAsOf).toLocaleTimeString()}
         </div>
         <div className="small muted">
@@ -75,7 +105,15 @@ export function ReviewQueueView({
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {initialError ? (
+        <div className={styles.card} role="alert">
+          <p>Review queue temporarily unavailable. Held candidates could not be loaded.</p>
+          <p className="muted">{initialError}</p>
+          <Link href="/admin/review" className="button button-secondary">
+            Retry
+          </Link>
+        </div>
+      ) : items.length === 0 ? (
         <div className={styles.card}>
           <p className="muted">No candidates are currently held in the review queue.</p>
         </div>
@@ -134,6 +172,24 @@ export function ReviewQueueView({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!initialError && nextCursor && (
+        <div style={{ marginTop: '1rem' }}>
+          <button
+            type="button"
+            className="button button-secondary"
+            disabled={loadingMore}
+            onClick={() => void loadMore()}
+          >
+            {loadingMore ? 'Loading…' : 'Load more candidates'}
+          </button>
+          {loadError && (
+            <p className="muted" role="alert">
+              {loadError}
+            </p>
+          )}
         </div>
       )}
     </div>

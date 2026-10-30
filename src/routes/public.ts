@@ -4,7 +4,10 @@ import { renderJob } from '../lib/render-job.js';
 import { handleJobs } from './jobs.js';
 import { handleJobDetail } from './job-detail.js';
 
-export function registerPublicRoutes(app: FastifyInstance) {
+export function registerPublicRoutes(
+  app: FastifyInstance,
+  database?: Parameters<typeof handleJobs>[2],
+) {
   app.all<{ Params: { id: string } }>('/api/jobs/:id', {
     onRequest: async (request, reply) => {
       if (request.method !== 'GET') {
@@ -14,7 +17,7 @@ export function registerPublicRoutes(app: FastifyInstance) {
           .send({ error: 'Method Not Allowed' });
       }
     },
-    handler: (request, reply) => handleJobDetail(request.params.id, reply),
+    handler: (request, reply) => handleJobDetail(request.params.id, reply, database),
   });
 
   app.all('/api/jobs', {
@@ -28,7 +31,7 @@ export function registerPublicRoutes(app: FastifyInstance) {
     },
     handler: async (request, reply) => {
       const url = new URL(request.url, 'http://localhost');
-      await handleJobs(reply, url.searchParams);
+      await handleJobs(reply, url.searchParams, database);
     },
   });
 

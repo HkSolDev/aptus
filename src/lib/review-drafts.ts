@@ -98,6 +98,10 @@ export async function importReviewDraft(
       : 'Held for operator review';
 
   return database.$transaction(async (tx) => {
+    // Touch the row inside this transaction to hold its row lock until commit.
+    await tx.reviewItem
+      .update({ where: { bundleId: envelope.bundle_id }, data: { updatedAt: new Date() } })
+      .catch(() => undefined);
     const existingItem = await tx.reviewItem.findUnique({
       where: { bundleId: envelope.bundle_id },
       include: {
@@ -123,12 +127,14 @@ export async function importReviewDraft(
         };
       }
 
-      // If existing item has human corrections (revisionNumber > 1),
-      // new worker output must not overwrite the human correction.
+      // Human corrections are identified by provenance: worker imports are
+      // createdBy 'worker_import', human saves by the operator email.
+      // New worker output must not overwrite a human correction.
       const hasHumanCorrections = existingItem.revisions.some(
-        (r) => r.revisionNumber > 1,
+        (r) => r.createdBy !== 'worker_import',
       );
-      const nextRevNumber = existingItem.revisions[0].revisionNumber + 1;
+      const nextRevNumber =
+        Math.max(...existingItem.revisions.map((r) => r.revisionNumber)) + 1;
 
       const newRev = await tx.reviewRevision.create({
         data: {
@@ -226,7 +232,7 @@ export async function listReviewQueue(
       where,
       take: limit + 1,
       ...(options.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       include: {
         currentRevision: {
           select: {
@@ -245,8 +251,9 @@ export async function listReviewQueue(
 
   let nextCursor: string | null = null;
   if (items.length > limit) {
-    const nextItem = items.pop();
-    nextCursor = nextItem ? nextItem.id : null;
+    items.pop();
+    // Cursor is the last returned item; the next request skips past it.
+    nextCursor = items[items.length - 1]?.id ?? null;
   }
 
   const queueItems = items.map((item) => {
@@ -365,6 +372,11 @@ export async function saveReviewCorrection(
   }
 
   return database.$transaction(async (tx) => {
+    // Serialize saves for this item so the base check and revision
+    // allocation cannot race a simultaneous save or worker import.
+    await tx.reviewItem
+      .update({ where: { id: itemId }, data: { updatedAt: new Date() } })
+      .catch(() => undefined);
     const item = await tx.reviewItem.findUnique({
       where: { id: itemId },
       include: {
@@ -406,7 +418,14 @@ export async function saveReviewCorrection(
     );
 
     const canonicalHash = candidateContentHash(envelope.facts);
-    const nextRevisionNumber = baseRev.revisionNumber + 1;
+    // Allocate above every existing revision, including non-current worker
+    // observations, so they cannot collide with the next human correction.
+    const highest = await tx.reviewRevision.findFirst({
+      where: { reviewItemId: item.id },
+      orderBy: { revisionNumber: 'desc' },
+      select: { revisionNumber: true },
+    });
+    const nextRevisionNumber = (highest?.revisionNumber ?? baseRev.revisionNumber) + 1;
 
     const newRev = await tx.reviewRevision.create({
       data: {
@@ -570,41 +589,53 @@ export async function claimValidationTask(
   const now = new Date();
 
   return database.$transaction(async (tx) => {
-    // Find a pending task or a task whose claim lease expired
-    const candidateTask = await tx.validationTask.findFirst({
-      where: {
-        OR: [
-          { status: 'pending' },
-          {
-            status: 'running',
-            claimExpiresAt: { lt: now },
-          },
-        ],
-      },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        reviewRevision: {
-          include: {
-            reviewItem: true,
+    // Atomic conditional claim: the update only succeeds while the task is
+    // still pending or its lease has expired, so overlapping workers cannot
+    // both own it. Retry a few times if another task was claimed first.
+    let candidateTask = null;
+    let claimToken = '';
+    for (let attempt = 0; attempt < 5 && !candidateTask; attempt++) {
+      const found = await tx.validationTask.findFirst({
+        where: {
+          OR: [
+            { status: 'pending' },
+            {
+              status: 'running',
+              claimExpiresAt: { lt: now },
+            },
+          ],
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        include: {
+          reviewRevision: {
+            include: {
+              reviewItem: true,
+            },
           },
         },
-      },
-    });
-
+      });
+      if (!found) return null;
+      claimToken = randomUUID();
+      const claimExpiresAt = new Date(now.getTime() + leaseSeconds * 1000);
+      const claimed = await tx.validationTask.updateMany({
+        where: {
+          id: found.id,
+          OR: [
+            { status: 'pending' },
+            { status: 'running', claimExpiresAt: { lt: now } },
+          ],
+        },
+        data: {
+          status: 'running',
+          claimToken,
+          claimExpiresAt,
+          updatedAt: now,
+        },
+      });
+      if (claimed.count === 1) candidateTask = found;
+    }
     if (!candidateTask) return null;
-
-    const claimToken = randomUUID();
-    const claimExpiresAt = new Date(now.getTime() + leaseSeconds * 1000);
-
-    const updatedTask = await tx.validationTask.update({
-      where: { id: candidateTask.id },
-      data: {
-        status: 'running',
-        claimToken,
-        claimExpiresAt,
-        updatedAt: now,
-      },
-    });
+    const updatedTask = { id: candidateTask.id };
 
     await tx.reviewRevision.update({
       where: { id: candidateTask.reviewRevisionId },

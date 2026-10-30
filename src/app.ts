@@ -17,7 +17,11 @@ import {
 } from './lib/logging.js';
 
 // Build without listening so tests and startup use the same configuration.
-export function buildApp(auth?: AppAuth, env: NodeJS.ProcessEnv = process.env) {
+export function buildApp(
+  auth?: AppAuth,
+  env: NodeJS.ProcessEnv = process.env,
+  database?: Parameters<typeof registerPublicRoutes>[1],
+) {
   const app = Fastify({
     ...safeLoggingOptions,
     exposeHeadRoutes: false,
@@ -51,7 +55,7 @@ export function buildApp(auth?: AppAuth, env: NodeJS.ProcessEnv = process.env) {
   });
 
   registerHealthRoute(app);
-  registerPublicRoutes(app);
+  registerPublicRoutes(app, database);
   const config = auth ? null : readAuthConfig(env);
   const appAuth = auth ?? (config ? createAuth(config) : null);
   if (appAuth) registerAuthRoutes(app, appAuth);

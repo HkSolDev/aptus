@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import styles from './review.module.css';
+import { resolveCandidateRefresh } from './candidate-refresh';
 
 interface EvidenceUnit {
   evidence_id: string;
@@ -99,6 +100,8 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
   const [facts, setFacts] = useState<FactsPayload>(initialData.revision.facts);
   const [changeReason, setChangeReason] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [editingRevisionId, setEditingRevisionId] = useState(initialData.revision.id);
+  const [conflictFresh, setConflictFresh] = useState<DetailData | null>(null);
 
   // Actions & UI state
   const [saving, setSaving] = useState(false);
@@ -115,23 +118,48 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const refreshCandidate = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/admin/review-drafts/${data.item.id}`, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      if (res.ok) {
-        const fresh: DetailData = await res.json();
-        setData(fresh);
-        if (!hasUnsavedChanges) {
+  const refreshCandidate = useCallback(
+    async (forceApply = false) => {
+      try {
+        const res = await fetch(`/api/admin/review-drafts/${data.item.id}`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const fresh: DetailData = await res.json();
+          const decision = forceApply
+            ? { action: 'apply-fresh' as const, editingRevisionId: fresh.revision.id }
+            : resolveCandidateRefresh({
+                hasUnsavedChanges,
+                editingRevisionId,
+                freshRevisionId: fresh.revision.id,
+              });
+          if (decision.action === 'keep-editing') {
+            // Preserve unsaved facts and their base; surface the conflict instead.
+            setConflictFresh(fresh);
+            return;
+          }
+          setData(fresh);
           setFacts(fresh.revision.facts);
+          setEditingRevisionId(decision.editingRevisionId);
+          setConflictFresh(null);
         }
+      } catch {
+        // ignore transient refresh failure
       }
-    } catch {
-      // ignore transient refresh failure
-    }
-  }, [data.item.id, hasUnsavedChanges]);
+    },
+    [data.item.id, hasUnsavedChanges, editingRevisionId],
+  );
+
+  const reloadConflictRevision = () => {
+    if (!conflictFresh) return;
+    setData(conflictFresh);
+    setFacts(conflictFresh.revision.facts);
+    setEditingRevisionId(conflictFresh.revision.id);
+    setHasUnsavedChanges(false);
+    setChangeReason('');
+    setConflictFresh(null);
+  };
 
   // Handle polling for active validation task
   useEffect(() => {
@@ -194,10 +222,10 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'If-Match': data.revision.id,
+          'If-Match': editingRevisionId,
         },
         body: JSON.stringify({
-          base_revision_id: data.revision.id,
+          base_revision_id: editingRevisionId,
           facts,
           change_reason: changeReason.trim(),
         }),
@@ -216,8 +244,9 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
       const savedRev = await res.json();
       setHasUnsavedChanges(false);
       setChangeReason('');
+      setEditingRevisionId(savedRev.revision_id);
       setSuccessMsg(`Saved correction as Revision R${savedRev.revision_number}.`);
-      await refreshCandidate();
+      await refreshCandidate(true);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -319,6 +348,20 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
         <div className={styles.infoAlert}>
           <span className={styles.unsavedNotice}>● You have unsaved changes.</span> Remember to save
           your correction before requesting validation.
+        </div>
+      )}
+
+      {conflictFresh && (
+        <div className={styles.dangerAlert} role="alert">
+          <strong>A newer revision (R{conflictFresh.revision.revision_number}) was saved.</strong>{' '}
+          Your unsaved edits are still based on the older revision and have not been changed.
+          Saving them will be rejected as stale. To continue, reload the newer revision — this
+          discards your unsaved edits — or keep editing here and copy your changes first.
+          <div style={{ marginTop: '8px' }}>
+            <button type="button" className={styles.buttonSecondary} onClick={reloadConflictRevision}>
+              Reload newer revision (discard my edits)
+            </button>
+          </div>
         </div>
       )}
 
@@ -535,7 +578,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <button
                 type="button"
                 className={styles.buttonSecondary}
-                onClick={refreshCandidate}
+                onClick={() => void refreshCandidate()}
               >
                 Refresh result
               </button>

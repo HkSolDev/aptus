@@ -536,35 +536,88 @@ print(json.dumps(result))
 
 await test('Review workflow: Public catalogue isolation (private drafts and evidence do not leak)', async (t) => {
   const { database } = await authDatabase(t, connectionString);
-  const app = buildApp(undefined, {
-    AUTH_ENABLED: 'false',
-    INGEST_TOKEN: testIngestToken,
-  });
+  // Same isolated database serves both draft storage and public catalogue.
+  const app = buildApp(
+    undefined,
+    {
+      AUTH_ENABLED: 'false',
+      INGEST_TOKEN: testIngestToken,
+    },
+    database as never,
+  );
   t.after(() => app.close());
 
-  // Import a private draft
+  // Seed an existing public record whose contents must be preserved exactly.
+  const source = await database.source.create({
+    data: { name: 'Example Board', url: 'https://example.gov.in/notifications' },
+  });
+  const publicPost = await database.post.create({
+    data: {
+      sourceId: source.id,
+      postName: 'Existing Public Post',
+      organization: 'Example Board',
+      vacancies: 12,
+      applicationLastDate: new Date('2099-01-31'),
+      educationRequired: 'Degree',
+    },
+  });
+  const publicBefore = await database.post.findMany({ orderBy: { id: 'asc' } });
+
+  // Import a private draft, save a correction, and validate it in the same DB.
   const fixturePath = join(
     process.cwd(),
     'tests/fixtures/review_candidate_fixture.json',
   );
   const fixtureRaw = await readFile(fixturePath, 'utf8');
-  const { importReviewDraft } = await import('../src/lib/review-drafts.js');
-  const imported = await importReviewDraft(fixtureRaw, database);
+  const lib = await import('../src/lib/review-drafts.js');
+  const imported = await lib.importReviewDraft(fixtureRaw, database);
+  const detail = await lib.getReviewItemDetail(imported.itemId, database);
+  const facts = JSON.parse(JSON.stringify(detail!.revision.facts));
+  facts.posts[0].min_age = 21;
+  const saved = await lib.saveReviewCorrection(
+    imported.itemId,
+    {
+      baseRevisionId: imported.revisionId,
+      facts,
+      changeReason: 'Isolation check correction',
+      operatorEmail: 'operator@example.gov.in',
+    },
+    database,
+  );
+  const task = await lib.requestValidation(imported.itemId, saved.revisionId, 'aptus-val-v1', database);
+  const claimed = await lib.claimValidationTask({ leaseSeconds: 60 }, database);
+  assert.equal(claimed?.taskId, task.taskId);
+  await lib.submitValidationResult(
+    task.taskId,
+    { claimToken: claimed!.claimToken, revisionHash: claimed!.revisionHash, result: { errors: [] } },
+    database,
+  );
 
-  // Query public jobs list: must be empty
-  const publicList = await app.inject({
-    method: 'GET',
-    url: '/api/jobs',
-  });
+  // Public catalogue (same isolated DB) shows only the seeded public post.
+  const publicList = await app.inject({ method: 'GET', url: '/api/jobs' });
   assert.equal(publicList.statusCode, 200);
   const listJson = publicList.json();
   assert.ok(Array.isArray(listJson.data));
-  assert.equal(listJson.data.length, 0);
+  assert.equal(listJson.data.length, 1);
+  assert.equal(listJson.data[0].id, publicPost.id);
+  assert.equal(listJson.data[0].postName, 'Existing Public Post');
 
-  // Query public job detail by candidate ID: must be 404
+  const seededDetail = await app.inject({ method: 'GET', url: `/api/jobs/${publicPost.id}` });
+  assert.equal(seededDetail.statusCode, 200);
+  assert.equal(seededDetail.json().postName, 'Existing Public Post');
+  assert.equal(seededDetail.json().vacancies, 12);
+
+  // Private draft cannot be reached through the public catalogue.
   const publicDetail = await app.inject({
     method: 'GET',
     url: `/api/jobs/${imported.itemId}`,
   });
   assert.equal(publicDetail.statusCode, 404);
+
+  // Saving + validating preserved the public record, contents included.
+  const publicAfter = await database.post.findMany({ orderBy: { id: 'asc' } });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(publicAfter)),
+    JSON.parse(JSON.stringify(publicBefore)),
+  );
 });

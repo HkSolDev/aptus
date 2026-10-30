@@ -1,5 +1,13 @@
 # Task progress: basic held-candidate review workflow
 
+> Amendment (2026-10-30, `codex/admin-review-review-fixes`): several claims in
+> this record were corrected by the independent-review fixes. The claim lease
+> is 60 seconds (not 5 minutes); `If-Match` carries the base revision *id*
+> (not a hash); an old revision's validation result is *accepted* for that
+> revision's history (no 409 was proved or implemented) and cannot change the
+> current revision; a quotation found in source text proves lexical presence
+> only, not semantic support. See `admin-review-review-fixes.md`.
+
 Updated: 2026-10-29  
 Status: Complete — Ready for Review  
 Author: Implementation Engineer  
@@ -237,16 +245,16 @@ $$\text{Existing held candidate} \longrightarrow \text{Inspect evidence} \longri
    - Repeated import of the exact same artifact returns `{ status: 'existing', item_id, revision_hash }` without duplicating rows or creating new revisions.
    - Repeated import of new worker artifact cannot overwrite existing human corrections.
 4. **Human corrections & Stale edit rejection (`If-Match`)**:
-   - Operator saves correction specifying `If-Match: <baseRevisionHash>`.
+   - Operator saves correction specifying `If-Match: <baseRevisionId>`.
    - Next revision is created with parent linking, canonical hash, and reason for change.
    - Second operator attempting to save with old base revision hash receives `412 Precondition Failed` with error code `STALE_REVISION`.
 5. **Worker task claim, Python execution & Result submission**:
    - Operator requests validation (`POST /api/admin/review-drafts/:id/validate`), creating `pending` `ValidationTask`.
-   - Python worker claims task (`POST /api/internal/review-tasks/claim`), receiving claim token and 5-minute lease.
+   - Python worker claims task (`POST /api/internal/review-tasks/claim`), receiving claim token and 60-second lease.
    - Python worker invokes `validate_candidate()` deterministically without model calls or network access.
    - Candidate with unsupported fact returns `completed_with_issues` with exact errors.
    - Grounded correction passes validation with `checks_passed`.
-   - Worker cannot report results for a stale revision (rejected with 409).
+   - A result submitted for an older revision is stored against that revision only; the current revision and its validation state are unchanged (no 409 rejection was proved).
    - Expired task claims are automatically reclaimed after lease timeout.
 6. **Public catalogue isolation**:
    - `GET /api/jobs` and `GET /api/jobs/:id` verified before and after review workflow.
@@ -262,11 +270,11 @@ For every identified bug or concern, findings are scored using **Likelihood (1�
 | Finding | Confirmed or speculative | Trigger | Evidence | Likelihood 1–10 | Impact 1–10 | Score | Action |
 |---|---|---|---|---:|---:|---:|---|
 | **1. Reviewer silently overwrites another reviewer's work** | Confirmed | Two operators/tabs edit base revision R1 concurrently; second save overwrites first | `scripts/review-workflow.test.ts: Stale revision save returns 412` | 4 | 7 | 28 | **Fixed**: Enforce `If-Match` header matching base revision token; return `412 Precondition Failed` on stale edits. |
-| **2. Worker crashes or hangs midway through validation task** | Confirmed | Worker process killed or network stalls after claiming a task | `scripts/review-workflow.test.ts: Expired claim re-claimed after lease timeout` | 3 | 6 | 18 | **Fixed**: Database lease timeout (`claimExpiresAt` 5 mins) automatically frees expired claims for redelivery. |
+| **2. Worker crashes or hangs midway through validation task** | Confirmed | Worker process killed or network stalls after claiming a task | `scripts/review-workflow.test.ts: Expired claim re-claimed after lease timeout` | 3 | 6 | 18 | **Fixed**: Database lease timeout (`claimExpiresAt`, 60s default) automatically frees expired claims for redelivery. |
 | **3. Reviewer enters fact contradicting source evidence** | Confirmed | Operator hallucinates or mistypes eligibility criteria not present in source text | `scripts/review-workflow.test.ts: Worker flags ungrounded fact as completed_with_issues` | 5 | 8 | 40 | **Fixed**: `validate_candidate` enforces exact substring quotation matching against captured source text. |
 | **4. Unauthenticated or unauthorized access to review queue/details** | Confirmed | Direct GET/POST to `/admin/review` or `/api/admin/review-drafts` | `scripts/review-workflow.test.ts: Access control suite (guest, non-operator, unverified email)` | 2 | 9 | 18 | **Fixed**: Server-side `requireOperator` verifies active session, verified email, and `APTUS_REVIEW_OPERATOR_EMAILS`. |
 | **5. CSRF mutation on operator endpoints** | Confirmed | Malicious cross-origin script triggers state change on review items | `scripts/review-workflow.test.ts: Origin mismatch returns 403` | 2 | 8 | 16 | **Fixed**: Fastify preHandler validates request `Origin` / `Referer` headers against allowed application origins. |
-| **6. Worker reports validation result for an obsolete revision** | Confirmed | Worker completes slow validation for R1 after operator has already saved R2 | `scripts/review-workflow.test.ts: Worker submits result for obsolete revision returns 409` | 2 | 6 | 12 | **Fixed**: `submitValidationResult` verifies `task.revisionHash === body.revision_hash`; returns `409 Conflict` on mismatch. |
+| **6. Worker reports validation result for an obsolete revision** | Confirmed | Worker completes slow validation for R1 after operator has already saved R2 | `scripts/review-workflow.test.ts`: old-revision result accepted for R1; current R2 unchanged | 2 | 6 | 12 | **Contained**: the result updates only its own revision; it cannot alter the current revision's status. No 409 rejection exists or was proved. |
 | **7. Private review drafts leak into public catalogue queries** | Confirmed | Public job search or applicant matching queries unvetted review items | `scripts/review-workflow.test.ts: Public catalogue isolation (zero changes to Post)` | 1 | 10 | 10 | **Fixed**: Review workflow uses dedicated tables (`ReviewItem`, `ReviewRevision`, `ValidationTask`); `Post` table is untouched. |
 | **8. Missing operator allowlist configuration opens admin access** | Speculative | `APTUS_REVIEW_OPERATOR_EMAILS` unset or empty in production deployment | `src/auth/require-operator.ts: getOperatorAllowlist() returns [] and denies` | 2 | 9 | 18 | **Fixed**: Empty or missing allowlist safely fails closed and denies all access. |
 

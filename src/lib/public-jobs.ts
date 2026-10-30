@@ -36,6 +36,7 @@ export function listPublicJobs(
   page: number,
   pageSize: number,
   filters?: JobFilters,
+  database: typeof prisma = prisma,
 ) {
   const conditions: Prisma.PostWhereInput[] = [activeApplicationWhere()];
   if (filters?.q) {
@@ -75,7 +76,7 @@ export function listPublicJobs(
       ]
     : [{ postName: 'asc' }, { id: 'asc' }];
   // Count and rows share a snapshot while the extraction pipeline updates jobs.
-  return prisma.$transaction(
+  return database.$transaction(
     async (db) => {
       const totalItems = await db.post.count({ where });
       const data = await db.post.findMany({
@@ -99,8 +100,8 @@ export function listPublicJobs(
   );
 }
 
-export function getPublicJob(id: string) {
-  return prisma.post.findUnique({
+export function getPublicJob(id: string, database: typeof prisma = prisma) {
+  return database.post.findUnique({
     where: { id },
     select: {
       ...publicFields,

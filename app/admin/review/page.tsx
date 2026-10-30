@@ -54,8 +54,15 @@ export default async function AdminReviewPage() {
     );
   }
 
-  // Fetch queue items
-  let queueData = { items: [], total_items: 0, counts_as_of: new Date().toISOString() };
+  // Fetch queue items. A failed fetch is an outage, not an empty queue:
+  // only a successful response may be shown as zero held candidates.
+  let queueData = {
+    items: [],
+    total_items: 0,
+    counts_as_of: new Date().toISOString(),
+    next_cursor: null as string | null,
+  };
+  let queueError: string | null = null;
   try {
     const queueRes = await fetch(`${backend}/api/admin/review-drafts`, {
       headers: { cookie: cookie || '' },
@@ -65,9 +72,11 @@ export default async function AdminReviewPage() {
     });
     if (queueRes.ok) {
       queueData = await queueRes.json();
+    } else {
+      queueError = `Queue request failed (${queueRes.status}).`;
     }
   } catch {
-    // fallback to empty queue on transport error
+    queueError = 'Queue request timed out or could not reach the server.';
   }
 
   return (
@@ -75,6 +84,8 @@ export default async function AdminReviewPage() {
       initialItems={queueData.items}
       totalItems={queueData.total_items}
       countsAsOf={queueData.counts_as_of}
+      initialNextCursor={queueData.next_cursor}
+      initialError={queueError}
     />
   );
 }
