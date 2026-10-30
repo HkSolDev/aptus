@@ -85,15 +85,15 @@ their HAR/trace artifacts. Treated as claims, verified below.
 Local fixture HARs only; **no production HAR was found** in the primary
 checkout or any inspected worktree:
 
-| Artifact | Entries | Home document | Home sort RSC |
-|---|---|---|---|
-| `aptus-agent2-sort-verification/outputs/traces/baseline-desktop.har` | 24 | 17.9 ms, 200 | `sort=furthest`, 4.0 ms |
-| `aptus-agent2-sort-verification/outputs/traces/baseline-mobile-throttled.har` | 25 | 137.3 ms, 200 | `sort=furthest`, 105.8 ms |
-| `aptus-agent2-sort-verification/outputs/traces/candidate-desktop.har` | 24 | 12.4 ms, 200 | `sort=furthest`, 23.4 ms |
-| `aptus-agent2-sort-verification/outputs/traces/candidate-mobile-throttled.har` | 21 | 138.6 ms, 200 | `sort=furthest`, 106.0 ms |
-| `aptus-agent2-sort-verification/outputs/traces/sort-controlled.har` | 24 | 15.8 ms, 200 | `sort=furthest`, 2.5 ms (held/released by fixture) |
-| `aptus-sort-ingest-release-20261028/outputs/traces/sort-controlled.har` | 27 | 16.0 ms, 200 | `sort=furthest`, 2.2 ms (held/released by fixture) |
-| `aptus-sort-investigation/outputs/traces/sort-interaction.har` | 23 | 14.9 ms, 200 | `sort=furthest`, 2.5 ms |
+| Artifact                                                                       | Entries | Home document | Home sort RSC                                      |
+| ------------------------------------------------------------------------------ | ------- | ------------- | -------------------------------------------------- |
+| `aptus-agent2-sort-verification/outputs/traces/baseline-desktop.har`           | 24      | 17.9 ms, 200  | `sort=furthest`, 4.0 ms                            |
+| `aptus-agent2-sort-verification/outputs/traces/baseline-mobile-throttled.har`  | 25      | 137.3 ms, 200 | `sort=furthest`, 105.8 ms                          |
+| `aptus-agent2-sort-verification/outputs/traces/candidate-desktop.har`          | 24      | 12.4 ms, 200  | `sort=furthest`, 23.4 ms                           |
+| `aptus-agent2-sort-verification/outputs/traces/candidate-mobile-throttled.har` | 21      | 138.6 ms, 200 | `sort=furthest`, 106.0 ms                          |
+| `aptus-agent2-sort-verification/outputs/traces/sort-controlled.har`            | 24      | 15.8 ms, 200  | `sort=furthest`, 2.5 ms (held/released by fixture) |
+| `aptus-sort-ingest-release-20261028/outputs/traces/sort-controlled.har`        | 27      | 16.0 ms, 200  | `sort=furthest`, 2.2 ms (held/released by fixture) |
+| `aptus-sort-investigation/outputs/traces/sort-interaction.har`                 | 23      | 14.9 ms, 200  | `sort=furthest`, 2.5 ms                            |
 
 All URLs are loopback fixture hosts (`127.0.0.1`, ephemeral ports) with 6
 representative fixture posts; no cookies, authorization or personal data are
@@ -172,7 +172,7 @@ sorted jobs visible
 
 - `prisma/schema.prisma` `model Post` has **no** `@@index` on
   `applicationLastDate` (only `@@unique([extractionCandidateId,
-  candidatePostIndex])`); no migration creates one. This is a fact about the
+candidatePostIndex])`); no migration creates one. This is a fact about the
   schema, **not** an established cause of any observed latency. No query plan
   has been run; table size in production is unknown. No index change is
   proposed by this task.
@@ -289,7 +289,7 @@ application file was changed by this prep.
   — `Authorization: Bearer <token>`, token from env or a token file (never
   both), 32–512 chars of `[A-Za-z0-9_-]`, SHA-256 + `timingSafeEqual`
   comparison, 503 when unconfigured, 401 on mismatch, `cache-control:
-  no-store` on responses. Any cache-invalidation notification must follow
+no-store` on responses. Any cache-invalidation notification must follow
   this same convention; no new auth scheme will be invented. (Token values
   were not read or printed.)
 - Publication commit point: `publishExtractionCandidate` in
@@ -342,9 +342,9 @@ likelihood 1–10, impact 1–10, risk = likelihood × impact, smallest justifie
 fix. Below 5: document only. 5 or above: recommend a targeted fix.
 Security/privacy/data-loss/correctness violations are flagged regardless.
 
-| # | Item | Status | L | I | Risk | Action |
-|---|---|---|---|---|---|---|
-| R1 | No Post deadline index exists in schema | Fact, cause unproven | — | — | — | No change without Slice-1 query evidence |
+| #   | Item                                    | Status               | L   | I   | Risk | Action                                   |
+| --- | --------------------------------------- | -------------------- | --- | --- | ---- | ---------------------------------------- |
+| R1  | No Post deadline index exists in schema | Fact, cause unproven | —   | —   | —    | No change without Slice-1 query evidence |
 
 ## 8. Tests and verification
 
@@ -492,13 +492,13 @@ Browser suite metric: input-to-feedback 142 ms, input-to-final-cards
 
 ### Risk register (final)
 
-| # | Item | Status | L | I | Risk | Action |
-|---|---|---|---|---|---|---|
-| R1 | No Post deadline index | Fact, cause unproven | 2 | 3 | 6 | No change; no query evidence justified one |
-| R2 | Next fetch cache silently serves stale on outage | Confirmed locally, fixed by explicit cache + banner | 8 | 5 | 40 | Fixed in this change |
-| R3 | In-process cache is per-replica | Concern if frontend ever scales | 2 | 6 | 12 | Documented; revisit before scaling replicas |
-| R4 | Legacy re-ingest deletes/recreates posts, resetting publishedAt | Existing behavior, observed in code | 4 | 3 | 12 | Documented; dedup task owns replacement semantics |
-| R5 | Notification unconfigured in production env | Concern until env is set at deploy time | 5 | 3 | 15 | 60s interval bounds staleness; set FRONTEND_REVALIDATE_URL + INGEST_TOKEN on deploy |
+| #   | Item                                                            | Status                                              | L   | I   | Risk | Action                                                                              |
+| --- | --------------------------------------------------------------- | --------------------------------------------------- | --- | --- | ---- | ----------------------------------------------------------------------------------- |
+| R1  | No Post deadline index                                          | Fact, cause unproven                                | 2   | 3   | 6    | No change; no query evidence justified one                                          |
+| R2  | Next fetch cache silently serves stale on outage                | Confirmed locally, fixed by explicit cache + banner | 8   | 5   | 40   | Fixed in this change                                                                |
+| R3  | In-process cache is per-replica                                 | Concern if frontend ever scales                     | 2   | 6   | 12   | Documented; revisit before scaling replicas                                         |
+| R4  | Legacy re-ingest deletes/recreates posts, resetting publishedAt | Existing behavior, observed in code                 | 4   | 3   | 12   | Documented; dedup task owns replacement semantics                                   |
+| R5  | Notification unconfigured in production env                     | Concern until env is set at deploy time             | 5   | 3   | 15   | 60s interval bounds staleness; set FRONTEND_REVALIDATE_URL + INGEST_TOKEN on deploy |
 
 ### Remaining uncertainty and rollback
 
@@ -521,7 +521,6 @@ the home page at 10:00:30, the API then goes down, and another reader
 loads the same page at 10:02. What does each reader see, when does the
 second reader get the freshness warning instead, and what happens to both
 readers' pages once the API recovers and a new publication arrives?
-
 
 ## 13. Targeted review fixes (2026-10-30)
 
@@ -564,3 +563,11 @@ writes, push, merge, deployment, dependency changes, or new schema changes.
 Freshness clarification: 60 seconds is a refresh interval, not a maximum
 age guarantee. Failed refreshes can continue serving the last success with
 `freshnessUnconfirmed`; no new maximum-age policy was added.
+
+## PR #32 CI formatting correction (2026-10-30)
+
+GitHub run `41032610352` failed at `pnpm exec prettier --check .` because
+this audit file did not match the repository formatter. The same failure
+was reproduced locally. Apply the installed Prettier to this file only;
+retain all workflow steps, tests, assertions, and application behavior.
+The subsequent GitHub run is the authority for the complete CI result.
