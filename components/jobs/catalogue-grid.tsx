@@ -1,9 +1,7 @@
 import Link from 'next/link';
 import { JobCard, type PublicJobItem } from './job-card';
-import {
-  jobSearchParams,
-  type JobFilters,
-} from '@/frontend/public-job-filters';
+import { type JobFilters } from '@/frontend/public-job-filters';
+import { fetchPublicJobsCached } from './jobs-server-cache';
 import { JobSortControl } from './job-search-controls';
 import { HomeLayoutControls } from './home-layout-controls';
 import { homeSearchParams, type HomeView } from '@/frontend/home-view';
@@ -14,6 +12,8 @@ import styles from './catalogue-grid.module.css';
 export interface JobsApiResponse {
   designReview?: boolean;
   reviewRecommendations?: ReviewRecommendation[];
+  // True only when upstream failed and the last successful result is shown.
+  freshnessUnconfirmed?: boolean;
   data: PublicJobItem[];
   pagination: {
     page: number;
@@ -23,23 +23,13 @@ export interface JobsApiResponse {
   };
 }
 
+export { invalidateJobsCache, JOBS_CACHE_TAG } from './jobs-server-cache';
+
 export async function fetchPublicJobs(
   page: number,
   filters: JobFilters,
 ): Promise<JobsApiResponse | null> {
-  const backendUrl =
-    process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8081';
-  try {
-    const params = jobSearchParams(filters, page);
-    params.set('pageSize', '6');
-    const res = await fetch(`${backendUrl}/api/jobs?${params}`, {
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as JobsApiResponse;
-  } catch {
-    return null;
-  }
+  return fetchPublicJobsCached<JobsApiResponse>(page, filters);
 }
 
 export function CatalogueGrid({
@@ -77,6 +67,14 @@ export function CatalogueGrid({
           <HomeLayoutControls filters={filters} view={view} page={page} />
         </div>
       </div>
+      {result?.freshnessUnconfirmed && (
+        <div className="notice" role="status">
+          <p>
+            Showing the last confirmed results. Freshness could not be confirmed
+            just now; please try again shortly.
+          </p>
+        </div>
+      )}
       {!result || !result.data ? (
         <div className="notice notice-error">
           <p>Jobs are temporarily unavailable. Please try again shortly.</p>

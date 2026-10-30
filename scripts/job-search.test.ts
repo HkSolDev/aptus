@@ -37,6 +37,6 @@ await test('public filters reject duplicates, long/control text and unknown opti
   assert.deepEqual(readJobFilters(new URLSearchParams()), {
     q: '',
     qualification: '',
-    sort: 'soonest',
+    sort: 'newest',
   });
 });

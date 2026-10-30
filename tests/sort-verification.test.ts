@@ -33,6 +33,7 @@ interface FixtureJob {
   postName: string;
   educationRequired: string | null;
   applicationLastDate: string | null;
+  publishedAt: string | null;
   vacancies: number;
   payLevel: string;
   source: { name: string };
@@ -45,6 +46,7 @@ const FIXTURE_JOBS: FixtureJob[] = [
     postName: 'Technical Assistant Early Nov',
     educationRequired: 'Diploma',
     applicationLastDate: '2026-11-01',
+    publishedAt: '2026-10-01',
     vacancies: 5,
     payLevel: 'Level 5',
     source: { name: 'SSC' },
@@ -54,6 +56,7 @@ const FIXTURE_JOBS: FixtureJob[] = [
     postName: 'Junior Engineer Mid Nov 1',
     educationRequired: 'Diploma',
     applicationLastDate: '2026-11-15',
+    publishedAt: '2026-10-03',
     vacancies: 10,
     payLevel: 'Level 6',
     source: { name: 'SSC' },
@@ -63,6 +66,7 @@ const FIXTURE_JOBS: FixtureJob[] = [
     postName: 'Junior Engineer Mid Nov 2',
     educationRequired: 'Diploma',
     applicationLastDate: '2026-11-15',
+    publishedAt: '2026-10-03',
     vacancies: 8,
     payLevel: 'Level 6',
     source: { name: 'UPSC' },
@@ -72,6 +76,7 @@ const FIXTURE_JOBS: FixtureJob[] = [
     postName: 'Assistant Director Late Dec',
     educationRequired: 'Degree',
     applicationLastDate: '2026-12-01',
+    publishedAt: '2026-10-02',
     vacancies: 2,
     payLevel: 'Level 7',
     source: { name: 'UPSC' },
@@ -81,6 +86,7 @@ const FIXTURE_JOBS: FixtureJob[] = [
     postName: 'Scientist No Deadline 1',
     educationRequired: 'Degree',
     applicationLastDate: null,
+    publishedAt: '2026-10-04',
     vacancies: 1,
     payLevel: 'Level 10',
     source: { name: 'State PSC' },
@@ -90,6 +96,7 @@ const FIXTURE_JOBS: FixtureJob[] = [
     postName: 'Scientist No Deadline 2',
     educationRequired: 'Degree',
     applicationLastDate: null,
+    publishedAt: null,
     vacancies: 1,
     payLevel: 'Level 10',
     source: { name: 'State PSC' },
@@ -98,8 +105,18 @@ const FIXTURE_JOBS: FixtureJob[] = [
 
 function sortJobs(
   jobs: FixtureJob[],
-  sortOrder: 'soonest' | 'furthest',
+  sortOrder: 'newest' | 'soonest' | 'furthest',
 ): FixtureJob[] {
+  if (sortOrder === 'newest') {
+    return [...jobs].sort((a, b) => {
+      if (a.publishedAt === null && b.publishedAt === null)
+        return a.id.localeCompare(b.id);
+      if (a.publishedAt === null) return 1;
+      if (b.publishedAt === null) return -1;
+      const cmp = b.publishedAt.localeCompare(a.publishedAt);
+      return cmp !== 0 ? cmp : a.id.localeCompare(b.id);
+    });
+  }
   return [...jobs].sort((a, b) => {
     if (a.applicationLastDate === null && b.applicationLastDate === null) {
       return a.id.localeCompare(b.id);
@@ -144,15 +161,6 @@ test('JobSortControl: Latency Gating, Stale Retention, Adversarial Race Safety, 
   const gateArrivals = new Map<string, number>();
   // Responses actually sent by the fixture, per sort, counted after the gate passes.
   const responsesSent = new Map<string, number>();
-  const waitForResponsesSent = async (sort: string, count: number) => {
-    for (let i = 0; i < 100; i++) {
-      if ((responsesSent.get(sort) ?? 0) >= count) return;
-      await setTimeout(25);
-    }
-    throw new Error(
-      `Response-sent timeout: ${sort} reached ${responsesSent.get(sort) ?? 0}/${count}`,
-    );
-  };
   const waitForGateArrival = async (sort: string, count: number) => {
     for (let i = 0; i < 100; i++) {
       if ((gateArrivals.get(sort) ?? 0) >= count) return;
@@ -175,8 +183,8 @@ test('JobSortControl: Latency Gating, Stale Retention, Adversarial Race Safety, 
     if (rawUrl.startsWith('/api/jobs')) {
       const parsed = new URL(rawUrl, 'http://localhost');
       const sortParam =
-        (parsed.searchParams.get('sort') as 'soonest' | 'furthest') ??
-        'soonest';
+        (parsed.searchParams.get('sort') as
+          'newest' | 'soonest' | 'furthest') ?? 'newest';
 
       gateArrivals.set(sortParam, (gateArrivals.get(sortParam) ?? 0) + 1);
       const specificGate = gateMap.get(sortParam);
@@ -321,15 +329,9 @@ test('JobSortControl: Latency Gating, Stale Retention, Adversarial Race Safety, 
         (window as unknown as { __cardStates: { at: number; ids: string[] }[] })
           .__cardStates || [],
     );
-  const twoFrames = async (page: Page) =>
-    page.evaluate(
-      () =>
-        new Promise<void>((r) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => r())),
-        ),
-    );
   const SOONEST = ['job-a', 'job-b1', 'job-b2', 'job-d', 'job-n1', 'job-n2'];
   const FURTHEST = ['job-d', 'job-b1', 'job-b2', 'job-a', 'job-n1', 'job-n2'];
+  const NEWEST = ['job-n1', 'job-b1', 'job-b2', 'job-d', 'job-a', 'job-n2'];
 
   await t.test(
     '1. Controlled slow response: immediate selection feedback and retained stale cards',
@@ -344,16 +346,10 @@ test('JobSortControl: Latency Gating, Stale Retention, Adversarial Race Safety, 
         await page.goto(origin);
         await expect(page.locator('article[data-job-card]')).toHaveCount(6);
 
-        // Verify baseline soonest order (different, equal, null dates)
+        // Default order is Newest (first publication desc, equal timestamps
+        // by id, unknown publication last)
         const initialCards = await getVisibleCardIds(page);
-        assert.deepEqual(initialCards, [
-          'job-a',
-          'job-b1',
-          'job-b2',
-          'job-d',
-          'job-n1',
-          'job-n2',
-        ]);
+        assert.deepEqual(initialCards, NEWEST);
 
         // Setup gate before triggering sort
         const gate = createGate();
@@ -370,6 +366,8 @@ test('JobSortControl: Latency Gating, Stale Retention, Adversarial Race Safety, 
         // Assert 1: Synchronous / Prompt visual feedback while server response is held
         await expect(sortSelect).toHaveValue('furthest');
         await expect(sortSelect).toHaveAttribute('aria-busy', 'true');
+        // The sort control is disabled while pending; cards stay usable.
+        await expect(sortSelect).toBeDisabled();
         const updatingBadge = page.getByText('Updating…');
         await expect(updatingBadge).toBeVisible();
 
@@ -382,7 +380,7 @@ test('JobSortControl: Latency Gating, Stale Retention, Adversarial Race Safety, 
         const cardsWhileWaiting = await getVisibleCardIds(page);
         assert.deepEqual(
           cardsWhileWaiting,
-          ['job-a', 'job-b1', 'job-b2', 'job-d', 'job-n1', 'job-n2'],
+          NEWEST,
           'Existing cards must remain mounted in original order during in-flight transition',
         );
 
@@ -418,72 +416,49 @@ test('JobSortControl: Latency Gating, Stale Retention, Adversarial Race Safety, 
   );
 
   await t.test(
-    '2. Adversarial rapid toggle: outdated response released first',
+    '2. Pending disables the sort control; sequential sorts settle correctly',
     async () => {
       const page: Page = await browser.newPage();
-      const requestLog: string[] = [];
-      const bodyReads: Promise<unknown>[] = [];
-      page.on('request', (r) => requestLog.push(r.url()));
-      page.on('response', (r) => {
-        bodyReads.push(r.body().catch(() => null));
-      });
       try {
         await installCardObserver(page);
         await page.goto(origin);
         await expect(page.locator('article[data-job-card]')).toHaveCount(6);
-        // Catalogue is ready: discard load-time states so any empty (blanked)
-        // sequence recorded from here on is a failure, not initial load.
         await page.evaluate(() => {
           (window as unknown as { __cardStates: unknown[] }).__cardStates = [];
         });
-        const prefetchAndInitial = [...requestLog]; // initial + any prefetch, reported separately
-        requestLog.length = 0; // reset counters immediately before sorting
         const sortSelect = page.getByRole('combobox', {
           name: 'Sort all jobs',
         });
-        const gateFurthest = createGate();
-        gateMap.set('furthest', gateFurthest);
-        const baseF = gateArrivals.get('furthest') ?? 0;
-        await sortSelect.selectOption('furthest');
-        await waitForGateArrival('furthest', baseF + 1); // intended request reached its gate
+        // First gated use of soonest in this server run: it reaches the API.
         const gateSoonest = createGate();
         gateMap.set('soonest', gateSoonest);
         const baseS = gateArrivals.get('soonest') ?? 0;
         await sortSelect.selectOption('soonest');
-        // The second navigation may supersede the first before a second backend fetch; if it does reach backend, it must arrive at its gate.
-        await setTimeout(0);
-        gateFurthest.release(); // outdated first
-        await twoFrames(page);
+        await waitForGateArrival('soonest', baseS + 1);
+        // While pending, the control is disabled, so a rapid second change
+        // cannot be issued at all; the race the old test forced is now
+        // prevented by design. Cards remain mounted throughout.
+        await expect(sortSelect).toBeDisabled();
+        await expect(sortSelect).toHaveValue('soonest');
+        assert.deepEqual(await getVisibleCardIds(page), NEWEST);
         gateSoonest.release();
         await expect(page).toHaveURL(/sort=soonest/);
-        await expect(sortSelect).toHaveValue('soonest');
+        await expect(sortSelect).not.toBeDisabled();
         await expect(sortSelect).not.toHaveAttribute('aria-busy', 'true');
-        await Promise.all(bodyReads); // await payload reads
-        assert.ok(
-          (gateArrivals.get('soonest') ?? 0) > baseS,
-          `Newest request must reach its gate (soonest arrivals=${gateArrivals.get('soonest')}, base=${baseS})`,
-        );
         assert.deepEqual(await getVisibleCardIds(page), SOONEST);
+        // A follow-up change after completion works and settles exactly.
+        await sortSelect.selectOption('newest');
+        await expect(page).toHaveURL(/sort=newest/);
+        assert.deepEqual(await getVisibleCardIds(page), NEWEST);
         const states = await getCardStates(page);
-        assert.ok(
-          states.length >= 1,
-          'MutationObserver must record card states',
-        );
+        assert.ok(states.length >= 1, 'MutationObserver must record states');
         for (const st of states) {
           assert.equal(
             st.ids.length,
             6,
-            `Blanked/partial card state observed after catalogue ready: ${JSON.stringify(states)}`,
-          );
-          assert.notDeepEqual(
-            st.ids,
-            FURTHEST,
-            `Transient stale commit observed: ${JSON.stringify(states)}`,
+            `Blanked/partial card state observed: ${JSON.stringify(states)}`,
           );
         }
-        console.log(
-          `[Network] initial/prefetch before reset: ${prefetchAndInitial.length} requests; sort-triggered after reset: ${requestLog.length} requests; gateArrivals=${JSON.stringify([...gateArrivals])}`,
-        );
       } finally {
         for (const g of gateMap.values()) g.release();
         gateMap.clear();
@@ -493,120 +468,49 @@ test('JobSortControl: Latency Gating, Stale Retention, Adversarial Race Safety, 
   );
 
   await t.test(
-    '2b. Reverse race: newest response released first, older response last',
+    '2b. Opening a job while sorting is pending, then Back restores state',
     async () => {
       const page: Page = await browser.newPage();
-      const requestLog: string[] = [];
-      const bodyReads: Promise<unknown>[] = [];
-      page.on('request', (r) => requestLog.push(r.url()));
-      page.on('response', (r) => {
-        bodyReads.push(r.body().catch(() => null));
-      });
       try {
-        await installCardObserver(page);
         await page.goto(origin);
         await expect(page.locator('article[data-job-card]')).toHaveCount(6);
-        // Catalogue ready: reset recorded states; blanking from here fails.
-        await page.evaluate(() => {
-          (window as unknown as { __cardStates: unknown[] }).__cardStates = [];
-        });
-        const prefetchAndInitial = [...requestLog];
-        requestLog.length = 0; // reset counters immediately before sorting
         const sortSelect = page.getByRole('combobox', {
           name: 'Sort all jobs',
         });
-
-        // Both gates installed up front; baselines captured before any sort.
+        // A q filter creates a fresh cache identity, so this gated furthest
+        // request really reaches the fixture API.
+        await page.goto(`${origin}/?q=Junior`);
+        await expect(page.locator('article[data-job-card]')).toHaveCount(6);
         const gateFurthest = createGate();
-        const gateSoonest = createGate();
         gateMap.set('furthest', gateFurthest);
-        gateMap.set('soonest', gateSoonest);
         const baseF = gateArrivals.get('furthest') ?? 0;
-        const baseS = gateArrivals.get('soonest') ?? 0;
-        const baseSentF = responsesSent.get('furthest') ?? 0;
-        const baseSentS = responsesSent.get('soonest') ?? 0;
-
-        // Trigger older (furthest) then newest (soonest), and wait for BOTH
-        // intended requests to reach their respective gates before releasing
-        // either. If the newest request never arrives, this times out loudly
-        // rather than silently racing only one outstanding response.
         await sortSelect.selectOption('furthest');
         await waitForGateArrival('furthest', baseF + 1);
-        await sortSelect.selectOption('soonest');
-        await waitForGateArrival('soonest', baseS + 1);
-        assert.equal(gateFurthest.released, false, 'older gate still held');
-        assert.equal(gateSoonest.released, false, 'newest gate still held');
-        assert.equal(
-          responsesSent.get('furthest') ?? 0,
-          baseSentF,
-          'older response must not be delivered before its gate releases',
-        );
-        assert.equal(
-          responsesSent.get('soonest') ?? 0,
-          baseSentS,
-          'newest response must not be delivered before its gate releases',
-        );
-
-        // Release the NEWEST response first. Wait for explicit evidence it was
-        // delivered and the page settled, while the older response stays held.
-        gateSoonest.release();
-        await waitForResponsesSent('soonest', baseSentS + 1);
-        await expect(page).toHaveURL(/sort=soonest/);
-        await expect(sortSelect).toHaveValue('soonest');
-        await expect(sortSelect).not.toHaveAttribute('aria-busy', 'true');
-        assert.deepEqual(
-          await getVisibleCardIds(page),
-          SOONEST,
-          'Cards must settle to newest (soonest) order while older response is still held',
-        );
-        assert.equal(
-          gateFurthest.released,
-          false,
-          'older gate must remain held while newest settles',
-        );
-        assert.equal(
-          responsesSent.get('furthest') ?? 0,
-          baseSentF,
-          'older response must remain undelivered while newest settles',
-        );
-
-        // Release the OLDER response last; await its delivery (the fixture
-        // sends it; the router may ignore/cancel its effect), then re-assert.
+        await expect(sortSelect).toBeDisabled();
+        // Existing cards and their job links stay usable while pending:
+        // open the first visible job without waiting for the sort.
+        const firstCardLink = page
+          .locator('article[data-job-card] h3[data-job-title] a')
+          .first();
+        const pendingHref = await firstCardLink.getAttribute('href');
+        assert.ok(pendingHref?.startsWith('/jobs/'));
+        // Click while the sort response is still held.
+        await firstCardLink.click();
+        await expect(page).toHaveURL(new RegExp(pendingHref + '$'));
         gateFurthest.release();
-        await waitForResponsesSent('furthest', baseSentF + 1);
-        await Promise.all(bodyReads); // await payload reads
-        await twoFrames(page);
-        await expect(page).toHaveURL(/sort=soonest/);
-        await expect(sortSelect).toHaveValue('soonest');
-        await expect(sortSelect).not.toHaveAttribute('aria-busy', 'true');
-        assert.deepEqual(
-          await getVisibleCardIds(page),
-          SOONEST,
-          'Final cards must remain exact soonest order after older response arrives last',
-        );
-
-        // Observed DOM states (not every React commit): no stale furthest set,
-        // and no blanked/partial set, may appear at any observed point.
-        const states = await getCardStates(page);
-        assert.ok(
-          states.length >= 1,
-          'Card observer must record observed DOM states',
-        );
-        for (const st of states) {
-          assert.equal(
-            st.ids.length,
-            6,
-            `Blanked/partial card state observed after catalogue ready: ${JSON.stringify(states)}`,
-          );
-          assert.notDeepEqual(
-            st.ids,
-            FURTHEST,
-            `Transient stale commit observed in reverse race: ${JSON.stringify(states)}`,
-          );
-        }
-        console.log(
-          `[Network] reverse-race initial/prefetch before reset: ${prefetchAndInitial.length}; sort-triggered after reset: ${requestLog.length}; gateArrivals=${JSON.stringify([...gateArrivals])}; responsesSent=${JSON.stringify([...responsesSent])}; recorded card states: ${JSON.stringify(states)}`,
-        );
+        // Back: URL, selected option and displayed order must agree with
+        // each other, whichever sort the restored URL names.
+        await page.goBack();
+        const restoredSort =
+          new URL(page.url()).searchParams.get('sort') ?? 'newest';
+        await expect(sortSelect).toHaveValue(restoredSort);
+        const expectedOrder =
+          restoredSort === 'furthest'
+            ? FURTHEST
+            : restoredSort === 'soonest'
+              ? SOONEST
+              : NEWEST;
+        assert.deepEqual(await getVisibleCardIds(page), expectedOrder);
       } finally {
         for (const g of gateMap.values()) g.release();
         gateMap.clear();
@@ -696,15 +600,8 @@ test('JobSortControl: Latency Gating, Stale Retention, Adversarial Race Safety, 
       const sortSelect = noJsPage.getByRole('combobox', {
         name: 'Sort all jobs',
       });
-      await expect(sortSelect).toHaveValue('soonest');
-      assert.deepEqual(await getVisibleCardIds(noJsPage), [
-        'job-a',
-        'job-b1',
-        'job-b2',
-        'job-d',
-        'job-n1',
-        'job-n2',
-      ]);
+      await expect(sortSelect).toHaveValue('newest');
+      assert.deepEqual(await getVisibleCardIds(noJsPage), NEWEST);
 
       // Select furthest and submit via noscript button
       await sortSelect.selectOption('furthest');
