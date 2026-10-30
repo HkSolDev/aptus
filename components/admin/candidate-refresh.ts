@@ -1,5 +1,6 @@
 export type CandidateRefreshDecision =
   | { action: 'apply-fresh'; editingRevisionId: string }
+  | { action: 'preserve-editing'; editingRevisionId: string }
   | { action: 'keep-editing'; editingRevisionId: string };
 
 // The facts being edited stay bound to the revision they were loaded from.
@@ -12,6 +13,10 @@ export function resolveCandidateRefresh(input: {
 }): CandidateRefreshDecision {
   if (input.hasUnsavedChanges && input.freshRevisionId !== input.editingRevisionId) {
     return { action: 'keep-editing', editingRevisionId: input.editingRevisionId };
+  }
+  if (input.hasUnsavedChanges) {
+    // Same revision: status/validation may refresh, editable facts may not.
+    return { action: 'preserve-editing', editingRevisionId: input.editingRevisionId };
   }
   return { action: 'apply-fresh', editingRevisionId: input.freshRevisionId };
 }

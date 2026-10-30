@@ -102,6 +102,17 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editingRevisionId, setEditingRevisionId] = useState(initialData.revision.id);
   const [conflictFresh, setConflictFresh] = useState<DetailData | null>(null);
+  // Refresh responses must decide from the editing state at arrival time,
+  // not from when the request started (the reviewer may type meanwhile).
+  const hasUnsavedRef = useRef(false);
+  const editingRevisionIdRef = useRef(initialData.revision.id);
+
+  useEffect(() => {
+    hasUnsavedRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+  useEffect(() => {
+    editingRevisionIdRef.current = editingRevisionId;
+  }, [editingRevisionId]);
 
   // Actions & UI state
   const [saving, setSaving] = useState(false);
@@ -130,13 +141,20 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
           const decision = forceApply
             ? { action: 'apply-fresh' as const, editingRevisionId: fresh.revision.id }
             : resolveCandidateRefresh({
-                hasUnsavedChanges,
-                editingRevisionId,
+                hasUnsavedChanges: hasUnsavedRef.current,
+                editingRevisionId: editingRevisionIdRef.current,
                 freshRevisionId: fresh.revision.id,
               });
           if (decision.action === 'keep-editing') {
             // Preserve unsaved facts and their base; surface the conflict instead.
             setConflictFresh(fresh);
+            return;
+          }
+          if (decision.action === 'preserve-editing') {
+            // Same revision: refresh validation/status only. Editable facts,
+            // change reason, dirty state, and editing base stay as they are.
+            setData(fresh);
+            setConflictFresh(null);
             return;
           }
           setData(fresh);
@@ -148,7 +166,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
         // ignore transient refresh failure
       }
     },
-    [data.item.id, hasUnsavedChanges, editingRevisionId],
+    [data.item.id],
   );
 
   const reloadConflictRevision = () => {
@@ -194,6 +212,8 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
   }, [data.item.id, pollingTaskId, refreshCandidate]);
 
   const handlePostFieldChange = (field: keyof PostFact, value: unknown) => {
+    // Mark dirty synchronously so an in-flight refresh cannot miss this edit.
+    hasUnsavedRef.current = true;
     setFacts((prev) => {
       const updatedPosts = [...prev.posts];
       updatedPosts[selectedRoleIndex] = {

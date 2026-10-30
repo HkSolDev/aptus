@@ -180,3 +180,46 @@ Corrections to earlier claims (see also the amendment note in
 - Low-priority (risk < 5 after flagging): first-import race on unique
   `bundleId` under simultaneous first imports of the same bundle (unique
   constraint surfaces an error; no data loss). Documented, not fixed.
+
+## Follow-up fix: same-revision refresh discarded unsaved edits
+
+Starting state: commit `d624ac7` on `codex/admin-review-review-fixes`,
+clean working tree (verified before editing).
+
+- Reproduction: dirty edits on R1 + a refresh returning the *same* R1
+  (manual Refresh, hold-reason update, or validation polling) returned
+  `apply-fresh` from `resolveCandidateRefresh`, so the editor replaced the
+  edited facts with the server's R1 facts. Likelihood 6 × impact 7 = **42**
+  (unsaved-data-loss). The line above in §B ("Unsaved work is never silently
+  rebased or discarded") was therefore too broad and is corrected by this fix.
+- Root cause: the helper only protected dirty edits when the fresh revision
+  *differed* from the editing revision, and refresh decisions were taken
+  from state captured when the request started.
+- Fix (frontend only): the helper gains a `preserve-editing` decision for
+  dirty + same-revision (validation/status refresh via `setData`, editable
+  facts/reason/dirty/base untouched, no false conflict); different-revision
+  still shows the conflict. `candidate-detail-view.tsx` now decides from
+  refs read when the response *arrives*, and marking an edit dirty is
+  synchronous, so typing during an in-flight refresh cannot be overwritten.
+  Only explicit discard-and-reload or a successful save replaces facts.
+  Files: `components/admin/candidate-refresh.ts`,
+  `components/admin/candidate-detail-view.tsx`, `tests/review-refresh.test.ts`.
+- Regression first: new helper test `dirty refresh returning the same
+  revision preserves editing` failed pre-fix (`apply-fresh`) and passes now.
+- Actual editor evidence (isolated local DB `aptus_review_ui`, seeded
+  fixture + test operator session, system Chrome via Playwright, servers
+  on 8081/18080 — all torn down afterwards): dirty same-revision refresh
+  kept fact + reason; in-flight typing survived a held refresh; external
+  R2 produced the conflict banner and the stale save was rejected (412);
+  discard-and-reload loaded R2 and cleared dirty state; a successful save
+  advanced to R3; the real Python runner claimed R3's task and the shown
+  result arrived while a further edit was preserved.
+- Commands: refresh tests 4/4; combined review suites
+  (`review-workflow`, `review-workflow-regressions`, `review-refresh`)
+  12/12; `pnpm typecheck` 0 errors; `pnpm lint` 0 errors;
+  `git diff --check` clean.
+- Remaining gaps: the §6 nine-step browser demonstration from the original
+  brief remains not executed as a full end-to-end pass; the editor paths
+  above were verified in the browser, queue pagination/outage were not
+  re-verified in this follow-up. The component render harness limitation
+  noted above is unchanged.
