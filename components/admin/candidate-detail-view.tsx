@@ -129,14 +129,17 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [needsSavedRefresh, setNeedsSavedRefresh] = useState(false);
+
   const refreshCandidate = useCallback(
-    async (forceApply = false) => {
+    async (forceApply = false): Promise<boolean> => {
       try {
         const res = await fetch(`/api/admin/review-drafts/${data.item.id}`, {
           credentials: 'same-origin',
           cache: 'no-store',
         });
-        if (res.ok) {
+        if (!res.ok) return false;
+        {
           const fresh: DetailData = await res.json();
           const decision = forceApply
             ? { action: 'apply-fresh' as const, editingRevisionId: fresh.revision.id }
@@ -147,23 +150,30 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               });
           if (decision.action === 'keep-editing') {
             // Preserve unsaved facts and their base; surface the conflict instead.
+            // The displayed revision is still unreconciled, so a pending
+            // saved-refresh requirement stays in place.
             setConflictFresh(fresh);
-            return;
+            return true;
           }
           if (decision.action === 'preserve-editing') {
             // Same revision: refresh validation/status only. Editable facts,
             // change reason, dirty state, and editing base stay as they are.
             setData(fresh);
             setConflictFresh(null);
-            return;
+            setNeedsSavedRefresh(false);
+            return true;
           }
           setData(fresh);
           setFacts(fresh.revision.facts);
           setEditingRevisionId(decision.editingRevisionId);
           setConflictFresh(null);
+          setNeedsSavedRefresh(false);
+          return true;
         }
       } catch {
-        // ignore transient refresh failure
+        // Transient refresh failure: callers that must reconcile (save)
+        // learn about it from the false return.
+        return false;
       }
     },
     [data.item.id],
@@ -177,6 +187,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
     setHasUnsavedChanges(false);
     setChangeReason('');
     setConflictFresh(null);
+    setNeedsSavedRefresh(false);
   };
 
   // Handle polling for active validation task
@@ -266,7 +277,10 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
       setChangeReason('');
       setEditingRevisionId(savedRev.revision_id);
       setSuccessMsg(`Saved correction as Revision R${savedRev.revision_number}.`);
-      await refreshCandidate(true);
+      // If this refresh fails, the displayed revision is still the old one:
+      // block validation until a successful refresh reconciles the editor.
+      const refreshed = await refreshCandidate(true);
+      if (!refreshed) setNeedsSavedRefresh(true);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -275,6 +289,10 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
   };
 
   const handleRequestValidation = async () => {
+    if (needsSavedRefresh) {
+      setErrorMsg('Correction saved. Refresh the saved revision before checking it.');
+      return;
+    }
     if (hasUnsavedChanges) {
       setErrorMsg('You have unsaved changes. Save your correction first before requesting validation.');
       return;
@@ -363,6 +381,13 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
 
       {errorMsg && <div className={styles.dangerAlert}>{errorMsg}</div>}
       {successMsg && <div className={styles.successAlert}>{successMsg}</div>}
+
+      {needsSavedRefresh && (
+        <div className={styles.infoAlert} role="alert">
+          Correction saved. Refresh the saved revision before checking it. Use
+          “Refresh result” to retry.
+        </div>
+      )}
 
       {hasUnsavedChanges && (
         <div className={styles.infoAlert}>
@@ -590,7 +615,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <button
                 type="button"
                 className={styles.buttonSecondary}
-                disabled={saving || validating || hasUnsavedChanges || pollingTaskId !== null}
+                disabled={saving || needsSavedRefresh || validating || hasUnsavedChanges || pollingTaskId !== null}
                 onClick={handleRequestValidation}
               >
                 {validating || pollingTaskId ? 'Checking…' : 'Check correction'}

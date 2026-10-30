@@ -255,3 +255,52 @@ changed, so nothing in this fix depends on them.
   clean; Next build succeeded for the browser run.
 - Not verified: nothing beyond the above; no merge, push, deploy,
   production data, schema, API, or worker changes were made.
+
+## Follow-up fix: failed refresh after a successful save left validation on the old revision
+
+Verified starting state: commit `68961a6` (`68961a6222e864368e9e8245291da032d044e7c3`)
+on branch `codex/admin-review-review-fixes`, worktree
+`/tmp/aptus-admin-review-review-fixes`, clean working tree.
+
+- Trigger and code evidence: `handleSaveCorrection` saved R2, updated the
+  editing base, showed "Saved correction as Revision R2", then called
+  `refreshCandidate(true)`. That helper swallowed non-OK/failed GETs, so
+  `data.revision.id` stayed R1 while "Check correction" submitted
+  `data.revision.id` — validation would have run against R1. (Saving and
+  refreshing are separate requests, so the first can succeed while the
+  second fails.) Risk 3 × 6 = 18.
+- Reproduction: `tests/review-editor-saved-refresh.browser.mjs` (manual
+  browser regression, isolated harness as in previous sections) failed
+  the post-save detail GET with 503. Pre-fix, the saved confirmation
+  appeared but the refresh-needed message did not (assertion failure) —
+  the bug is now browser-reproduced, not only code-confirmed.
+- Solution: `refreshCandidate` now reports success/failure. A failed
+  post-save refresh sets a `needsSavedRefresh` state that shows
+  "Correction saved. Refresh the saved revision before checking it.",
+  disables "Check correction", and makes its handler refuse to submit.
+  This is sufficient because validation can only run once a successful
+  refresh has reconciled the displayed revision with the saved one; no
+  automatic retry loop was added — the existing "Refresh result" action
+  is the retry.
+- Consistency preserved: the retry goes through the existing
+  dirty-edit/conflict rules. If the reviewer edited after the failed
+  refresh, a same-revision retry preserves those edits while updating
+  status; a different revision shows the existing conflict, and the
+  requirement stays in place until discard-and-reload reconciles.
+  Save-in-flight disabling, stale-save 412 handling, and same-revision
+  preservation are unchanged. The fix does not submit
+  `editingRevisionId` behind a stale display.
+- Files: `components/admin/candidate-detail-view.tsx` (state, refresh
+  result, validation guard/button, message),
+  `tests/review-editor-saved-refresh.browser.mjs` (regression), this record.
+- Observed results: browser regression pre-fix FAIL (missing message),
+  post-fix PASS (saved confirmation kept; message shown; Check disabled
+  with zero validation requests; successful retry displayed R2 and the
+  validation request carried R2's id; a deliberately failed save kept
+  unsaved facts with no saved state; a later refresh preserved further
+  edits). Refresh/review suites 12/12; `pnpm typecheck` and the Next
+  tsconfig 0 errors; `pnpm lint` 0 errors; `git diff --check` clean;
+  Next build succeeded. Harness servers/database were torn down.
+- Incomplete/remaining risk: the browser regression is manual (isolated
+  harness required), not a CI suite. No other behavior was changed or
+  re-verified in this follow-up.
