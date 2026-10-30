@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AuthBar } from '@/components/auth/auth-bar';
 import { PrimaryNavigation } from './primary-navigation';
+import { ThemeToggle } from './theme-toggle';
 
 export function Header() {
   return (
@@ -11,6 +12,7 @@ export function Header() {
         </Link>
         <div className="header-actions">
           <PrimaryNavigation />
+          <ThemeToggle />
           <AuthBar />
         </div>
       </div>
