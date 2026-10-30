@@ -3,6 +3,7 @@ import React, { type ReactNode } from 'react';
 import { JobDetailSection, JobPreviewSaveButton } from './job-detail-section';
 import { SaveJobButton } from './save-job-button';
 import styles from './job-detail-content.module.css';
+import { JobShareActions } from './job-share-actions';
 
 type EducationOption = {
   minimum_level?: string | null;
@@ -481,6 +482,9 @@ export function JobDetailContent({ job }: { job: JobDetailData }) {
   return (
     <article className={`${styles.page} job-detail`}>
       <nav className={styles.topActions} aria-label="Job actions">
+        {!job.designReview ? (
+          <JobShareActions id={job.id} title={job.postName} />
+        ) : null}
         <Link href="/#jobs" className="button button-secondary">
           ← Back to all jobs
         </Link>

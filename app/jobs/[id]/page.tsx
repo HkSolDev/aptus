@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { jobMetadata } from '../../../components/jobs/job-sharing';
 import {
   JobDetailContent,
   type JobDetailData,
@@ -33,12 +34,7 @@ export async function generateMetadata(props: {
       description: 'View government job eligibility details on Aptus.',
     };
   }
-  return {
-    title: `${job.postName} | Aptus`,
-    description: job.educationRequired
-      ? `${job.postName}. Education: ${job.educationRequired}.`
-      : `View the ${job.postName} recruitment notice on Aptus.`,
-  };
+  return jobMetadata(job, process.env.SITE_URL);
 }
 
 export default async function JobDetailPage(props: {
