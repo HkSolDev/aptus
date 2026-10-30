@@ -15,6 +15,26 @@
   padding-inline: var(--space-1);
   white-space: nowrap;
 }
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  background: var(--soft-hover);
+  border-color: var(--control-line);
+}
+.theme-toggle svg {
+  display: block;
+}
 .header-signin {
   display: inline-flex;
   align-items: center;
