@@ -378,7 +378,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
           Saving them will be rejected as stale. To continue, reload the newer revision — this
           discards your unsaved edits — or keep editing here and copy your changes first.
           <div style={{ marginTop: '8px' }}>
-            <button type="button" className={styles.buttonSecondary} onClick={reloadConflictRevision}>
+            <button type="button" className={styles.buttonSecondary} disabled={saving} onClick={reloadConflictRevision}>
               Reload newer revision (discard my edits)
             </button>
           </div>
@@ -396,6 +396,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                 <label htmlFor="role-selector">Select Role ({facts.posts.length} roles total):</label>
                 <select
                   id="role-selector"
+                  disabled={saving}
                   value={selectedRoleIndex}
                   onChange={(e) => setSelectedRoleIndex(parseInt(e.target.value, 10))}
                 >
@@ -412,6 +413,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <label htmlFor="post-name">Post Name</label>
               <input
                 id="post-name"
+                disabled={saving}
                 type="text"
                 value={currentPost?.post_name || ''}
                 onChange={(e) => handlePostFieldChange('post_name', e.target.value)}
@@ -428,7 +430,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                     id="vacancies"
                     type="number"
                     min="0"
-                    disabled={currentPost?.vacancies === null}
+                    disabled={saving || currentPost?.vacancies === null}
                     value={currentPost?.vacancies ?? ''}
                     placeholder="Unstated in source"
                     onChange={(e) =>
@@ -441,6 +443,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                   <button
                     type="button"
                     className="button button-secondary small"
+                    disabled={saving}
                     onClick={() =>
                       handlePostFieldChange(
                         'vacancies',
@@ -456,6 +459,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <div className={styles.formGroup}>
                 <label htmlFor="last-date">Application Deadline (ISO Date)</label>
                 <input
+                  disabled={saving}
                   id="last-date"
                   type="date"
                   value={currentPost?.application_last_date || ''}
@@ -473,6 +477,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <div className={styles.formGroup}>
                 <label htmlFor="min-age">Minimum Age</label>
                 <input
+                  disabled={saving}
                   id="min-age"
                   type="number"
                   min="0"
@@ -491,6 +496,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <div className={styles.formGroup}>
                 <label htmlFor="max-age">Maximum Age</label>
                 <input
+                  disabled={saving}
                   id="max-age"
                   type="number"
                   min="0"
@@ -511,6 +517,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <div className={styles.formGroup}>
                 <label htmlFor="cutoff-date">Age Cutoff Date (as on)</label>
                 <input
+                  disabled={saving}
                   id="cutoff-date"
                   type="date"
                   value={currentPost?.age_as_on_date || ''}
@@ -526,6 +533,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <div className={styles.formGroup}>
                 <label htmlFor="min-marks">Minimum Marks (%)</label>
                 <input
+                  disabled={saving}
                   id="min-marks"
                   type="number"
                   min="0"
@@ -546,6 +554,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
             <div className={styles.formGroup}>
               <label htmlFor="education-req">Education Requirement Summary</label>
               <textarea
+                disabled={saving}
                 id="education-req"
                 value={currentPost?.education_required || ''}
                 onChange={(e) => handlePostFieldChange('education_required', e.target.value)}
@@ -557,6 +566,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                 Reason for Changes <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <textarea
+                disabled={saving}
                 id="change-reason"
                 placeholder="Explain what was corrected and cited evidence from the source..."
                 value={changeReason}
@@ -580,7 +590,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <button
                 type="button"
                 className={styles.buttonSecondary}
-                disabled={validating || hasUnsavedChanges || pollingTaskId !== null}
+                disabled={saving || validating || hasUnsavedChanges || pollingTaskId !== null}
                 onClick={handleRequestValidation}
               >
                 {validating || pollingTaskId ? 'Checking…' : 'Check correction'}
@@ -589,7 +599,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <button
                 type="button"
                 className={styles.buttonSecondary}
-                disabled={holding}
+                disabled={saving || holding}
                 onClick={handleKeepHeld}
               >
                 Keep held
@@ -598,6 +608,7 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <button
                 type="button"
                 className={styles.buttonSecondary}
+                disabled={saving}
                 onClick={() => void refreshCandidate()}
               >
                 Refresh result

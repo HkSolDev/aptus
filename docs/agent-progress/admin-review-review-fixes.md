@@ -223,3 +223,35 @@ clean working tree (verified before editing).
   above were verified in the browser, queue pagination/outage were not
   re-verified in this follow-up. The component render harness limitation
   noted above is unchanged.
+
+## Follow-up fix: edits during an in-flight save were overwritten (Risk 28)
+
+Starting state: commit `e690993` on `codex/admin-review-review-fixes`,
+clean working tree. Note: `docs/AGENT_CONTRACT_PROTOCOL.md` and
+`docs/contracts/README.md` do not exist on this branch (they are untracked
+files in another checkout); no contract, schema, API, or worker files were
+changed, so nothing in this fix depends on them.
+
+- Root cause: while a save was pending, every fact input, the role
+  selector, and the change-reason field stayed editable. A second edit
+  (F2) made during that window was silently replaced when the F1 save
+  succeeded and its forced refresh applied the saved facts.
+- Fix (frontend only, `components/admin/candidate-detail-view.tsx`): all
+  editable fact inputs, the vacancies Set/Null toggle, the role selector,
+  and the change-reason field are `disabled` while `saving`; the actions
+  that could race or replace editor state in that window (discard-and-
+  reload, Check correction, Keep held, Refresh result) are also disabled
+  while saving. Conflict, same-revision-refresh, and successful-save
+  behavior are unchanged.
+- Regression: `tests/review-editor-save-race.browser.mjs` (manual browser
+  regression; needs the isolated local harness described in the previous
+  section — it is not part of the automated suites). It holds the save
+  response, asserts the controls are disabled, and proves F2 cannot be
+  entered. Pre-fix it failed (`#post-name must be disabled while saving`);
+  post-fix it passes (`SAVE-RACE BROWSER REGRESSION: PASS`), including
+  that the saved revision and F1 facts are correct after the response.
+- Commands: refresh + review regression + workflow suites 12/12;
+  `pnpm typecheck` 0 errors; `pnpm lint` 0 errors; `git diff --check`
+  clean; Next build succeeded for the browser run.
+- Not verified: nothing beyond the above; no merge, push, deploy,
+  production data, schema, API, or worker changes were made.
