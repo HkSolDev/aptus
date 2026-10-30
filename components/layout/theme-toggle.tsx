@@ -30,6 +30,17 @@ export function ThemeToggle() {
     const stored = storedTheme();
     if (stored) document.documentElement.setAttribute('data-theme', stored);
     setTheme(currentTheme());
+
+    const device = window.matchMedia('(prefers-color-scheme: dark)');
+    function followDevice(event: MediaQueryListEvent) {
+      // An explicit choice (data-theme, set even when storage is
+      // unavailable) must not be overridden by the device.
+      if (document.documentElement.hasAttribute('data-theme')) return;
+      if (storedTheme()) return;
+      setTheme(event.matches ? 'dark' : 'light');
+    }
+    device.addEventListener('change', followDevice);
+    return () => device.removeEventListener('change', followDevice);
   }, []);
 
   function toggleTheme() {

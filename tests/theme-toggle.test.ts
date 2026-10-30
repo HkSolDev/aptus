@@ -176,6 +176,54 @@ test('theme toggle follows device, overrides it, and persists', async (t) => {
     await context.close();
   }
 
+  // Device changes without reload: button label/icon stay in sync while
+  // there is no explicit choice; an explicit choice then wins over device.
+  for (const [start, flipped] of [
+    ['light', 'dark'],
+    ['dark', 'light'],
+  ] as const) {
+    const context = await browser.newContext({ colorScheme: start });
+    const page = await context.newPage();
+    await page.goto(origin);
+    const startBg = start === 'dark' ? 'rgb(22, 22, 24)' : 'rgb(245, 245, 247)';
+    const flippedBg =
+      flipped === 'dark' ? 'rgb(22, 22, 24)' : 'rgb(245, 245, 247)';
+    assert.equal(await bodyBackground(page), startBg);
+    await page.emulateMedia({ colorScheme: flipped });
+    await expect(
+      page.getByRole('button', {
+        name:
+          flipped === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
+      }),
+    ).toBeVisible();
+    assert.equal(await bodyBackground(page), flippedBg);
+    // Clicking switches away from the currently visible (device) theme.
+    await page
+      .getByRole('button', {
+        name:
+          flipped === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
+      })
+      .click();
+    assert.equal(await bodyBackground(page), startBg);
+    assert.equal(
+      await page.evaluate(() =>
+        document.documentElement.getAttribute('data-theme'),
+      ),
+      start,
+    );
+    // Later device changes must not override the explicit choice.
+    await page.emulateMedia({ colorScheme: start });
+    assert.equal(await bodyBackground(page), startBg);
+    await page.emulateMedia({ colorScheme: flipped });
+    assert.equal(await bodyBackground(page), startBg);
+    await expect(
+      page.getByRole('button', {
+        name: start === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
+      }),
+    ).toBeVisible();
+    await context.close();
+  }
+
   // 10: storage failure does not break rendering or switching.
   {
     const context = await browser.newContext({ colorScheme: 'light' });
@@ -192,6 +240,13 @@ test('theme toggle follows device, overrides it, and persists', async (t) => {
     await page.goto(origin);
     await page.getByRole('button', { name: 'Switch to dark mode' }).click();
     assert.equal(await bodyBackground(page), 'rgb(22, 22, 24)');
+    // Explicit data-theme choice still wins over device changes even
+    // though nothing could be stored.
+    await page.emulateMedia({ colorScheme: 'light' });
+    assert.equal(await bodyBackground(page), 'rgb(22, 22, 24)');
+    await expect(
+      page.getByRole('button', { name: 'Switch to light mode' }),
+    ).toBeVisible();
     assert.deepEqual(errors, [], 'storage failure must not crash the page');
     await context.close();
   }

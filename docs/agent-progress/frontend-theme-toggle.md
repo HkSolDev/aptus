@@ -149,6 +149,45 @@ evidence is Playwright + screenshots rather than DevTools panels.
   flash) — the CSP would need a nonce for the script at that point.
 - Screenshots were captured in `/tmp` only and are not part of the commit.
 
+## Follow-up fix: device-theme synchronisation
+
+- Starting state for this fix: branch `codex/frontend-theme-toggle` at
+  `0d784a18c3bad61fc5704a2f1e62870184540c98`, clean working tree (verified
+  with `git status` before editing).
+- Confirmed reproduction (Playwright/Chrome against the production build,
+  no saved `aptus-theme`, device starts light): body was
+  `rgb(245, 245, 247)` with label "Switch to dark mode"; after
+  `emulateMedia({ colorScheme: 'dark' })` without reload the body became
+  `rgb(22, 22, 24)` but the label still said "Switch to dark mode", and
+  clicking set `data-theme="dark"` with no visual change.
+- Cause: `ThemeToggle` read the device preference only in its mount
+  effect, so the button state never tracked later device changes.
+- Change ([theme-toggle.tsx](/tmp/aptus-frontend-theme-toggle/components/layout/theme-toggle.tsx:29)):
+  the mount effect now also registers a `matchMedia('(prefers-color-scheme: dark)')`
+  `change` listener and removes it on unmount. The listener updates the
+  button only when there is no explicit choice — it returns early if
+  `data-theme` is present on `<html>` (which covers clicks made while
+  storage is unavailable) or if a stored `aptus-theme` exists. Clicking
+  therefore always switches away from the currently visible theme, and
+  once clicked, device changes no longer override the explicit choice.
+  No provider, dependency, cross-tab sync, or system-mode selector added.
+- Tests: `tests/theme-toggle.test.ts` was extended (all prior assertions
+  retained) with both device transitions (light→dark and dark→light
+  without reload): label sync, click switching to the opposite of the
+  visible theme, `data-theme` assertion, subsequent device flips leaving
+  the explicit choice active, and the storage-unavailable case now also
+  asserting the explicit choice survives a device change.
+- Results on this branch: focused test
+  `node --import tsx --test --test-concurrency=1 tests/theme-toggle.test.ts`
+  — pass 1/1; the standalone reproduction script now prints
+  "device dark … Switch to light mode" and clicking returns the page to
+  light with `data-theme="light"` (script deleted after use).
+  `pnpm typecheck` — pass; `pnpm lint` — pass; `git diff --check` — pass;
+  `pnpm next:build` — pass.
+- Remaining limitations: unchanged from below (per-browser choice; future
+  strict CSP would need a nonce). Listener cleanup is by React unmount;
+  no cross-tab synchronisation was added, as requested.
+
 ## Final commit
 
 - Implementation commit: `245eb2c9bdd155bf3f68175734d449ef4be8233a`
