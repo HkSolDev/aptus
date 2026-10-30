@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { jobShareUrl } from './job-sharing';
 
 export function JobShareActions({ id, title }: { id: string; title: string }) {
