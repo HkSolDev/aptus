@@ -36,5 +36,13 @@ recorded separately below. Existing DB-dependent skips are not DB verification.
 Risk review: no additional confirmed production bug found in the final focused
 diff. SITE_URL configuration and a real WhatsApp preview are release prerequisites;
 passing local HTML/browser checks does not establish platform preview rendering.
+
+Implementation commit: 7701381. GitHub PR: https://github.com/HkSolDev/aptus/pull/29.
+At handoff, GitHub CI is pending (one worker-image check passed). The unrestricted
+pnpm test run has reported failures in two existing Python/worker contract tests:
+"real Python draft agrees with frozen fixture and the backend storage schema"
+and "publication receipt schema and actual Python receiver reject false success".
+The broader suite is not claimed passing; root cause has not been established.
+No shared tests, contracts or worker code were altered to resolve these failures.
 Public WhatsApp preview requires deployment and remains
 unverified until tested on a real public URL. No production changes authorized.
