@@ -13,10 +13,21 @@ export const JOBS_CACHE_TAG = 'jobs';
 // Freshness interval in seconds, not a maximum-staleness guarantee: an
 // entry older than this is refreshed on the next read, and if that refresh
 // fails the previous entry is served marked `freshnessUnconfirmed`.
-export const JOBS_REVALIDATE_SECONDS = Number(
-  env.APTUS_JOBS_CACHE_SECONDS ?? 60,
-);
+// Default is two hours (7200 seconds), measured from a successful fetch.
+export const JOBS_REVALIDATE_SECONDS = 7200;
 const PAGE_SIZE = 6;
+
+function getJobsRevalidateSeconds(): number {
+  const raw = (
+    (globalThis as { process?: { env: Record<string, string | undefined> } })
+      .process?.env?.APTUS_JOBS_CACHE_SECONDS ?? env.APTUS_JOBS_CACHE_SECONDS
+  )?.trim();
+  if (raw !== undefined && raw !== '') {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return JOBS_REVALIDATE_SECONDS;
+}
 
 // The API interprets deadlines by the India calendar date, so entries must
 // roll over at IST midnight even if nobody invalidates them.
@@ -41,12 +52,38 @@ interface JobsCacheEntry<T> {
   result: T;
   fetchedAt: number;
 }
-const jobsCache = new Map<string, JobsCacheEntry<unknown>>();
-const jobsInFlight = new Map<string, Promise<unknown>>();
-let cacheGeneration = 0;
+
+const GLOBAL_JOBS_CACHE = Symbol.for('aptus.jobsCache');
+const GLOBAL_JOBS_IN_FLIGHT = Symbol.for('aptus.jobsInFlight');
+const GLOBAL_JOBS_GENERATION = Symbol.for('aptus.jobsGeneration');
+
+type GlobalState = {
+  [GLOBAL_JOBS_CACHE]?: Map<string, JobsCacheEntry<unknown>>;
+  [GLOBAL_JOBS_IN_FLIGHT]?: Map<string, Promise<unknown>>;
+  [GLOBAL_JOBS_GENERATION]?: number;
+};
+
+const g = globalThis as unknown as GlobalState;
+const jobsCache = (g[GLOBAL_JOBS_CACHE] ??= new Map<
+  string,
+  JobsCacheEntry<unknown>
+>());
+const jobsInFlight = (g[GLOBAL_JOBS_IN_FLIGHT] ??= new Map<
+  string,
+  Promise<unknown>
+>());
+
+function getCacheGeneration(): number {
+  return g[GLOBAL_JOBS_GENERATION] ?? 0;
+}
+
+function incrementCacheGeneration(): number {
+  g[GLOBAL_JOBS_GENERATION] = (g[GLOBAL_JOBS_GENERATION] ?? 0) + 1;
+  return g[GLOBAL_JOBS_GENERATION];
+}
 
 export function invalidateJobsCache(): void {
-  cacheGeneration += 1;
+  incrementCacheGeneration();
   jobsCache.clear();
   jobsInFlight.clear();
 }
@@ -65,7 +102,7 @@ async function fetchFreshJobs<T extends FreshnessMarkable>(
     if (!res.ok) throw new Error(`Jobs API responded ${res.status}`);
     const result = (await res.json()) as T;
     // A fetch started before publication must not refill the cleared cache.
-    if (generation === cacheGeneration) {
+    if (generation === getCacheGeneration()) {
       jobsCache.set(cacheKey, { result, fetchedAt: Date.now() });
     }
     return result;
@@ -81,7 +118,11 @@ export async function fetchPublicJobsCached<T extends FreshnessMarkable>(
   page: number,
   filters: JobFilters,
 ): Promise<T | null> {
-  const backendUrl = env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8081';
+  const backendUrl =
+    (globalThis as { process?: { env: Record<string, string | undefined> } })
+      .process?.env?.BACKEND_INTERNAL_URL ||
+    env.BACKEND_INTERNAL_URL ||
+    'http://127.0.0.1:8081';
   const params = jobSearchParams(filters, page);
   params.set('pageSize', String(PAGE_SIZE));
   // Cache identity: normalized sort/filters, page, page size, India date.
@@ -89,7 +130,8 @@ export async function fetchPublicJobsCached<T extends FreshnessMarkable>(
   params.set('istDate', indiaDateKey());
   const cacheKey = params.toString();
   const entry = jobsCache.get(cacheKey);
-  if (entry && Date.now() - entry.fetchedAt < JOBS_REVALIDATE_SECONDS * 1000) {
+  const ttlSeconds = getJobsRevalidateSeconds();
+  if (entry && Date.now() - entry.fetchedAt < ttlSeconds * 1000) {
     return entry.result as T;
   }
   // Coalesce concurrent refreshes of the same identity into one fetch.
@@ -98,7 +140,7 @@ export async function fetchPublicJobsCached<T extends FreshnessMarkable>(
   const request = fetchFreshJobs<T>(
     cacheKey,
     backendUrl,
-    cacheGeneration,
+    getCacheGeneration(),
   ).finally(() => {
     // An older request may finish after a new generation started fetching.
     if (jobsInFlight.get(cacheKey) === request) jobsInFlight.delete(cacheKey);
