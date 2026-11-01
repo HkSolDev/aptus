@@ -18,6 +18,7 @@
     "extract": "tsx --env-file=.env scripts/extract.ts",
     "match": "tsx --env-file=.env scripts/match.ts",
     "lint": "eslint .",
+    "test:review": "node --import tsx --test scripts/review-workflow.test.ts",
     "test:contracts": "node --import ./tests/css-module-hook.mjs --import tsx --test --test-concurrency=1 scripts/contracts/*.test.ts tests/triangle-contract.test.ts",
     "audit:contracts": "node --import tsx scripts/contracts/audit-consumers.ts",
     "check:contracts": "pnpm test:contracts && pnpm audit:contracts",

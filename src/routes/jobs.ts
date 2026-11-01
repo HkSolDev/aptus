@@ -19,6 +19,7 @@ function readPageNumber(
 export async function handleJobs(
   res: FastifyReply,
   params: URLSearchParams,
+  database?: Parameters<typeof listPublicJobs>[3],
 ): Promise<void> {
   const page = readPageNumber(params, 'page', 1, 10_000);
   const pageSize = readPageNumber(params, 'pageSize', 20, 100);
@@ -38,7 +39,7 @@ export async function handleJobs(
     return;
   }
   try {
-    const result = await listPublicJobs(page, pageSize, filters);
+    const result = await listPublicJobs(page, pageSize, filters, database);
     sendJson(res, 200, result);
   } catch {
     sendJson(res, 503, {
