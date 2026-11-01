@@ -85,6 +85,49 @@ await test('correction survives a database write taking longer than five seconds
   );
 });
 
+await test('validation queues exactly one task when its database write exceeds five seconds', async (t) => {
+  const { database, client } = await authDatabase(t, connectionString);
+  const { importReviewDraft, requestValidation } =
+    await import('../src/lib/review-drafts.js');
+  const imported = await importReviewDraft(
+    JSON.stringify(await fixture()),
+    database,
+  );
+  await client.query(`
+    CREATE FUNCTION delay_validation_write() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      PERFORM pg_sleep(5.2);
+      RETURN NEW;
+    END;
+    $$;
+    CREATE TRIGGER delay_validation_write BEFORE INSERT ON "ValidationTask"
+      FOR EACH ROW EXECUTE FUNCTION delay_validation_write();
+  `);
+  const task = await requestValidation(
+    imported.itemId,
+    imported.revisionId,
+    'aptus-val-v1',
+    database,
+  );
+  const repeated = await requestValidation(
+    imported.itemId,
+    imported.revisionId,
+    'aptus-val-v1',
+    database,
+  );
+  assert.equal(task.status, 'pending');
+  assert.equal(repeated.taskId, task.taskId);
+  assert.equal(await database.validationTask.count(), 1);
+  assert.equal(
+    (
+      await database.reviewRevision.findUnique({
+        where: { id: imported.revisionId },
+      })
+    )?.validationState,
+    'waiting_for_worker',
+  );
+});
+
 await test('A: correction after a newer worker observation uses max revision + 1', async (t) => {
   const { database } = await authDatabase(t, connectionString);
   const { importReviewDraft, getReviewItemDetail, saveReviewCorrection } =
