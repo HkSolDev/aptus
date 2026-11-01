@@ -25,7 +25,12 @@ const browser = await chromium.launch({
 try {
   const context = await browser.newContext();
   await context.addCookies([
-    { name: 'aptus.session_token', value: cookieValue, domain: '127.0.0.1', path: '/' },
+    {
+      name: 'aptus.session_token',
+      value: cookieValue,
+      domain: '127.0.0.1',
+      path: '/',
+    },
   ]);
   const page = await context.newPage();
   await page.goto(`${base}/admin/review/${item}`, { waitUntil: 'networkidle' });
@@ -38,7 +43,11 @@ try {
     const url = req.url();
     if (failNextDetailGet && req.method() === 'GET' && url.endsWith(item)) {
       failNextDetailGet = false;
-      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"down"}' });
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: '{"error":"down"}',
+      });
       return;
     }
     if (req.method() === 'POST' && url.endsWith('/validate')) {
@@ -59,16 +68,27 @@ try {
 
   // 2) Refresh-needed message appears and Check correction cannot submit.
   const body1 = await page.locator('body').innerText();
-  assert.match(body1, /Correction saved\. Refresh the saved revision before checking it\./);
-  const checkButton = page.getByRole('button', { name: /Check correction|Checking/ });
-  assert.equal(await checkButton.isDisabled(), true, 'Check correction disabled until refresh');
+  assert.match(
+    body1,
+    /Correction saved\. Refresh the saved revision before checking it\./,
+  );
+  const checkButton = page.getByRole('button', {
+    name: /Check correction|Checking/,
+  });
+  assert.equal(
+    await checkButton.isDisabled(),
+    true,
+    'Check correction disabled until refresh',
+  );
   assert.equal(validateBodies.length, 0, 'no validation request sent');
   console.log('refresh-needed state blocks validation of the old revision');
 
   // 3) Retry refresh successfully: editor shows R2, validation submits R2.
   await page.getByRole('button', { name: 'Refresh result' }).click();
   await page.waitForFunction(
-    () => /Revision R2/.test(document.body.innerText) && !/Refresh the saved revision/.test(document.body.innerText),
+    () =>
+      /Revision R2/.test(document.body.innerText) &&
+      !/Refresh the saved revision/.test(document.body.innerText),
     { timeout: 20000 },
   );
   assert.equal(await page.locator('#post-name').inputValue(), 'Engineer Saved');
@@ -79,14 +99,22 @@ try {
   await checkButton.click();
   await page.waitForTimeout(1500);
   assert.equal(validateBodies.length, 1, 'validation submitted after refresh');
-  assert.match(validateBodies[0], new RegExp(currentRevisionId), 'validation submits the saved revision');
+  assert.match(
+    validateBodies[0],
+    new RegExp(currentRevisionId),
+    'validation submits the saved revision',
+  );
   console.log('successful retry reconciles editor; validation submits R2');
 
   // 4) A failed save retains unsaved facts and shows no successful-save state.
   await page.unrouteAll({ behavior: 'wait' });
   await page.route('**/api/admin/review-drafts/**/revisions', async (route) => {
     if (route.request().method() === 'POST') {
-      await route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' });
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: '{"error":"boom"}',
+      });
       return;
     }
     await route.continue();
@@ -95,7 +123,10 @@ try {
   await page.locator('#change-reason').fill('this save will fail');
   await page.getByRole('button', { name: /Save correction/ }).click();
   await page.waitForTimeout(1500);
-  assert.equal(await page.locator('#post-name').inputValue(), 'Engineer Unsaved');
+  assert.equal(
+    await page.locator('#post-name').inputValue(),
+    'Engineer Unsaved',
+  );
   const body2 = await page.locator('body').innerText();
   assert.match(body2, /You have unsaved changes/);
   assert.doesNotMatch(body2, /Saved correction as Revision/);
@@ -106,7 +137,10 @@ try {
   await page.unrouteAll({ behavior: 'wait' });
   await page.getByRole('button', { name: 'Refresh result' }).click();
   await page.waitForTimeout(1500);
-  assert.equal(await page.locator('#post-name').inputValue(), 'Engineer Unsaved');
+  assert.equal(
+    await page.locator('#post-name').inputValue(),
+    'Engineer Unsaved',
+  );
   console.log('refresh after further edits preserved them');
 
   console.log('SAVED-REFRESH BROWSER REGRESSION: PASS');

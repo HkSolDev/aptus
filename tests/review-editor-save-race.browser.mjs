@@ -23,7 +23,12 @@ const browser = await chromium.launch({
 try {
   const context = await browser.newContext();
   await context.addCookies([
-    { name: 'aptus.session_token', value: cookieValue, domain: '127.0.0.1', path: '/' },
+    {
+      name: 'aptus.session_token',
+      value: cookieValue,
+      domain: '127.0.0.1',
+      path: '/',
+    },
   ]);
   const page = await context.newPage();
   await page.goto(`${base}/admin/review/${item}`, { waitUntil: 'networkidle' });
@@ -49,7 +54,12 @@ try {
   await page.waitForTimeout(500);
   try {
     // While the save is pending, every editable control must be unavailable.
-    for (const selector of ['#post-name', '#change-reason', '#min-age', '#education-req']) {
+    for (const selector of [
+      '#post-name',
+      '#change-reason',
+      '#min-age',
+      '#education-req',
+    ]) {
       assert.equal(
         await page.locator(selector).isDisabled(),
         true,
@@ -57,7 +67,10 @@ try {
       );
     }
     // A reviewer cannot create F2 through the UI in this period.
-    await page.locator('#post-name').fill('Engineer F2', { timeout: 1000 }).catch(() => {});
+    await page
+      .locator('#post-name')
+      .fill('Engineer F2', { timeout: 1000 })
+      .catch(() => {});
     assert.equal(await page.locator('#post-name').inputValue(), 'Engineer F1');
   } finally {
     release();
