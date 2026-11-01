@@ -45,6 +45,46 @@ function editedFacts(detail: { revision: { facts: unknown } }) {
   return facts;
 }
 
+await test('correction survives a database write taking longer than five seconds', async (t) => {
+  const { database, client } = await authDatabase(t, connectionString);
+  const { importReviewDraft, getReviewItemDetail, saveReviewCorrection } =
+    await import('../src/lib/review-drafts.js');
+  const imported = await importReviewDraft(
+    JSON.stringify(await fixture()),
+    database,
+  );
+  const detail = await getReviewItemDetail(imported.itemId, database);
+  await client.query(`
+    CREATE FUNCTION delay_review_write() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      PERFORM pg_sleep(5.2);
+      RETURN NEW;
+    END;
+    $$;
+    CREATE TRIGGER delay_review_write BEFORE INSERT ON "ReviewRevision"
+      FOR EACH ROW EXECUTE FUNCTION delay_review_write();
+  `);
+  const saved = await saveReviewCorrection(
+    imported.itemId,
+    {
+      baseRevisionId: imported.revisionId,
+      facts: editedFacts(detail!),
+      changeReason: 'Source-backed correction over a slow database connection',
+      operatorEmail: 'operator@example.gov.in',
+    },
+    database,
+  );
+  const refreshed = await getReviewItemDetail(imported.itemId, database);
+  assert.equal(saved.revisionNumber, 2);
+  assert.equal(refreshed?.revision.id, saved.revisionId);
+  assert.equal(
+    await database.reviewRevision.count({
+      where: { reviewItemId: imported.itemId },
+    }),
+    2,
+  );
+});
+
 await test('A: correction after a newer worker observation uses max revision + 1', async (t) => {
   const { database } = await authDatabase(t, connectionString);
   const { importReviewDraft, getReviewItemDetail, saveReviewCorrection } =
