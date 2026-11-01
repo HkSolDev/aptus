@@ -104,7 +104,7 @@ export function AuthBar({
             '/api/admin/review-drafts/operator-status',
             {
               credentials: 'same-origin',
-              signal: AbortSignal.timeout(5000),
+              signal: AbortSignal.timeout(15000),
             },
           );
           if (request === sessionRequestRef.current) setIsOperator(opRes.ok);

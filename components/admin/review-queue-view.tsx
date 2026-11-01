@@ -126,10 +126,14 @@ export function ReviewQueueView({
       </header>
 
       <div className={styles.noticeBar}>
-        <div>
-          <strong>{totalItems}</strong> notices imported ({totalRoles} roles on
-          this page) as of {new Date(countsAsOf).toLocaleTimeString()}
-        </div>
+        {initialError ? (
+          <div>Imported notice count unavailable.</div>
+        ) : (
+          <div>
+            <strong>{totalItems}</strong> notices imported ({totalRoles} roles
+            on this page) as of {new Date(countsAsOf).toLocaleTimeString()}
+          </div>
+        )}
         <div className="small muted">
           Review queue shows imported candidates only, not the full offline
           crawler backlog.

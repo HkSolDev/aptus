@@ -17,6 +17,8 @@ test('F: queue outage renders unavailable state, not an empty queue', () => {
   assert.match(markup, /temporarily unavailable/i);
   assert.match(markup, /retry/i);
   assert.doesNotMatch(markup, /No candidates are currently held/);
+  assert.doesNotMatch(markup, /notices imported/);
+  assert.match(markup, /Imported notice count unavailable/);
 });
 
 test('F: successful empty response renders the empty queue', () => {

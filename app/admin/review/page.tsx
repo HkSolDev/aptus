@@ -29,7 +29,7 @@ export default async function AdminReviewPage() {
           headers: { cookie },
           cache: 'no-store',
           redirect: 'error',
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(15000),
         },
       );
       if (res.ok) {
@@ -81,7 +81,7 @@ export default async function AdminReviewPage() {
       headers: { cookie: cookie || '' },
       cache: 'no-store',
       redirect: 'error',
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(15000),
     });
     if (queueRes.ok) {
       queueData = await queueRes.json();

@@ -33,7 +33,7 @@ export default async function AdminReviewDetailPage(props: {
           headers: { cookie },
           cache: 'no-store',
           redirect: 'error',
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(15000),
         },
       );
       if (res.ok) {
@@ -80,7 +80,7 @@ export default async function AdminReviewDetailPage(props: {
         headers: { cookie: cookie || '' },
         cache: 'no-store',
         redirect: 'error',
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(15000),
       },
     );
     if (detailRes.status === 404) {
