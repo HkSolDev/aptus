@@ -51,7 +51,11 @@ await test('public jobs server cache', async (t) => {
       assert.equal(first?.freshnessUnconfirmed, undefined);
 
       const second = await fetchPublicJobs(1, filters);
-      assert.equal(fetches, before + 1, 'second identical read returns cached result');
+      assert.equal(
+        fetches,
+        before + 1,
+        'second identical read returns cached result',
+      );
       assert.equal(second?.data[0]?.id, 'job-cache-hit');
       assert.equal(second?.freshnessUnconfirmed, undefined);
 

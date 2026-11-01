@@ -6,10 +6,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { setTimeout } from 'node:timers/promises';
 
-const STANDALONE_DIR = path.resolve(
-  import.meta.dirname,
-  '../.next/standalone',
-);
+const STANDALONE_DIR = path.resolve(import.meta.dirname, '../.next/standalone');
 const INGEST_TOKEN = 'test-ingest-token-1234567890abcdef1234567890';
 
 interface FixtureJob {
@@ -95,7 +92,9 @@ class BackendController {
   }
 }
 
-async function startStandaloneServer(envOverrides: Record<string, string> = {}) {
+async function startStandaloneServer(
+  envOverrides: Record<string, string> = {},
+) {
   // Find a free port
   const tmpSrv = http.createServer();
   tmpSrv.listen(0, '127.0.0.1');
@@ -103,22 +102,18 @@ async function startStandaloneServer(envOverrides: Record<string, string> = {}) 
   const port = (tmpSrv.address() as { port: number }).port;
   await new Promise<void>((r) => tmpSrv.close(() => r()));
 
-  const serverProc: ChildProcess = spawn(
-    process.execPath,
-    ['server.js'],
-    {
-      cwd: STANDALONE_DIR,
-      env: {
-        ...process.env,
-        NODE_ENV: 'production',
-        PORT: String(port),
-        HOSTNAME: '127.0.0.1',
-        INGEST_TOKEN,
-        ...envOverrides,
-      },
-      stdio: 'pipe',
+  const serverProc: ChildProcess = spawn(process.execPath, ['server.js'], {
+    cwd: STANDALONE_DIR,
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      PORT: String(port),
+      HOSTNAME: '127.0.0.1',
+      INGEST_TOKEN,
+      ...envOverrides,
     },
-  );
+    stdio: 'pipe',
+  });
 
   let output = '';
   serverProc.stdout?.on('data', (d) => {
@@ -146,7 +141,9 @@ async function startStandaloneServer(envOverrides: Record<string, string> = {}) 
 
   if (!ready) {
     serverProc.kill();
-    throw new Error(`Standalone server failed to start on ${origin}. Output:\n${output}`);
+    throw new Error(
+      `Standalone server failed to start on ${origin}. Output:\n${output}`,
+    );
   }
 
   return {
@@ -193,7 +190,11 @@ test('production standalone execution path cache regression', async (t) => {
       assert.equal(res2.status, 200);
       const text2 = await res2.text();
       assert.ok(text2.includes('Technical Assistant v1 soonest Page 1'));
-      assert.equal(backend.jobsCalls, 1, 'Second identical request must be served from cache');
+      assert.equal(
+        backend.jobsCalls,
+        1,
+        'Second identical request must be served from cache',
+      );
     },
   );
 
@@ -206,7 +207,9 @@ test('production standalone execution path cache regression', async (t) => {
       const resFurthest = await fetch(`${standalone.origin}/?sort=furthest`);
       assert.equal(resFurthest.status, 200);
       const textFurthest = await resFurthest.text();
-      assert.ok(textFurthest.includes('Technical Assistant v1 furthest Page 1'));
+      assert.ok(
+        textFurthest.includes('Technical Assistant v1 furthest Page 1'),
+      );
       assert.equal(backend.jobsCalls, 1, 'Different sort must query backend');
 
       // Different page: page 2
@@ -217,11 +220,21 @@ test('production standalone execution path cache regression', async (t) => {
       assert.equal(backend.jobsCalls, 2, 'Different page must query backend');
 
       // Different query: q=Assistant
-      const resFilter = await fetch(`${standalone.origin}/?sort=soonest&q=Assistant`);
+      const resFilter = await fetch(
+        `${standalone.origin}/?sort=soonest&q=Assistant`,
+      );
       assert.equal(resFilter.status, 200);
       const textFilter = await resFilter.text();
-      assert.ok(textFilter.includes('Technical Assistant v1 soonest Page 1 (Assistant)'));
-      assert.equal(backend.jobsCalls, 3, 'Different query filter must query backend');
+      assert.ok(
+        textFilter.includes(
+          'Technical Assistant v1 soonest Page 1 (Assistant)',
+        ),
+      );
+      assert.equal(
+        backend.jobsCalls,
+        3,
+        'Different query filter must query backend',
+      );
     },
   );
 
@@ -235,7 +248,11 @@ test('production standalone execution path cache regression', async (t) => {
       const cachedRes = await fetch(`${standalone.origin}/?sort=soonest`);
       const cachedText = await cachedRes.text();
       assert.ok(cachedText.includes('Technical Assistant v1 soonest Page 1'));
-      assert.equal(backend.jobsCalls, 0, 'Must still serve cached v1 before invalidation');
+      assert.equal(
+        backend.jobsCalls,
+        0,
+        'Must still serve cached v1 before invalidation',
+      );
 
       // Publish notification: POST /api/revalidate-jobs
       const revalRes = await fetch(`${standalone.origin}/api/revalidate-jobs`, {
@@ -245,7 +262,10 @@ test('production standalone execution path cache regression', async (t) => {
         },
       });
       assert.equal(revalRes.status, 200);
-      const revalJson = (await revalRes.json()) as { revalidated: string; warmed: Record<string, boolean> };
+      const revalJson = (await revalRes.json()) as {
+        revalidated: string;
+        warmed: Record<string, boolean>;
+      };
       assert.equal(revalJson.revalidated, 'jobs');
       assert.equal(revalJson.warmed.soonest, true);
 
@@ -273,13 +293,19 @@ test('production standalone execution path cache regression', async (t) => {
       // Populate cache
       const res1 = await fetch(`${shortTtlServer.origin}/?sort=soonest`);
       assert.equal(res1.status, 200);
-      assert.ok((await res1.text()).includes('Technical Assistant v3 soonest Page 1'));
+      assert.ok(
+        (await res1.text()).includes('Technical Assistant v3 soonest Page 1'),
+      );
       assert.equal(backend.jobsCalls, 1);
 
       // Within 1s, cached
       const resFast = await fetch(`${shortTtlServer.origin}/?sort=soonest`);
       assert.equal(resFast.status, 200);
-      assert.equal(backend.jobsCalls, 1, 'Within 1s interval must not call backend');
+      assert.equal(
+        backend.jobsCalls,
+        1,
+        'Within 1s interval must not call backend',
+      );
 
       // Wait for 1s TTL to expire
       await setTimeout(1100);
@@ -290,7 +316,11 @@ test('production standalone execution path cache regression', async (t) => {
       assert.equal(resExpired.status, 200);
       const textExpired = await resExpired.text();
       assert.ok(textExpired.includes('Technical Assistant v4 soonest Page 1'));
-      assert.equal(backend.jobsCalls, 2, 'Expired read must trigger fresh backend read');
+      assert.equal(
+        backend.jobsCalls,
+        2,
+        'Expired read must trigger fresh backend read',
+      );
     },
   );
 
@@ -317,7 +347,9 @@ test('production standalone execution path cache regression', async (t) => {
       );
 
       // Step B: Backend failure without saved data produces error notice
-      const uncachedRes = await fetch(`${shortTtlServer.origin}/?sort=soonest&q=never-cached-query`);
+      const uncachedRes = await fetch(
+        `${shortTtlServer.origin}/?sort=soonest&q=never-cached-query`,
+      );
       assert.equal(uncachedRes.status, 200);
       const uncachedText = await uncachedRes.text();
       assert.ok(
@@ -330,7 +362,9 @@ test('production standalone execution path cache regression', async (t) => {
       backend.currentVersion = 'v5';
 
       // Next read refreshes data and removes warning
-      const recoveredRes = await fetch(`${shortTtlServer.origin}/?sort=soonest`);
+      const recoveredRes = await fetch(
+        `${shortTtlServer.origin}/?sort=soonest`,
+      );
       assert.equal(recoveredRes.status, 200);
       const recoveredText = await recoveredRes.text();
       assert.ok(
