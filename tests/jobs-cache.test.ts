@@ -4,7 +4,7 @@ import { tsImport } from 'tsx/esm/api';
 import type { JobFilters } from '../frontend/public-job-filters';
 
 // TTL 0: every read attempts a refresh, so hit/expiry/failure/recovery can
-// be exercised without waiting. The default in production is 60 seconds.
+// be exercised without waiting. The default in production is 7200 seconds (2 hours).
 process.env.APTUS_JOBS_CACHE_SECONDS = '0';
 process.env.BACKEND_INTERNAL_URL = 'http://fixture.invalid';
 
@@ -37,6 +37,33 @@ globalThis.fetch = (async () => {
 
 await test('public jobs server cache', async (t) => {
   invalidateJobsCache();
+
+  await t.test(
+    'sequential identical reads within TTL return cached result without refetching',
+    async () => {
+      process.env.APTUS_JOBS_CACHE_SECONDS = '7200';
+      invalidateJobsCache();
+      marker = 'cache-hit';
+      const before = fetches;
+      const first = await fetchPublicJobs(1, filters);
+      assert.equal(fetches, before + 1, 'first read fetches from backend');
+      assert.equal(first?.data[0]?.id, 'job-cache-hit');
+      assert.equal(first?.freshnessUnconfirmed, undefined);
+
+      const second = await fetchPublicJobs(1, filters);
+      assert.equal(
+        fetches,
+        before + 1,
+        'second identical read returns cached result',
+      );
+      assert.equal(second?.data[0]?.id, 'job-cache-hit');
+      assert.equal(second?.freshnessUnconfirmed, undefined);
+
+      process.env.APTUS_JOBS_CACHE_SECONDS = '0';
+      marker = 'v1';
+      invalidateJobsCache();
+    },
+  );
 
   await t.test(
     'failed refresh serves last success, marked unconfirmed, then recovers',
