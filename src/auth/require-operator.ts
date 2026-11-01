@@ -43,11 +43,7 @@ export function requireOperator(
 
     const allowlist = parseOperatorAllowlist(env.APTUS_REVIEW_OPERATOR_EMAILS);
     if (allowlist.size === 0) {
-      logSecurityEvent(
-        request,
-        'auth_rejected',
-        'request_rejected',
-      );
+      logSecurityEvent(request, 'auth_rejected', 'request_rejected');
       return reply.code(403).send({
         error: 'Review operator access is not configured on this server.',
       });
@@ -70,11 +66,7 @@ export function requireOperator(
 
       const user = result.user;
       if (!user.emailVerified) {
-        logSecurityEvent(
-          request,
-          'auth_rejected',
-          'request_rejected',
-        );
+        logSecurityEvent(request, 'auth_rejected', 'request_rejected');
         return reply.code(403).send({
           error: 'Your email address must be verified to access job review.',
         });
@@ -82,11 +74,7 @@ export function requireOperator(
 
       const normalizedEmail = user.email.trim().toLowerCase();
       if (!allowlist.has(normalizedEmail)) {
-        logSecurityEvent(
-          request,
-          'auth_rejected',
-          'request_rejected',
-        );
+        logSecurityEvent(request, 'auth_rejected', 'request_rejected');
         return reply.code(403).send({
           error: 'You are not authorized to access the job review queue.',
         });

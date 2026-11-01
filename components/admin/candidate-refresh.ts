@@ -11,12 +11,21 @@ export function resolveCandidateRefresh(input: {
   editingRevisionId: string;
   freshRevisionId: string;
 }): CandidateRefreshDecision {
-  if (input.hasUnsavedChanges && input.freshRevisionId !== input.editingRevisionId) {
-    return { action: 'keep-editing', editingRevisionId: input.editingRevisionId };
+  if (
+    input.hasUnsavedChanges &&
+    input.freshRevisionId !== input.editingRevisionId
+  ) {
+    return {
+      action: 'keep-editing',
+      editingRevisionId: input.editingRevisionId,
+    };
   }
   if (input.hasUnsavedChanges) {
     // Same revision: status/validation may refresh, editable facts may not.
-    return { action: 'preserve-editing', editingRevisionId: input.editingRevisionId };
+    return {
+      action: 'preserve-editing',
+      editingRevisionId: input.editingRevisionId,
+    };
   }
   return { action: 'apply-fresh', editingRevisionId: input.freshRevisionId };
 }

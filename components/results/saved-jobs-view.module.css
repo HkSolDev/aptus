@@ -1,0 +1,62 @@
+.page {
+  padding-block: var(--space-6) var(--space-8);
+}
+
+.intro {
+  margin-bottom: var(--space-6);
+}
+
+.intro h1 {
+  margin: 0;
+}
+
+.intro > p {
+  margin-top: var(--space-3);
+  max-width: 65ch;
+}
+
+.empty {
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+  max-width: 38rem;
+  margin: 0 auto;
+}
+
+.empty h2 {
+  margin-top: 0;
+  margin-bottom: var(--space-3);
+  font-size: 1.5rem;
+}
+
+.empty p {
+  color: var(--muted);
+  margin-bottom: var(--space-6);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--line);
+}
+
+.deadlineClosed {
+  display: inline-block;
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: var(--small-radius);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  margin-top: var(--space-2);
+}

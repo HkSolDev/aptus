@@ -1,14 +1,16 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import styles from './job-card.module.css';
+import { SaveJobButton } from './save-job-button';
 
 export interface PublicJobItem {
   id: string;
   postName: string;
   organization?: string | null;
+  appointmentType?: string | null;
   vacancies: number | null;
   applicationLastDate: string | null;
-  educationRequired: string;
+  educationRequired: string | null;
   payLevel?: string | null;
   source: {
     name: string;
@@ -42,22 +44,33 @@ export function JobCard({
   const qualification = job.educationRequired?.trim();
   const hasQualification =
     qualification && !/^not specified$/i.test(qualification);
+  const organization = job.organization?.trim() || 'Not specified';
+  const appointmentType = job.appointmentType?.trim() || 'Not specified';
 
   return (
     <article
       className={`${styles.card}${recommended ? ` ${styles.recommended}` : ''}`}
       data-job-card
     >
-      <div>
+      <div className={styles.primary}>
         <h3 className={styles.title} data-job-title>
           <Link href={`/jobs/${encodeURIComponent(job.id)}`}>
             {job.postName}
           </Link>
         </h3>
-        {job.organization?.trim() && (
-          <p className={`muted ${styles.organization}`}>{job.organization}</p>
-        )}
-        {applyBy && <p className={styles.deadline}>Apply by {applyBy}</p>}
+        <div className={styles.meta}>
+          <p className={`muted ${styles.organization}`} data-job-org>
+            <span className={styles.metaLabel}>Organization: </span>
+            {organization}
+          </p>
+          <p className={`muted ${styles.appointmentType}`} data-job-appointment>
+            <span className={styles.metaLabel}>Appointment: </span>
+            {appointmentType}
+          </p>
+        </div>
+        <p className={styles.deadline} data-job-deadline>
+          {applyBy ? `Apply by ${applyBy}` : 'Deadline not specified'}
+        </p>
         {matchSummary}
       </div>
       <div className={styles.facts}>
@@ -84,7 +97,7 @@ export function JobCard({
           View details
         </Link>
         <div className={styles.secondaryActions}>
-          {actions ?? <Link href="/sign-in">Save</Link>}
+          {actions ?? <SaveJobButton id={job.id} />}
         </div>
       </div>
     </article>

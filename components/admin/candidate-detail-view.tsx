@@ -49,7 +49,11 @@ interface FactsPayload {
   evidence: Array<{ field_path: string; evidence_id: string; quote: string }>;
   missing_fields: Array<{ field_path: string; reason: string }>;
   purpose_evidence: Array<{ evidence_id: string; quote: string }>;
-  document_purposes: Array<{ document_id: string; purpose: string; evidence: unknown[] }>;
+  document_purposes: Array<{
+    document_id: string;
+    purpose: string;
+    evidence: unknown[];
+  }>;
   [key: string]: unknown;
 }
 
@@ -92,7 +96,11 @@ interface DetailData {
   } | null;
 }
 
-export function CandidateDetailView({ initialData }: { initialData: DetailData }) {
+export function CandidateDetailView({
+  initialData,
+}: {
+  initialData: DetailData;
+}) {
   const [data, setData] = useState<DetailData>(initialData);
   const [selectedRoleIndex, setSelectedRoleIndex] = useState(0);
 
@@ -100,7 +108,9 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
   const [facts, setFacts] = useState<FactsPayload>(initialData.revision.facts);
   const [changeReason, setChangeReason] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [editingRevisionId, setEditingRevisionId] = useState(initialData.revision.id);
+  const [editingRevisionId, setEditingRevisionId] = useState(
+    initialData.revision.id,
+  );
   const [conflictFresh, setConflictFresh] = useState<DetailData | null>(null);
   // Refresh responses must decide from the editing state at arrival time,
   // not from when the request started (the reviewer may type meanwhile).
@@ -142,7 +152,10 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
         {
           const fresh: DetailData = await res.json();
           const decision = forceApply
-            ? { action: 'apply-fresh' as const, editingRevisionId: fresh.revision.id }
+            ? {
+                action: 'apply-fresh' as const,
+                editingRevisionId: fresh.revision.id,
+              }
             : resolveCandidateRefresh({
                 hasUnsavedChanges: hasUnsavedRef.current,
                 editingRevisionId: editingRevisionIdRef.current,
@@ -249,22 +262,27 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
     setSuccessMsg(null);
 
     try {
-      const res = await fetch(`/api/admin/review-drafts/${data.item.id}/revisions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'If-Match': editingRevisionId,
+      const res = await fetch(
+        `/api/admin/review-drafts/${data.item.id}/revisions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'If-Match': editingRevisionId,
+          },
+          body: JSON.stringify({
+            base_revision_id: editingRevisionId,
+            facts,
+            change_reason: changeReason.trim(),
+          }),
+          credentials: 'same-origin',
         },
-        body: JSON.stringify({
-          base_revision_id: editingRevisionId,
-          facts,
-          change_reason: changeReason.trim(),
-        }),
-        credentials: 'same-origin',
-      });
+      );
 
       if (res.status === 412) {
-        throw new Error('Revision is stale! Another update was saved. Please reload this page.');
+        throw new Error(
+          'Revision is stale! Another update was saved. Please reload this page.',
+        );
       }
 
       if (!res.ok) {
@@ -276,7 +294,9 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
       setHasUnsavedChanges(false);
       setChangeReason('');
       setEditingRevisionId(savedRev.revision_id);
-      setSuccessMsg(`Saved correction as Revision R${savedRev.revision_number}.`);
+      setSuccessMsg(
+        `Saved correction as Revision R${savedRev.revision_number}.`,
+      );
       // If this refresh fails, the displayed revision is still the old one:
       // block validation until a successful refresh reconciles the editor.
       const refreshed = await refreshCandidate(true);
@@ -290,11 +310,15 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
 
   const handleRequestValidation = async () => {
     if (needsSavedRefresh) {
-      setErrorMsg('Correction saved. Refresh the saved revision before checking it.');
+      setErrorMsg(
+        'Correction saved. Refresh the saved revision before checking it.',
+      );
       return;
     }
     if (hasUnsavedChanges) {
-      setErrorMsg('You have unsaved changes. Save your correction first before requesting validation.');
+      setErrorMsg(
+        'You have unsaved changes. Save your correction first before requesting validation.',
+      );
       return;
     }
 
@@ -303,12 +327,15 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
     setSuccessMsg(null);
 
     try {
-      const res = await fetch(`/api/admin/review-drafts/${data.item.id}/validate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ revision_id: data.revision.id }),
-        credentials: 'same-origin',
-      });
+      const res = await fetch(
+        `/api/admin/review-drafts/${data.item.id}/validate`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ revision_id: data.revision.id }),
+          credentials: 'same-origin',
+        },
+      );
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => null);
@@ -326,23 +353,31 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
       }
     } catch (err: unknown) {
       setValidating(false);
-      setErrorMsg(err instanceof Error ? err.message : 'Validation request failed');
+      setErrorMsg(
+        err instanceof Error ? err.message : 'Validation request failed',
+      );
     }
   };
 
   const handleKeepHeld = async () => {
-    const note = prompt('Enter or update hold reason:', data.item.hold_reason || '');
+    const note = prompt(
+      'Enter or update hold reason:',
+      data.item.hold_reason || '',
+    );
     if (note === null) return;
 
     setHolding(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/admin/review-drafts/${data.item.id}/keep-held`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hold_reason: note }),
-        credentials: 'same-origin',
-      });
+      const res = await fetch(
+        `/api/admin/review-drafts/${data.item.id}/keep-held`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hold_reason: note }),
+          credentials: 'same-origin',
+        },
+      );
       if (!res.ok) throw new Error('Failed to update hold status');
       setSuccessMsg('Candidate hold status updated.');
       await refreshCandidate();
@@ -366,14 +401,28 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
       </div>
 
       <header className={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)',
+          }}
+        >
           <h1>{currentPost?.post_name || data.item.source_name}</h1>
-          <span className={`${styles.badge} ${styles.badgeHeld}`}>{data.item.status}</span>
-          <span className={`${styles.badge} ${styles.badgeReview}`}>Revision R{rev.revision_number}</span>
+          <span className={`${styles.badge} ${styles.badgeHeld}`}>
+            {data.item.status}
+          </span>
+          <span className={`${styles.badge} ${styles.badgeReview}`}>
+            Revision R{rev.revision_number}
+          </span>
         </div>
         <p className={styles.subtitle}>
           Source: {data.item.source_name} •{' '}
-          <a href={data.item.source_url} target="_blank" rel="noopener noreferrer">
+          <a
+            href={data.item.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Official Source Link
           </a>
         </p>
@@ -391,19 +440,30 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
 
       {hasUnsavedChanges && (
         <div className={styles.infoAlert}>
-          <span className={styles.unsavedNotice}>● You have unsaved changes.</span> Remember to save
-          your correction before requesting validation.
+          <span className={styles.unsavedNotice}>
+            ● You have unsaved changes.
+          </span>{' '}
+          Remember to save your correction before requesting validation.
         </div>
       )}
 
       {conflictFresh && (
         <div className={styles.dangerAlert} role="alert">
-          <strong>A newer revision (R{conflictFresh.revision.revision_number}) was saved.</strong>{' '}
-          Your unsaved edits are still based on the older revision and have not been changed.
-          Saving them will be rejected as stale. To continue, reload the newer revision — this
-          discards your unsaved edits — or keep editing here and copy your changes first.
+          <strong>
+            A newer revision (R{conflictFresh.revision.revision_number}) was
+            saved.
+          </strong>{' '}
+          Your unsaved edits are still based on the older revision and have not
+          been changed. Saving them will be rejected as stale. To continue,
+          reload the newer revision — this discards your unsaved edits — or keep
+          editing here and copy your changes first.
           <div style={{ marginTop: '8px' }}>
-            <button type="button" className={styles.buttonSecondary} disabled={saving} onClick={reloadConflictRevision}>
+            <button
+              type="button"
+              className={styles.buttonSecondary}
+              disabled={saving}
+              onClick={reloadConflictRevision}
+            >
               Reload newer revision (discard my edits)
             </button>
           </div>
@@ -418,12 +478,16 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
 
             {facts.posts.length > 1 && (
               <div className={styles.formGroup}>
-                <label htmlFor="role-selector">Select Role ({facts.posts.length} roles total):</label>
+                <label htmlFor="role-selector">
+                  Select Role ({facts.posts.length} roles total):
+                </label>
                 <select
                   id="role-selector"
                   disabled={saving}
                   value={selectedRoleIndex}
-                  onChange={(e) => setSelectedRoleIndex(parseInt(e.target.value, 10))}
+                  onChange={(e) =>
+                    setSelectedRoleIndex(parseInt(e.target.value, 10))
+                  }
                 >
                   {facts.posts.map((p, idx) => (
                     <option key={idx} value={idx}>
@@ -441,14 +505,19 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                 disabled={saving}
                 type="text"
                 value={currentPost?.post_name || ''}
-                onChange={(e) => handlePostFieldChange('post_name', e.target.value)}
+                onChange={(e) =>
+                  handlePostFieldChange('post_name', e.target.value)
+                }
               />
             </div>
 
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
                 <label htmlFor="vacancies">
-                  Vacancies {currentPost?.vacancies === null && <span className="small muted">(null/unstated)</span>}
+                  Vacancies{' '}
+                  {currentPost?.vacancies === null && (
+                    <span className="small muted">(null/unstated)</span>
+                  )}
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
@@ -461,7 +530,9 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                     onChange={(e) =>
                       handlePostFieldChange(
                         'vacancies',
-                        e.target.value === '' ? null : parseInt(e.target.value, 10),
+                        e.target.value === ''
+                          ? null
+                          : parseInt(e.target.value, 10),
                       )
                     }
                   />
@@ -482,7 +553,9 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="last-date">Application Deadline (ISO Date)</label>
+                <label htmlFor="last-date">
+                  Application Deadline (ISO Date)
+                </label>
                 <input
                   disabled={saving}
                   id="last-date"
@@ -512,7 +585,9 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                   onChange={(e) =>
                     handlePostFieldChange(
                       'min_age',
-                      e.target.value === '' ? null : parseInt(e.target.value, 10),
+                      e.target.value === ''
+                        ? null
+                        : parseInt(e.target.value, 10),
                     )
                   }
                 />
@@ -531,7 +606,9 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                   onChange={(e) =>
                     handlePostFieldChange(
                       'max_age',
-                      e.target.value === '' ? null : parseInt(e.target.value, 10),
+                      e.target.value === ''
+                        ? null
+                        : parseInt(e.target.value, 10),
                     )
                   }
                 />
@@ -577,12 +654,16 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
             </div>
 
             <div className={styles.formGroup}>
-              <label htmlFor="education-req">Education Requirement Summary</label>
+              <label htmlFor="education-req">
+                Education Requirement Summary
+              </label>
               <textarea
                 disabled={saving}
                 id="education-req"
                 value={currentPost?.education_required || ''}
-                onChange={(e) => handlePostFieldChange('education_required', e.target.value)}
+                onChange={(e) =>
+                  handlePostFieldChange('education_required', e.target.value)
+                }
               />
             </div>
 
@@ -598,7 +679,8 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                 onChange={(e) => setChangeReason(e.target.value)}
               />
               <span className="small muted">
-                Human corrections require a recorded reason and immutable revision tracking.
+                Human corrections require a recorded reason and immutable
+                revision tracking.
               </span>
             </div>
 
@@ -615,7 +697,13 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
               <button
                 type="button"
                 className={styles.buttonSecondary}
-                disabled={saving || needsSavedRefresh || validating || hasUnsavedChanges || pollingTaskId !== null}
+                disabled={
+                  saving ||
+                  needsSavedRefresh ||
+                  validating ||
+                  hasUnsavedChanges ||
+                  pollingTaskId !== null
+                }
                 onClick={handleRequestValidation}
               >
                 {validating || pollingTaskId ? 'Checking…' : 'Check correction'}
@@ -647,27 +735,40 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
           {/* Validation Status Panel */}
           <div className={styles.card}>
             <h3>Revision R{rev.revision_number} Automated Validation</h3>
-            <div className="small muted" style={{ marginBottom: 'var(--space-3)' }}>
-              Validator: {validation?.validator_version || 'aptus-val-v1'} • Canonical Hash:{' '}
+            <div
+              className="small muted"
+              style={{ marginBottom: 'var(--space-3)' }}
+            >
+              Validator: {validation?.validator_version || 'aptus-val-v1'} •
+              Canonical Hash:{' '}
               <code>{rev.canonical_hash.substring(0, 16)}…</code>
             </div>
 
             {pollingTaskId ? (
               <div className={styles.infoAlert}>
-                <strong>Checking…</strong> Task claimed or queued for Python validation worker.
+                <strong>Checking…</strong> Task claimed or queued for Python
+                validation worker.
               </div>
             ) : !validation ? (
-              <div className="small muted">No validation task has been run for this revision yet.</div>
+              <div className="small muted">
+                No validation task has been run for this revision yet.
+              </div>
             ) : validation.status === 'failed' ? (
               <div className={styles.dangerAlert}>
                 <strong>Worker/check infrastructure failed</strong>
-                <p style={{ margin: '4px 0 0' }}>{validation.error_details || 'Execution failure.'}</p>
+                <p style={{ margin: '4px 0 0' }}>
+                  {validation.error_details || 'Execution failure.'}
+                </p>
               </div>
             ) : validation.result ? (
               <div>
-                {validation.result.errors && validation.result.errors.length > 0 ? (
+                {validation.result.errors &&
+                validation.result.errors.length > 0 ? (
                   <div className={styles.dangerAlert}>
-                    <strong>Check completed with issues ({validation.result.errors.length})</strong>
+                    <strong>
+                      Check completed with issues (
+                      {validation.result.errors.length})
+                    </strong>
                     <ul className={styles.issuesList}>
                       {validation.result.errors.map((err, i) => (
                         <li key={i}>
@@ -680,24 +781,31 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
                   <div className={styles.successAlert}>
                     <strong>Automated checks passed</strong>
                     <p style={{ margin: '4px 0 0', fontSize: '0.8125rem' }}>
-                      Automated validation confirmed schema shape and quoted citations exist in source.
-                      Automated checks do NOT prove factual truth or replace human judgment.
+                      Automated validation confirmed schema shape and quoted
+                      citations exist in source. Automated checks do NOT prove
+                      factual truth or replace human judgment.
                     </p>
                   </div>
                 )}
 
-                {validation.result.warnings && validation.result.warnings.length > 0 && (
-                  <div className="small muted" style={{ marginTop: 'var(--space-3)' }}>
-                    <strong>Warnings ({validation.result.warnings.length}):</strong>
-                    <ul className={styles.issuesList}>
-                      {validation.result.warnings.map((warn, i) => (
-                        <li key={i}>
-                          <code>{warn.field_path}</code>: {warn.reason}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {validation.result.warnings &&
+                  validation.result.warnings.length > 0 && (
+                    <div
+                      className="small muted"
+                      style={{ marginTop: 'var(--space-3)' }}
+                    >
+                      <strong>
+                        Warnings ({validation.result.warnings.length}):
+                      </strong>
+                      <ul className={styles.issuesList}>
+                        {validation.result.warnings.map((warn, i) => (
+                          <li key={i}>
+                            <code>{warn.field_path}</code>: {warn.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
               </div>
             ) : (
               <div className="small muted">Status: {validation.status}</div>
@@ -708,29 +816,42 @@ export function CandidateDetailView({ initialData }: { initialData: DetailData }
           <div className={styles.card}>
             <h3>Saved Official Evidence</h3>
             <p className="small muted" style={{ marginTop: 0 }}>
-              Evidence text safely rendered from immutable offline capture. Internal paths and HTML are not rendered.
+              Evidence text safely rendered from immutable offline capture.
+              Internal paths and HTML are not rendered.
             </p>
 
             {rev.source_evidence && rev.source_evidence.length > 0 ? (
               rev.source_evidence.map((doc, docIdx) => (
                 <div key={docIdx} className={styles.evidenceSection}>
-                  <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px' }}>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      marginBottom: '4px',
+                    }}
+                  >
                     Document: {doc.document_id} ({doc.format})
                   </div>
                   {doc.sections && doc.sections.length > 0 ? (
                     doc.sections.map((sec, secIdx) => (
                       <div key={secIdx} style={{ marginBottom: '8px' }}>
-                        <span className="small muted">Evidence ID: {sec.evidence_id}</span>
+                        <span className="small muted">
+                          Evidence ID: {sec.evidence_id}
+                        </span>
                         <div className={styles.evidenceBox}>{sec.text}</div>
                       </div>
                     ))
                   ) : (
-                    <div className="small muted">No text sections in this document.</div>
+                    <div className="small muted">
+                      No text sections in this document.
+                    </div>
                   )}
                 </div>
               ))
             ) : (
-              <div className="small muted">No source documents preserved in this revision.</div>
+              <div className="small muted">
+                No source documents preserved in this revision.
+              </div>
             )}
           </div>
         </div>

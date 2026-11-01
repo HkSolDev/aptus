@@ -27,7 +27,7 @@ export async function handleJobs(
   if (!filters) {
     sendJson(res, 400, {
       error:
-        'Use one search of at most 100 characters, a supported qualification and soonest or furthest sorting.',
+        'Use one search of at most 100 characters, a supported qualification and newest, soonest or furthest sorting.',
     });
     return;
   }

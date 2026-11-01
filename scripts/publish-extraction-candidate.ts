@@ -114,6 +114,9 @@ export async function publishExtractionCandidate(
           candidatePostIndex: index,
           reviewedDetails: details,
           reviewedAt: new Date(),
+          // First publication in Aptus; the upsert update is empty, so a
+          // re-publication never overwrites this.
+          publishedAt: new Date(),
           reviewNote: reviewNote.trim(),
         };
         saved.push(
@@ -132,7 +135,8 @@ export async function publishExtractionCandidate(
       }
       return saved;
     },
-    { isolationLevel: 'Serializable', timeout: 10000 },
+    // Multi-post publication includes several remote database round trips.
+    { isolationLevel: 'Serializable', timeout: 60000 },
   );
 }
 

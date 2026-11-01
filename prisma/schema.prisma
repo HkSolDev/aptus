@@ -25,6 +25,7 @@ model AuthUser {
   sessions      AuthSession[]
   accounts      AuthAccount[]
   passkeys      AuthPasskey[]
+  savedJobs     SavedJob[]
 }
 
 // Public verification material only; private keys stay with the authenticator.
@@ -187,8 +188,27 @@ model Post {
   reviewedDetails           Json?
   reviewedAt                DateTime?
   reviewNote                String?
+  // First publication of this post in Aptus. Set only on creation in the
+  // publication paths; never overwritten on update. Null means the row
+  // predates this field and its first-publication time is unknown.
+  publishedAt               DateTime?
+  savedBy                   SavedJob[]
 
   @@unique([extractionCandidateId, candidatePostIndex])
+  @@index([publishedAt])
+}
+
+// Account-owned saved jobs shortlist, independent of profile completion.
+model SavedJob {
+  id         String   @id @default(cuid())
+  authUserId String
+  authUser   AuthUser @relation(fields: [authUserId], references: [id], onDelete: Cascade)
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  savedAt    DateTime @default(now())
+
+  @@unique([authUserId, postId])
+  @@index([authUserId, savedAt])
 }
 
 // Offline extraction drafts. Public browsing and matching read Post, not this table.

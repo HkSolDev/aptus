@@ -4,6 +4,7 @@ import json
 
 from capture_store import atomic_write
 from stage_retry import extraction_failure
+from provider_schedule import ProviderDeferred
 
 
 def extract_or_resume(retries, fingerprint, prepared, extract):
@@ -27,6 +28,18 @@ def extract_or_resume(retries, fingerprint, prepared, extract):
         return None, False
     try:
         result = extract(prepared)
+    except ProviderDeferred as error:
+        state = retries.read('extraction', fingerprint)
+        retries.write('extraction', fingerprint, {
+            **state, 'status': 'retry_wait', 'reason': 'provider_peak_hours',
+            'attempts': max(0, state['attempts'] - 1),
+            'next_at': retries.clock() + error.retry_after})
+        raise
+    except (RuntimeError, ValueError, TypeError, OSError) as error:
+        reason, retryable, delay = extraction_failure(error)
+        retries.failure('extraction', fingerprint, reason, retryable=retryable, retry_after=delay)
+        raise
+    try:
         if not isinstance(result, dict) or result.get('bundle_id') != prepared['llm_input']['input']['bundle_id']:
             raise ValueError('Extracted identity mismatch')
         payload = json.dumps(result, ensure_ascii=False).encode()
@@ -34,7 +47,6 @@ def extract_or_resume(retries, fingerprint, prepared, extract):
         retries.success('extraction', fingerprint, response_sha256=hashlib.sha256(payload).hexdigest(),
                         evidence_sha256=evidence_sha)
         return result, False
-    except (RuntimeError, ValueError, TypeError, OSError) as error:
-        reason, retryable, delay = extraction_failure(error)
-        retries.failure('extraction', fingerprint, reason, retryable=retryable, retry_after=delay)
+    except (RuntimeError, ValueError, TypeError, OSError):
+        retries.failure('extraction', fingerprint, 'checkpoint_storage_failed')
         raise

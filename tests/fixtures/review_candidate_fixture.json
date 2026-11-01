@@ -571,10 +571,7 @@
         {
           "page": 2,
           "block_id": "page-2-native",
-          "line_range": [
-            1,
-            7
-          ]
+          "line_range": [1, 7]
         }
       ]
     },
@@ -618,10 +615,7 @@
             {
               "page": 2,
               "block_id": "page-2-native",
-              "line_range": [
-                1,
-                7
-              ]
+              "line_range": [1, 7]
             }
           ]
         }
@@ -636,20 +630,12 @@
       "title": "Corrigendum",
       "identity_context": null,
       "amendment_scope": {
-        "changes": [
-          "vacancies"
-        ],
-        "applies_to": [
-          "Annexure I"
-        ],
+        "changes": ["vacancies"],
+        "applies_to": ["Annexure I"],
         "evidence": [
           {
-            "changes": [
-              "vacancies"
-            ],
-            "applies_to": [
-              "Annexure I"
-            ],
+            "changes": ["vacancies"],
+            "applies_to": ["Annexure I"],
             "quote": "Issuer: Example\nCampaign: Engineers\nRecruitment Year: 2026\nVacancies have been updated in Annexure I.",
             "locations": [
               {

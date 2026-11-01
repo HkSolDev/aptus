@@ -32,10 +32,7 @@ export function registerReviewDraftRoutes(
         });
       };
 
-  const originCheck = async (
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ) => {
+  const originCheck = async (request: FastifyRequest, reply: FastifyReply) => {
     if (auth && request.headers.origin !== auth.options.baseURL) {
       logSecurityEvent(request, 'origin_rejected', 'origin_mismatch');
       return reply.code(403).header('cache-control', 'no-store, private').send({
@@ -57,16 +54,14 @@ export function registerReviewDraftRoutes(
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const result = await importReviewDraft(request.body);
-        return reply
-          .code(result.duplicate ? 200 : 201)
-          .send({
-            item_id: result.itemId,
-            bundle_id: result.bundleId,
-            revision_id: result.revisionId,
-            revision_number: result.revisionNumber,
-            canonical_hash: result.canonicalHash,
-            duplicate: result.duplicate,
-          });
+        return reply.code(result.duplicate ? 200 : 201).send({
+          item_id: result.itemId,
+          bundle_id: result.bundleId,
+          revision_id: result.revisionId,
+          revision_number: result.revisionNumber,
+          canonical_hash: result.canonicalHash,
+          duplicate: result.duplicate,
+        });
       } catch (error) {
         if (error instanceof ReviewDraftValidationError) {
           return reply.code(400).send({ error: error.message });
@@ -171,13 +166,12 @@ export function registerReviewDraftRoutes(
       }
 
       if (!request.body.facts || typeof request.body.facts !== 'object') {
-        return reply.code(400).send({ error: 'Corrected facts object required' });
+        return reply
+          .code(400)
+          .send({ error: 'Corrected facts object required' });
       }
 
-      if (
-        !request.body.change_reason ||
-        !request.body.change_reason.trim()
-      ) {
+      if (!request.body.change_reason || !request.body.change_reason.trim()) {
         return reply.code(400).send({
           error: 'A reason for changes is required when saving a correction',
         });
@@ -239,13 +233,15 @@ export function registerReviewDraftRoutes(
           request.body.validator_version,
         );
 
-        return reply.code(task.reused && task.status === 'completed' ? 200 : 202).send({
-          task_id: task.taskId,
-          revision_id: task.revisionId,
-          status: task.status,
-          reused: task.reused,
-          result: 'result' in task ? task.result : undefined,
-        });
+        return reply
+          .code(task.reused && task.status === 'completed' ? 200 : 202)
+          .send({
+            task_id: task.taskId,
+            revision_id: task.revisionId,
+            status: task.status,
+            reused: task.reused,
+            result: 'result' in task ? task.result : undefined,
+          });
       } catch (error) {
         if (error instanceof ReviewDraftValidationError) {
           return reply.code(400).send({ error: error.message });
@@ -273,7 +269,9 @@ export function registerReviewDraftRoutes(
         }
         return reply.code(200).send(task);
       } catch {
-        return reply.code(503).send({ error: 'Task status temporarily unavailable' });
+        return reply
+          .code(503)
+          .send({ error: 'Task status temporarily unavailable' });
       }
     },
   );
@@ -361,7 +359,8 @@ export function registerReviewDraftRoutes(
       schema: { body: { type: 'object' } },
     },
     async (request, reply) => {
-      const { claim_token, revision_hash, validator_version, result } = request.body;
+      const { claim_token, revision_hash, validator_version, result } =
+        request.body;
 
       if (!claim_token || !revision_hash || !result) {
         return reply.code(400).send({

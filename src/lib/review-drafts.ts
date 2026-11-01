@@ -7,7 +7,9 @@ import {
 } from '../../scripts/store-extraction-candidate.js';
 
 export class StaleRevisionError extends Error {
-  constructor(message = 'Revision is stale. Reload candidate to see newer changes.') {
+  constructor(
+    message = 'Revision is stale. Reload candidate to see newer changes.',
+  ) {
     super(message);
     this.name = 'StaleRevisionError';
   }
@@ -32,10 +34,7 @@ export interface ReviewDraftImportInput {
   hold_reason?: string | null;
 }
 
-export async function importReviewDraft(
-  input: unknown,
-  database = prisma,
-) {
+export async function importReviewDraft(input: unknown, database = prisma) {
   let rawString: string | null = null;
   let parsed: unknown = input;
 
@@ -71,7 +70,10 @@ export async function importReviewDraft(
       rawObj.metadata && typeof rawObj.metadata === 'object'
         ? (rawObj.metadata as Record<string, unknown>)
         : {};
-    rawObj.metadata = { ...existingMeta, hold_reason: rawObj.hold_reason.trim() };
+    rawObj.metadata = {
+      ...existingMeta,
+      hold_reason: rawObj.hold_reason.trim(),
+    };
     delete rawObj.hold_reason;
   }
 
@@ -79,9 +81,11 @@ export async function importReviewDraft(
     ? createHash('sha256').update(rawString).digest('hex')
     : null;
 
-  const envelope = await validateStorageEnvelope(rawObj).catch((error: Error) => {
-    throw new ReviewDraftValidationError(error.message);
-  });
+  const envelope = await validateStorageEnvelope(rawObj).catch(
+    (error: Error) => {
+      throw new ReviewDraftValidationError(error.message);
+    },
+  );
 
   const canonicalHash = candidateContentHash(envelope.facts);
   const sourceEvidence = Array.isArray(rawObj.source_evidence)
@@ -93,14 +97,18 @@ export async function importReviewDraft(
       ? (rawObj.metadata as Record<string, unknown>)
       : {};
   const holdReason =
-    typeof metadataObj.hold_reason === 'string' && metadataObj.hold_reason.trim()
+    typeof metadataObj.hold_reason === 'string' &&
+    metadataObj.hold_reason.trim()
       ? metadataObj.hold_reason.trim()
       : 'Held for operator review';
 
   return database.$transaction(async (tx) => {
     // Touch the row inside this transaction to hold its row lock until commit.
     await tx.reviewItem
-      .update({ where: { bundleId: envelope.bundle_id }, data: { updatedAt: new Date() } })
+      .update({
+        where: { bundleId: envelope.bundle_id },
+        data: { updatedAt: new Date() },
+      })
       .catch(() => undefined);
     const existingItem = await tx.reviewItem.findUnique({
       where: { bundleId: envelope.bundle_id },
@@ -296,10 +304,7 @@ export async function listReviewQueue(
   };
 }
 
-export async function getReviewItemDetail(
-  itemId: string,
-  database = prisma,
-) {
+export async function getReviewItemDetail(itemId: string, database = prisma) {
   const item = await database.reviewItem.findUnique({
     where: { id: itemId },
     include: {
@@ -368,7 +373,9 @@ export async function saveReviewCorrection(
   const { baseRevisionId, facts, changeReason, operatorEmail } = input;
 
   if (!changeReason || !changeReason.trim()) {
-    throw new ReviewDraftValidationError('A reason for the correction is required');
+    throw new ReviewDraftValidationError(
+      'A reason for the correction is required',
+    );
   }
 
   return database.$transaction(async (tx) => {
@@ -425,7 +432,8 @@ export async function saveReviewCorrection(
       orderBy: { revisionNumber: 'desc' },
       select: { revisionNumber: true },
     });
-    const nextRevisionNumber = (highest?.revisionNumber ?? baseRev.revisionNumber) + 1;
+    const nextRevisionNumber =
+      (highest?.revisionNumber ?? baseRev.revisionNumber) + 1;
 
     const newRev = await tx.reviewRevision.create({
       data: {
@@ -479,7 +487,9 @@ export async function requestValidation(
     });
 
     if (!revision || revision.reviewItemId !== item.id) {
-      throw new ReviewDraftValidationError('Revision does not belong to this item');
+      throw new ReviewDraftValidationError(
+        'Revision does not belong to this item',
+      );
     }
 
     // Check for existing task for this exact revision and validator version
@@ -546,10 +556,7 @@ export async function requestValidation(
   });
 }
 
-export async function getValidationStatus(
-  taskId: string,
-  database = prisma,
-) {
+export async function getValidationStatus(taskId: string, database = prisma) {
   const task = await database.validationTask.findUnique({
     where: { id: taskId },
     include: {
@@ -670,7 +677,12 @@ export async function submitValidationResult(
   },
   database = prisma,
 ) {
-  const { claimToken, revisionHash, validatorVersion = 'aptus-val-v1', result } = input;
+  const {
+    claimToken,
+    revisionHash,
+    validatorVersion = 'aptus-val-v1',
+    result,
+  } = input;
 
   return database.$transaction(async (tx) => {
     const task = await tx.validationTask.findUnique({
@@ -695,7 +707,8 @@ export async function submitValidationResult(
     }
 
     const errors = Array.isArray(result.errors) ? result.errors : [];
-    const validationState = errors.length > 0 ? 'completed_with_issues' : 'checks_passed';
+    const validationState =
+      errors.length > 0 ? 'completed_with_issues' : 'checks_passed';
 
     await tx.validationTask.update({
       where: { id: task.id },

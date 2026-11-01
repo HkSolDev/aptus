@@ -4,7 +4,7 @@ import type { JobFilters } from '../../frontend/public-job-filters.js';
 import { activeApplicationWhere } from './application-deadline.js';
 
 // Shared by the JSON API and HTML catalogue; never select user/profile data.
-const publicFields = {
+export const publicFields = {
   id: true,
   postName: true,
   organization: true,
@@ -63,28 +63,47 @@ export function listPublicJobs(
     });
   }
   const where: Prisma.PostWhereInput = { AND: conditions };
-  // The legacy HTML caller keeps its existing alphabetic order.
+  // Sorting applies to the entire matching set before pagination.
+  // Unknown values (missing deadline / unknown first publication) sort last.
   const orderBy: Prisma.PostOrderByWithRelationInput[] = filters
-    ? [
-        {
-          applicationLastDate: {
-            sort: filters.sort === 'soonest' ? 'asc' : 'desc',
-            nulls: 'last',
+    ? filters.sort === 'newest'
+      ? [{ publishedAt: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }]
+      : [
+          {
+            applicationLastDate: {
+              sort: filters.sort === 'soonest' ? 'asc' : 'desc',
+              nulls: 'last',
+            },
           },
-        },
-        { id: 'asc' },
-      ]
+          { id: 'asc' },
+        ]
     : [{ postName: 'asc' }, { id: 'asc' }];
   // Count and rows share a snapshot while the extraction pipeline updates jobs.
   return database.$transaction(
     async (db) => {
       const totalItems = await db.post.count({ where });
-      const data = await db.post.findMany({
+      const posts = await db.post.findMany({
         skip: (page - 1) * pageSize,
         take: pageSize,
         where,
         orderBy,
-        select: publicFields,
+        select: {
+          ...publicFields,
+          reviewedDetails: true,
+        },
+      });
+      const data = posts.map((post) => {
+        const reviewed = post.reviewedDetails as Record<string, unknown> | null;
+        const appointmentType =
+          typeof reviewed?.employment_type === 'string' &&
+          reviewed.employment_type.trim()
+            ? reviewed.employment_type.trim()
+            : null;
+        const { reviewedDetails: _, ...item } = post;
+        return {
+          ...item,
+          appointmentType,
+        };
       });
       return {
         data,

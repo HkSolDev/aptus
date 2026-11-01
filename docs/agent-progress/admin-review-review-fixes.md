@@ -19,21 +19,22 @@ No privileged identity is hardcoded in authorization logic.
 
 ## Findings
 
-| # | Finding | Status | Likelihood | Impact | Risk |
-|---|---|---|---:|---:|---:|
-| A | Correction after newer worker observation fails (unique constraint) | Confirmed, fixed | 7 | 8 | 56 |
-| B | Refresh moves save token off unsaved facts | Confirmed (code), fixed | 6 | 9 | 54 |
-| C | Queue has no pagination beyond first 20 | Confirmed, fixed | 8 | 5 | 40 |
-| D | API pagination skips a candidate | Confirmed, fixed | 8 | 6 | 48 |
-| E | Validation claims not exclusive | Confirmed (code), fixed | 5 | 7 | 35 |
-| F | Queue failure shown as empty backlog | Confirmed, fixed | 5 | 6 | 30 |
-| — | Component render harness broken in this env (existing tests too) | Unresolved concern | 4 | 3 | 12 |
-| — | New-item import race on unique `bundleId` (two first imports at once) | Low priority, not fixed | 2 | 4 | 8 |
+| #   | Finding                                                               | Status                  | Likelihood | Impact | Risk |
+| --- | --------------------------------------------------------------------- | ----------------------- | ---------: | -----: | ---: |
+| A   | Correction after newer worker observation fails (unique constraint)   | Confirmed, fixed        |          7 |      8 |   56 |
+| B   | Refresh moves save token off unsaved facts                            | Confirmed (code), fixed |          6 |      9 |   54 |
+| C   | Queue has no pagination beyond first 20                               | Confirmed, fixed        |          8 |      5 |   40 |
+| D   | API pagination skips a candidate                                      | Confirmed, fixed        |          8 |      6 |   48 |
+| E   | Validation claims not exclusive                                       | Confirmed (code), fixed |          5 |      7 |   35 |
+| F   | Queue failure shown as empty backlog                                  | Confirmed, fixed        |          5 |      6 |   30 |
+| —   | Component render harness broken in this env (existing tests too)      | Unresolved concern      |          4 |      3 |   12 |
+| —   | New-item import race on unique `bundleId` (two first imports at once) | Low priority, not fixed |          2 |      4 |    8 |
 
 Security/data-loss note: B and the stale-save path are data-loss class; A is
 correctness; the isolation test is privacy class. All are flagged regardless of score.
 
 ### A. Corrections fail after a new worker observation
+
 - Reproduction: `scripts/review-workflow-regressions.test.ts` test A failed pre-fix with
   `Unique constraint failed on ReviewRevision_reviewItemId_revisionNumber_key`
   at `saveReviewCorrection` (it allocated `currentRevision.revisionNumber + 1`
@@ -51,6 +52,7 @@ correctness; the isolation test is privacy class. All are flagged regardless of 
   all 4 revisions kept) and A-concurrent (one saved, one stale). Both pass.
 
 ### B. Refresh advances the revision token without updating unsaved facts
+
 - Root cause: `refreshCandidate` called `setData(fresh)` even with unsaved
   changes, so the save `If-Match`/body token became the newer revision while
   the edited facts still came from the older one.
@@ -68,6 +70,7 @@ correctness; the isolation test is privacy class. All are flagged regardless of 
   stale check (412) applies instead of claiming the newer revision.
 
 ### C. Queue has no usable pagination
+
 - Fix: the server page now passes `next_cursor` through; `ReviewQueueView`
   keeps items/cursor in state and "Load more candidates" fetches
   `/api/admin/review-drafts?limit=20&cursor=…` (existing API convention),
@@ -77,15 +80,17 @@ correctness; the isolation test is privacy class. All are flagged regardless of 
 - Test: `tests/review-admin-ui.test.ts` (render) — see Limitations for harness.
 
 ### D. API pagination skips a candidate
+
 - Root cause: `listReviewQueue` popped the `limit + 1`th item and returned
-  *its* id as `next_cursor`; the next request then did `cursor + skip: 1`,
+  _its_ id as `next_cursor`; the next request then did `cursor + skip: 1`,
   skipping that item. Ordering was `updatedAt desc` only (unstable on ties).
-- Fix: cursor is now the last *returned* item's id; ordering is
+- Fix: cursor is now the last _returned_ item's id; ordering is
   `updatedAt desc, id desc` (deterministic, cursor-compatible).
 - Regression test: D imports 5 items forced to equal `updatedAt`, pages with
   limit 2, and asserts every id exactly once. Passes.
 
 ### E. Validation task claims are not exclusive
+
 - Root cause: claim did `findFirst` then unconditional `update` by id; two
   overlapping transactions could both select and overwrite each other's token.
 - Fix: atomic conditional claim — `updateMany` guarded by
@@ -97,6 +102,7 @@ correctness; the isolation test is privacy class. All are flagged regardless of 
   `submitValidationResult` is rejected (`claim token` mismatch). Passes.
 
 ### F. Queue failures appear as an empty backlog
+
 - Root cause: `app/admin/review/page.tsx` swallowed fetch errors/non-OK into
   an empty queue payload.
 - Fix: the page distinguishes failure (non-OK status, timeout, transport
@@ -138,19 +144,20 @@ cd services/ai
 
 ## Verification evidence (actual outcomes)
 
-| Command | Result |
-|---|---|
-| `tsx --test scripts/review-workflow-regressions.test.ts` (isolated Postgres) | 4/4 pass (A, A-concurrent, D, E) |
-| `tsx --test scripts/review-workflow.test.ts` | 4/4 pass, incl. repaired isolation test returning 200 from the same isolated DB |
-| `tsx --test tests/review-refresh.test.ts` | 3/3 pass |
-| `python -m unittest services.ai.tests.test_review_validation_worker` | 4/4 pass |
-| `tsc --noEmit`, `tsc -p tsconfig.web.json`, `tsc -p tsconfig.next.json` | 0 errors |
-| `eslint .` | 0 errors |
-| `tests/review-admin-ui.test.ts` (render) | Not run — see Limitations |
-| Browser demonstration (9 steps) | Incomplete — see Limitations |
+| Command                                                                      | Result                                                                          |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `tsx --test scripts/review-workflow-regressions.test.ts` (isolated Postgres) | 4/4 pass (A, A-concurrent, D, E)                                                |
+| `tsx --test scripts/review-workflow.test.ts`                                 | 4/4 pass, incl. repaired isolation test returning 200 from the same isolated DB |
+| `tsx --test tests/review-refresh.test.ts`                                    | 3/3 pass                                                                        |
+| `python -m unittest services.ai.tests.test_review_validation_worker`         | 4/4 pass                                                                        |
+| `tsc --noEmit`, `tsc -p tsconfig.web.json`, `tsc -p tsconfig.next.json`      | 0 errors                                                                        |
+| `eslint .`                                                                   | 0 errors                                                                        |
+| `tests/review-admin-ui.test.ts` (render)                                     | Not run — see Limitations                                                       |
+| Browser demonstration (9 steps)                                              | Incomplete — see Limitations                                                    |
 
 Corrections to earlier claims (see also the amendment note in
 `admin-review-worker-validation.md`):
+
 - The old obsolete-revision check did **not** prove a 409: submitting an old
   revision's result was accepted and only updated that revision; the test
   verified the current revision stayed unchanged. That behavior is retained
@@ -186,26 +193,26 @@ Corrections to earlier claims (see also the amendment note in
 Starting state: commit `d624ac7` on `codex/admin-review-review-fixes`,
 clean working tree (verified before editing).
 
-- Reproduction: dirty edits on R1 + a refresh returning the *same* R1
+- Reproduction: dirty edits on R1 + a refresh returning the _same_ R1
   (manual Refresh, hold-reason update, or validation polling) returned
   `apply-fresh` from `resolveCandidateRefresh`, so the editor replaced the
   edited facts with the server's R1 facts. Likelihood 6 × impact 7 = **42**
   (unsaved-data-loss). The line above in §B ("Unsaved work is never silently
   rebased or discarded") was therefore too broad and is corrected by this fix.
 - Root cause: the helper only protected dirty edits when the fresh revision
-  *differed* from the editing revision, and refresh decisions were taken
+  _differed_ from the editing revision, and refresh decisions were taken
   from state captured when the request started.
 - Fix (frontend only): the helper gains a `preserve-editing` decision for
   dirty + same-revision (validation/status refresh via `setData`, editable
   facts/reason/dirty/base untouched, no false conflict); different-revision
   still shows the conflict. `candidate-detail-view.tsx` now decides from
-  refs read when the response *arrives*, and marking an edit dirty is
+  refs read when the response _arrives_, and marking an edit dirty is
   synchronous, so typing during an in-flight refresh cannot be overwritten.
   Only explicit discard-and-reload or a successful save replaces facts.
   Files: `components/admin/candidate-refresh.ts`,
   `components/admin/candidate-detail-view.tsx`, `tests/review-refresh.test.ts`.
 - Regression first: new helper test `dirty refresh returning the same
-  revision preserves editing` failed pre-fix (`apply-fresh`) and passes now.
+revision preserves editing` failed pre-fix (`apply-fresh`) and passes now.
 - Actual editor evidence (isolated local DB `aptus_review_ui`, seeded
   fixture + test operator session, system Chrome via Playwright, servers
   on 8081/18080 — all torn down afterwards): dirty same-revision refresh

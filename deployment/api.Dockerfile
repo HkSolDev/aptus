@@ -5,7 +5,7 @@ COPY package.json pnpm-lock.yaml ./
 COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
 COPY src ./src
-COPY scripts/match.ts scripts/validate-post.ts ./scripts/
+COPY scripts/match.ts scripts/match-age.ts scripts/validate-post.ts ./scripts/
 COPY scripts/store-extraction-candidate.ts scripts/publish-extraction-candidate.ts ./scripts/
 COPY services/ai/candidate-storage.schema.json ./services/ai/
 COPY frontend ./frontend

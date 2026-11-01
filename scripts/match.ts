@@ -3,6 +3,7 @@ import { prisma } from '../src/db.js';
 import type { Post, User, Education } from '../generated/prisma/index.js';
 import { activeApplicationWhere } from '../src/lib/application-deadline.js';
 import { isEligibilityRules } from '../src/schemas/eligibility-rules.js';
+import { getAgeLimits, type AgePost } from './match-age.js';
 
 const EDUCATION_ORDER = [
   'TENTH',
@@ -14,24 +15,20 @@ const EDUCATION_ORDER = [
 ];
 
 export function ageOn(dob: Date, asOf = new Date()): number {
-  let age = asOf.getFullYear() - dob.getFullYear();
+  let age = asOf.getUTCFullYear() - dob.getUTCFullYear();
   const hadBirthdayThisYear =
-    asOf.getMonth() > dob.getMonth() ||
-    (asOf.getMonth() === dob.getMonth() && asOf.getDate() >= dob.getDate());
+    asOf.getUTCMonth() > dob.getUTCMonth() ||
+    (asOf.getUTCMonth() === dob.getUTCMonth() &&
+      asOf.getUTCDate() >= dob.getUTCDate());
   if (!hadBirthdayThisYear) age -= 1;
   return age;
 }
 
 export function getEffectiveMaxAge(
-  post: { maxAge: number | null; categoryRelaxationRules: unknown },
+  post: AgePost,
   userCategory: string,
 ): { effectiveMaxAge: number | null; relaxation: number } {
-  const relaxation =
-    (post.categoryRelaxationRules as Record<string, number | null> | null)?.[
-      userCategory
-    ] ?? 0;
-  const effectiveMaxAge =
-    post.maxAge !== null ? post.maxAge + relaxation : null;
+  const { effectiveMaxAge, relaxation } = getAgeLimits(post, userCategory);
   return { effectiveMaxAge, relaxation };
 }
 
@@ -46,26 +43,52 @@ export function getUnverifiedRequirements(
   if (post.eligibilityRules != null) {
     if (!isEligibilityRules(post.eligibilityRules)) {
       reasons.push('Detailed qualification rules require manual verification');
-    } else if (post.eligibilityRules.education_options.length) {
-      const routes = post.eligibilityRules.education_options.map((option) =>
-        [
-          option.qualification ?? option.minimum_level,
-          option.subject_requirement,
-          option.conditions,
-          option.minimum_marks_percent == null
-            ? null
-            : `${option.minimum_marks_percent}% marks`,
-        ]
-          .filter(Boolean)
-          .join('; '),
-      );
-      // Profiles record education levels, not exact qualifications or route conditions.
-      reasons.push(
-        `Verify the applicable qualification route: ${routes.join(' OR ')}`,
-      );
+    } else {
+      const rules = post.eligibilityRules;
+      if (rules.gender_requirement)
+        reasons.push(`Verify gender requirement: ${rules.gender_requirement}`);
+      if (rules.category_requirement.length)
+        reasons.push(
+          `Verify category requirement: ${rules.category_requirement.join(', ')}`,
+        );
+      if (rules.relaxation_combination_rule)
+        reasons.push(
+          `Verify relaxation combination rule: ${rules.relaxation_combination_rule}`,
+        );
+      if (rules.age_rules.length)
+        reasons.push('Detailed age conditions require manual verification');
+      if (rules.education_options.length) {
+        const routes = post.eligibilityRules.education_options.map((option) =>
+          [
+            option.qualification ?? option.minimum_level,
+            option.subject_requirement,
+            option.conditions,
+            option.minimum_marks_percent == null
+              ? null
+              : `${option.minimum_marks_percent}% marks`,
+          ]
+            .filter(Boolean)
+            .join('; '),
+        );
+        // Profiles record education levels, not exact qualifications or route conditions.
+        reasons.push(
+          `Verify the applicable qualification route: ${routes.join(' OR ')}`,
+        );
+      }
     }
   }
   const details = post.reviewedDetails;
+  if (
+    details &&
+    typeof details === 'object' &&
+    !Array.isArray(details) &&
+    typeof details.nationality_requirement === 'string' &&
+    details.nationality_requirement.trim()
+  ) {
+    reasons.push(
+      `Verify nationality requirement: ${details.nationality_requirement}`,
+    );
+  }
   if (
     details &&
     typeof details === 'object' &&
@@ -99,10 +122,22 @@ export function getPostChecks(
     | 'minMarksPercent'
     | 'categoryRelaxationRules'
   > &
-    Partial<Pick<Post, 'eligibilityRules' | 'reviewedDetails'>>,
+    Partial<
+      Pick<
+        Post,
+        | 'eligibilityRules'
+        | 'reviewedDetails'
+        | 'ageAsOnDate'
+        | 'categoryRelaxationApplies'
+      >
+    >,
   user: MatchCandidate,
 ) {
-  const userAge = ageOn(user.dob);
+  const reference = post.ageAsOnDate;
+  const userAge =
+    reference instanceof Date && Number.isFinite(reference.getTime())
+      ? ageOn(user.dob, reference)
+      : null;
   const highestLevelRank = Math.max(
     ...user.educations.map((e) => EDUCATION_ORDER.indexOf(e.level)),
   );
@@ -110,14 +145,21 @@ export function getPostChecks(
     user.educations.map((e) => [e.level, e.marksPercent]),
   );
 
-  const { effectiveMaxAge, relaxation } = getEffectiveMaxAge(
-    post,
-    user.category,
-  );
+  const {
+    effectiveMaxAge,
+    relaxation,
+    minimumUncertain,
+    reasons: ageReasons,
+  } = getAgeLimits(post, user.category);
 
   const ageOk =
-    (post.minAge === null || userAge >= post.minAge) &&
-    (effectiveMaxAge === null || userAge <= effectiveMaxAge);
+    userAge === null ||
+    ((minimumUncertain || post.minAge === null || userAge >= post.minAge) &&
+      (effectiveMaxAge === null || userAge <= effectiveMaxAge));
+  if (userAge === null)
+    ageReasons.unshift(
+      'Notification age reference date requires manual verification',
+    );
 
   const educationOk =
     post.minEducationLevel === null ||
@@ -146,7 +188,15 @@ export function getPostChecks(
     educationOk,
     marksOk,
     marksAtRequiredLevel,
-    unverifiedRequirements: getUnverifiedRequirements(post),
+    ageNeedsManualCheck:
+      userAge === null ||
+      minimumUncertain ||
+      effectiveMaxAge === null ||
+      post.minAge === null ||
+      ageReasons.length > 0,
+    unverifiedRequirements: [
+      ...new Set([...ageReasons, ...getUnverifiedRequirements(post)]),
+    ],
   };
 }
 

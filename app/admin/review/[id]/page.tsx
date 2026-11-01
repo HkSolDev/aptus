@@ -27,12 +27,15 @@ export default async function AdminReviewDetailPage(props: {
 
   if (cookie) {
     try {
-      const res = await fetch(`${backend}/api/admin/review-drafts/operator-status`, {
-        headers: { cookie },
-        cache: 'no-store',
-        redirect: 'error',
-        signal: AbortSignal.timeout(5000),
-      });
+      const res = await fetch(
+        `${backend}/api/admin/review-drafts/operator-status`,
+        {
+          headers: { cookie },
+          cache: 'no-store',
+          redirect: 'error',
+          signal: AbortSignal.timeout(5000),
+        },
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.is_operator === true) {
@@ -46,10 +49,20 @@ export default async function AdminReviewDetailPage(props: {
 
   if (!isOperator) {
     return (
-      <div style={{ maxWidth: '600px', margin: '4rem auto', padding: '0 1rem', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.75rem', marginBottom: '1rem' }}>Review Operator Access Required</h1>
+      <div
+        style={{
+          maxWidth: '600px',
+          margin: '4rem auto',
+          padding: '0 1rem',
+          textAlign: 'center',
+        }}
+      >
+        <h1 style={{ fontSize: '1.75rem', marginBottom: '1rem' }}>
+          Review Operator Access Required
+        </h1>
         <p style={{ color: 'var(--muted)', marginBottom: '1.5rem' }}>
-          This page is restricted to authorized operators with a verified email matching the deployment allowlist.
+          This page is restricted to authorized operators with a verified email
+          matching the deployment allowlist.
         </p>
         <Link href="/sign-in" className="button button-primary">
           Sign In
@@ -77,7 +90,12 @@ export default async function AdminReviewDetailPage(props: {
       detailData = await detailRes.json();
     }
   } catch (err) {
-    if (err && typeof err === 'object' && 'digest' in err && err.digest === 'NEXT_NOT_FOUND') {
+    if (
+      err &&
+      typeof err === 'object' &&
+      'digest' in err &&
+      err.digest === 'NEXT_NOT_FOUND'
+    ) {
       throw err;
     }
   }

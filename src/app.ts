@@ -5,6 +5,8 @@ import { handleMatch } from './routes/match.js';
 import { handleExplain } from './routes/explain.js';
 import { handleIngest } from './routes/ingest.js';
 import { registerReviewDraftRoutes } from './routes/review-drafts.js';
+import { registerProfileRoutes } from './routes/profile.js';
+import { registerSavedJobsRoutes } from './routes/saved-jobs.js';
 import { createAuth, type AppAuth } from './auth/auth.js';
 import { readAuthConfig } from './auth/config.js';
 import { registerAuthRoutes } from './auth/routes.js';
@@ -60,6 +62,8 @@ export function buildApp(
   const appAuth = auth ?? (config ? createAuth(config) : null);
   if (appAuth) registerAuthRoutes(app, appAuth);
   registerReviewDraftRoutes(app, appAuth, env);
+  registerProfileRoutes(app, appAuth);
+  registerSavedJobsRoutes(app, appAuth);
   const options = { schema: { body: { type: 'object' } } };
   const protectedOptions = {
     ...options,

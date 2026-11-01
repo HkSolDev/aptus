@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import styles from './review.module.css';
 
@@ -40,7 +40,9 @@ export function ReviewQueueView({
   initialError,
 }: ReviewQueueViewProps) {
   const [items, setItems] = useState<QueueItem[]>(initialItems);
-  const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
+  const [nextCursor, setNextCursor] = useState<string | null>(
+    initialNextCursor,
+  );
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -57,7 +59,10 @@ export function ReviewQueueView({
       const data = await res.json();
       setItems((prev) => {
         const known = new Set(prev.map((i) => i.id));
-        return [...prev, ...(data.items as QueueItem[]).filter((i) => !known.has(i.id))];
+        return [
+          ...prev,
+          ...(data.items as QueueItem[]).filter((i) => !known.has(i.id)),
+        ];
       });
       setNextCursor(data.next_cursor ?? null);
     } catch {
@@ -70,17 +75,41 @@ export function ReviewQueueView({
   const getValidationBadge = (state?: string) => {
     switch (state) {
       case 'checks_passed':
-        return <span className={`${styles.badge} ${styles.badgeSuccess}`}>Checks passed</span>;
+        return (
+          <span className={`${styles.badge} ${styles.badgeSuccess}`}>
+            Checks passed
+          </span>
+        );
       case 'completed_with_issues':
-        return <span className={`${styles.badge} ${styles.badgeWarning}`}>Issues found</span>;
+        return (
+          <span className={`${styles.badge} ${styles.badgeWarning}`}>
+            Issues found
+          </span>
+        );
       case 'checking':
-        return <span className={`${styles.badge} ${styles.badgeReview}`}>Checking…</span>;
+        return (
+          <span className={`${styles.badge} ${styles.badgeReview}`}>
+            Checking…
+          </span>
+        );
       case 'waiting_for_worker':
-        return <span className={`${styles.badge} ${styles.badgePending}`}>Waiting for worker</span>;
+        return (
+          <span className={`${styles.badge} ${styles.badgePending}`}>
+            Waiting for worker
+          </span>
+        );
       case 'failed':
-        return <span className={`${styles.badge} ${styles.badgeFailed}`}>Check failed</span>;
+        return (
+          <span className={`${styles.badge} ${styles.badgeFailed}`}>
+            Check failed
+          </span>
+        );
       default:
-        return <span className={`${styles.badge} ${styles.badgePending}`}>Unchecked</span>;
+        return (
+          <span className={`${styles.badge} ${styles.badgePending}`}>
+            Unchecked
+          </span>
+        );
     }
   };
 
@@ -91,23 +120,28 @@ export function ReviewQueueView({
       <header className={styles.header}>
         <h1>Held Job Review Queue</h1>
         <p className={styles.subtitle}>
-          Inspect held candidates, verify quotations against source evidence, save corrections, and request validation.
+          Inspect held candidates, verify quotations against source evidence,
+          save corrections, and request validation.
         </p>
       </header>
 
       <div className={styles.noticeBar}>
         <div>
-          <strong>{totalItems}</strong> notices imported ({totalRoles} roles on this page) as of{' '}
-          {new Date(countsAsOf).toLocaleTimeString()}
+          <strong>{totalItems}</strong> notices imported ({totalRoles} roles on
+          this page) as of {new Date(countsAsOf).toLocaleTimeString()}
         </div>
         <div className="small muted">
-          Review queue shows imported candidates only, not the full offline crawler backlog.
+          Review queue shows imported candidates only, not the full offline
+          crawler backlog.
         </div>
       </div>
 
       {initialError ? (
         <div className={styles.card} role="alert">
-          <p>Review queue temporarily unavailable. Held candidates could not be loaded.</p>
+          <p>
+            Review queue temporarily unavailable. Held candidates could not be
+            loaded.
+          </p>
           <p className="muted">{initialError}</p>
           <Link href="/admin/review" className="button button-secondary">
             Retry
@@ -115,7 +149,9 @@ export function ReviewQueueView({
         </div>
       ) : items.length === 0 ? (
         <div className={styles.card}>
-          <p className="muted">No candidates are currently held in the review queue.</p>
+          <p className="muted">
+            No candidates are currently held in the review queue.
+          </p>
         </div>
       ) : (
         <div className={styles.card} style={{ padding: 0, overflowX: 'auto' }}>
@@ -135,7 +171,10 @@ export function ReviewQueueView({
               {items.map((item) => (
                 <tr key={item.id} className={styles.queueRow}>
                   <td>
-                    <Link href={`/admin/review/${item.id}`} className={styles.itemTitle}>
+                    <Link
+                      href={`/admin/review/${item.id}`}
+                      className={styles.itemTitle}
+                    >
                       {item.title}
                     </Link>
                     <div className="small muted" style={{ marginTop: '2px' }}>
@@ -147,16 +186,24 @@ export function ReviewQueueView({
                   <td>
                     <span
                       className={`${styles.badge} ${
-                        item.status === 'held' ? styles.badgeHeld : styles.badgeReview
+                        item.status === 'held'
+                          ? styles.badgeHeld
+                          : styles.badgeReview
                       }`}
                     >
                       {item.status}
                     </span>
                   </td>
                   <td>
-                    {item.current_revision ? `R${item.current_revision.revision_number}` : '—'}
+                    {item.current_revision
+                      ? `R${item.current_revision.revision_number}`
+                      : '—'}
                   </td>
-                  <td>{getValidationBadge(item.current_revision?.validation_state)}</td>
+                  <td>
+                    {getValidationBadge(
+                      item.current_revision?.validation_state,
+                    )}
+                  </td>
                   <td className="small muted">
                     {new Date(item.updated_at).toLocaleDateString()}
                   </td>

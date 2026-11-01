@@ -73,6 +73,21 @@ const qualificationLabels = {
   BACHELORS: 'Bachelor’s degree',
 };
 
+export function matchesPreviewQualification(
+  educationRequired: string | null | undefined,
+  qualification: ReviewListView['qualification'],
+): boolean {
+  if (!qualification) return true;
+  if (!educationRequired) return false;
+  // Discovery labels for fictional review jobs, never eligibility rules.
+  const patterns = {
+    TWELFTH: /12th/i,
+    DIPLOMA: /diploma/i,
+    BACHELORS: /btech|bsc|bachelor/i,
+  };
+  return patterns[qualification].test(educationRequired);
+}
+
 export function RecommendationsPreview({
   savedJobs,
 }: {
@@ -133,16 +148,9 @@ export function RecommendationsPreview({
             .toLocaleLowerCase()
             .includes(query),
       )
-      .filter((job) => {
-        if (!qualification) return true;
-        // Discovery labels for fictional review jobs, never eligibility rules.
-        const patterns = {
-          TWELFTH: /12th/i,
-          DIPLOMA: /diploma/i,
-          BACHELORS: /btech|bsc|bachelor/i,
-        };
-        return patterns[qualification].test(job.educationRequired);
-      })
+      .filter((job) =>
+        matchesPreviewQualification(job.educationRequired, qualification),
+      )
       .sort((a, b) => {
         if (!a.applicationLastDate) return b.applicationLastDate ? 1 : 0;
         if (!b.applicationLastDate) return -1;

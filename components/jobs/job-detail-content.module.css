@@ -205,6 +205,59 @@
   margin-top: var(--space-2);
 }
 
+.advertisementNumber {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  margin: var(--space-2) 0 0;
+}
+
+.bulletList,
+.stepList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.bulletList li,
+.stepList li {
+  padding-left: var(--space-1);
+}
+
+.vacancyBreakdown,
+.otherRequirements {
+  border-top: 1px solid var(--line-subtle);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+.vacancyBreakdown h3,
+.otherRequirements h3 {
+  font-size: 1rem;
+  margin: 0 0 var(--space-3);
+}
+
+.breakdownGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.breakdownItem {
+  background: var(--soft);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--small-radius);
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.breakdownItem strong {
+  margin-left: var(--space-1);
+}
+
 .ageGroups,
 .relaxations {
   border-top: 1px solid var(--line-subtle);

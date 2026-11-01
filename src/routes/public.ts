@@ -17,7 +17,8 @@ export function registerPublicRoutes(
           .send({ error: 'Method Not Allowed' });
       }
     },
-    handler: (request, reply) => handleJobDetail(request.params.id, reply, database),
+    handler: (request, reply) =>
+      handleJobDetail(request.params.id, reply, database),
   });
 
   app.all('/api/jobs', {

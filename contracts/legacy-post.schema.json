@@ -1,0 +1,480 @@
+{
+  "$defs": {
+    "AgeRule": {
+      "additionalProperties": false,
+      "description": "One exact age rule, including gender/category conditions.",
+      "properties": {
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Category"
+        },
+        "gender": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gender"
+        },
+        "min_age": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Min Age"
+        },
+        "max_age": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Max Age"
+        },
+        "relaxation_years": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Relaxation Years"
+        },
+        "conditions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Conditions"
+        }
+      },
+      "required": [
+        "category",
+        "gender",
+        "min_age",
+        "max_age",
+        "relaxation_years",
+        "conditions"
+      ],
+      "title": "AgeRule",
+      "type": "object"
+    },
+    "CategoryRelaxationRules": {
+      "additionalProperties": false,
+      "properties": {
+        "SC": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sc"
+        },
+        "ST": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "St"
+        },
+        "OBC": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Obc"
+        },
+        "EWS": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ews"
+        },
+        "PwBD": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pwbd"
+        }
+      },
+      "required": ["SC", "ST", "OBC", "EWS", "PwBD"],
+      "title": "CategoryRelaxationRules",
+      "type": "object"
+    },
+    "EducationOption": {
+      "additionalProperties": false,
+      "description": "One alternative route through which a candidate can qualify.",
+      "properties": {
+        "minimum_level": {
+          "anyOf": [
+            {
+              "enum": [
+                "TENTH",
+                "TWELFTH",
+                "DIPLOMA",
+                "BACHELORS",
+                "MASTERS",
+                "PHD"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Minimum Level"
+        },
+        "minimum_marks_percent": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Minimum Marks Percent"
+        },
+        "qualification": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Qualification"
+        },
+        "subject_requirement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Subject Requirement"
+        },
+        "conditions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Conditions"
+        }
+      },
+      "required": [
+        "minimum_level",
+        "minimum_marks_percent",
+        "qualification",
+        "subject_requirement",
+        "conditions"
+      ],
+      "title": "EducationOption",
+      "type": "object"
+    },
+    "EligibilityRules": {
+      "additionalProperties": false,
+      "description": "Detailed rules kept when a flat Post field is not expressive enough.",
+      "properties": {
+        "gender_requirement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gender Requirement"
+        },
+        "category_requirement": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Category Requirement",
+          "type": "array"
+        },
+        "education_options": {
+          "items": {
+            "$ref": "#/$defs/EducationOption"
+          },
+          "title": "Education Options",
+          "type": "array"
+        },
+        "age_rules": {
+          "items": {
+            "$ref": "#/$defs/AgeRule"
+          },
+          "title": "Age Rules",
+          "type": "array"
+        },
+        "relaxation_combination_rule": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Relaxation Combination Rule"
+        }
+      },
+      "required": [
+        "gender_requirement",
+        "category_requirement",
+        "education_options",
+        "age_rules",
+        "relaxation_combination_rule"
+      ],
+      "title": "EligibilityRules",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "post_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Post Name"
+    },
+    "recruiting_body": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Recruiting organization named verbatim in the notice; null if unclear. Never the source website.",
+      "title": "Recruiting Body"
+    },
+    "vacancies": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Vacancies"
+    },
+    "application_last_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Format YYYY-MM-DD. Indian sources write DD/MM/YYYY (day first). null if not stated or unclear.",
+      "title": "Application Last Date"
+    },
+    "age_as_on_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Format YYYY-MM-DD. Indian sources write DD/MM/YYYY (day first). null if not stated or unclear.",
+      "title": "Age As On Date"
+    },
+    "min_age": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Min Age"
+    },
+    "max_age": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Max Age"
+    },
+    "education_required": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Education Required"
+    },
+    "post_group": {
+      "anyOf": [
+        {
+          "enum": ["A", "B", "C", "D"],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Post Group"
+    },
+    "pay_level": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Pay Level"
+    },
+    "min_education_level": {
+      "anyOf": [
+        {
+          "enum": [
+            "TENTH",
+            "TWELFTH",
+            "DIPLOMA",
+            "BACHELORS",
+            "MASTERS",
+            "PHD"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Min Education Level"
+    },
+    "min_marks_percent": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Min Marks Percent"
+    },
+    "category_relaxation_applies": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Category Relaxation Applies"
+    },
+    "category_relaxation_rules": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CategoryRelaxationRules"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "eligibility_rules": {
+      "$ref": "#/$defs/EligibilityRules"
+    }
+  },
+  "required": [
+    "post_name",
+    "recruiting_body",
+    "vacancies",
+    "application_last_date",
+    "age_as_on_date",
+    "min_age",
+    "max_age",
+    "education_required",
+    "post_group",
+    "pay_level",
+    "min_education_level",
+    "min_marks_percent",
+    "category_relaxation_applies",
+    "category_relaxation_rules",
+    "eligibility_rules"
+  ],
+  "title": "Post",
+  "type": "object",
+  "$id": "https://aptus.invalid/contracts/legacy-post.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

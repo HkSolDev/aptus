@@ -120,8 +120,9 @@ await test('public jobs HTTP contract', async (t) => {
         });
         assert.equal(query.skip, 20);
         assert.equal(query.take, 20);
+        // No explicit sort: the default is now Newest.
         assert.deepEqual(query.orderBy, [
-          { applicationLastDate: { sort: 'asc', nulls: 'last' } },
+          { publishedAt: { sort: 'desc', nulls: 'last' } },
           { id: 'asc' },
         ]);
         const selection = JSON.stringify(query.select);

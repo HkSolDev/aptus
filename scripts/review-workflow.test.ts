@@ -18,14 +18,17 @@ import { authDatabase } from './helpers/auth-database.js';
 
 const execute = promisify(execFile);
 const testIngestToken = 'test-internal-worker-secret-token-123';
-const operatorAllowlist = 'operator@example.gov.in,hemantkumar4213@gmail.com,mrdevghost@gmail.com';
+const operatorAllowlist =
+  'operator@example.gov.in,hemantkumar4213@gmail.com,mrdevghost@gmail.com';
 
-function createMockAuth(sessionUser: {
-  id: string;
-  email: string;
-  emailVerified: boolean;
-  name?: string;
-} | null) {
+function createMockAuth(
+  sessionUser: {
+    id: string;
+    email: string;
+    emailVerified: boolean;
+    name?: string;
+  } | null,
+) {
   return {
     options: { baseURL: 'https://aptus.example' },
     api: {
@@ -271,7 +274,8 @@ await test('Review workflow: Database lifecycle, import replay, corrections, sta
     {
       baseRevisionId: import1.revisionId,
       facts: factsToEdit,
-      changeReason: 'Corrected age range to 21-30 cited from section unit-0; preserved null vacancies',
+      changeReason:
+        'Corrected age range to 21-30 cited from section unit-0; preserved null vacancies',
       operatorEmail: 'operator@example.gov.in',
     },
     database,
@@ -393,7 +397,10 @@ print(json.dumps(result))
   assert.equal(detailAfterVal.revision.validation_state, 'checks_passed');
   assert.ok(detailAfterVal.latest_validation);
   assert.equal(detailAfterVal.latest_validation.status, 'completed');
-  const valResult = detailAfterVal.latest_validation.result as Record<string, unknown> | null;
+  const valResult = detailAfterVal.latest_validation.result as Record<
+    string,
+    unknown
+  > | null;
   const valErrors = Array.isArray(valResult?.errors) ? valResult.errors : [];
   assert.equal(valErrors.length, 0);
 
@@ -549,7 +556,10 @@ await test('Review workflow: Public catalogue isolation (private drafts and evid
 
   // Seed an existing public record whose contents must be preserved exactly.
   const source = await database.source.create({
-    data: { name: 'Example Board', url: 'https://example.gov.in/notifications' },
+    data: {
+      name: 'Example Board',
+      url: 'https://example.gov.in/notifications',
+    },
   });
   const publicPost = await database.post.create({
     data: {
@@ -584,12 +594,21 @@ await test('Review workflow: Public catalogue isolation (private drafts and evid
     },
     database,
   );
-  const task = await lib.requestValidation(imported.itemId, saved.revisionId, 'aptus-val-v1', database);
+  const task = await lib.requestValidation(
+    imported.itemId,
+    saved.revisionId,
+    'aptus-val-v1',
+    database,
+  );
   const claimed = await lib.claimValidationTask({ leaseSeconds: 60 }, database);
   assert.equal(claimed?.taskId, task.taskId);
   await lib.submitValidationResult(
     task.taskId,
-    { claimToken: claimed!.claimToken, revisionHash: claimed!.revisionHash, result: { errors: [] } },
+    {
+      claimToken: claimed!.claimToken,
+      revisionHash: claimed!.revisionHash,
+      result: { errors: [] },
+    },
     database,
   );
 
@@ -602,7 +621,10 @@ await test('Review workflow: Public catalogue isolation (private drafts and evid
   assert.equal(listJson.data[0].id, publicPost.id);
   assert.equal(listJson.data[0].postName, 'Existing Public Post');
 
-  const seededDetail = await app.inject({ method: 'GET', url: `/api/jobs/${publicPost.id}` });
+  const seededDetail = await app.inject({
+    method: 'GET',
+    url: `/api/jobs/${publicPost.id}`,
+  });
   assert.equal(seededDetail.statusCode, 200);
   assert.equal(seededDetail.json().postName, 'Existing Public Post');
   assert.equal(seededDetail.json().vacancies, 12);

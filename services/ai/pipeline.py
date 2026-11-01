@@ -30,7 +30,9 @@ def push_to_ts(payload: dict) -> dict:
     res = httpx.post(
         f"{BASE_URL}/api/internal/ingest", json=payload,
         headers={"Authorization": f"Bearer {token}"}, follow_redirects=False,
-        timeout=30,
+        # Reviewed publication may use a bounded sixty-second transaction.
+        timeout=(httpx.Timeout(90, connect=10)
+                 if 'reviewed_candidate_json' in payload else 30),
     )
     res.raise_for_status()
     return res.json()

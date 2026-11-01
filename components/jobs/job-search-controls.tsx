@@ -1,7 +1,14 @@
 'use client';
 
+import {
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  useEffect,
+} from 'react';
 import Form from 'next/form';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { type HomeView, homeSearchParams } from '@/frontend/home-view';
 import { HomeViewFields } from './home-layout-controls';
 import styles from './job-search-controls.module.css';
@@ -10,6 +17,10 @@ import {
   type JobFilters,
 } from '@/frontend/public-job-filters';
 
+const subscribeToHydration = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
 export function JobSearchControls({
   filters,
   view,
@@ -17,6 +28,16 @@ export function JobSearchControls({
   filters: JobFilters;
   view: HomeView;
 }) {
+  const [mobileExpanded, setMobileExpanded] = useState<boolean | null>(null);
+  const hasQualification = Boolean(filters.qualification);
+  const activeCount = hasQualification ? 1 : 0;
+  const isExpanded = mobileExpanded ?? hasQualification;
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    clientSnapshot,
+    serverSnapshot,
+  );
+
   return (
     <>
       <Form
@@ -27,7 +48,7 @@ export function JobSearchControls({
       >
         <input type="hidden" name="sort" value={filters.sort} />
         <HomeViewFields view={view} />
-        <label>
+        <label className={styles.searchLabel}>
           Search all jobs
           <input
             className={styles.input}
@@ -38,25 +59,49 @@ export function JobSearchControls({
             placeholder="Exam, role or organization"
           />
         </label>
-        <label>
-          Qualification
-          <select
-            className={styles.select}
-            name="qualification"
-            defaultValue={filters.qualification}
-            onChange={(event) => event.currentTarget.form?.requestSubmit()}
+
+        <div
+          className={`${styles.mobileFilterToggle}${hydrated ? ` ${styles.enhanced}` : ''}`}
+        >
+          <button
+            type="button"
+            className={styles.filterButton}
+            aria-expanded={isExpanded}
+            aria-controls="secondary-filters"
+            onClick={() => setMobileExpanded(!isExpanded)}
           >
-            <option value="">All qualifications</option>
-            {JOB_QUALIFICATIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+            <span>Filters{activeCount > 0 ? ` (${activeCount})` : ''}</span>
+            <span className={styles.filterChevron} aria-hidden="true">
+              {isExpanded ? '▴' : '▾'}
+            </span>
+          </button>
+        </div>
+
+        <div
+          id="secondary-filters"
+          className={`${styles.secondaryFilters}${hydrated ? ` ${styles.enhanced}` : ''}${isExpanded ? ` ${styles.isExpanded}` : ''}`}
+        >
+          <label className={styles.qualificationLabel}>
+            Qualification
+            <select
+              className={styles.select}
+              name="qualification"
+              defaultValue={filters.qualification}
+              onChange={(event) => event.currentTarget.form?.requestSubmit()}
+            >
+              <option value="">All qualifications</option>
+              {JOB_QUALIFICATIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+              <option value="ITI" disabled>
+                ITI — not available yet
               </option>
-            ))}
-            <option value="ITI" disabled>
-              ITI — not available yet
-            </option>
-          </select>
-        </label>
+            </select>
+          </label>
+        </div>
+
         <button className={`button ${styles.submit}`} type="submit">
           Search
         </button>
@@ -83,6 +128,14 @@ export function JobSortControl({
   filters: JobFilters;
   view: HomeView;
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [sortValue, setSortValue] = useState(filters.sort);
+
+  useEffect(() => {
+    setSortValue(filters.sort);
+  }, [filters.sort]);
+
   return (
     <Form action="/" scroll={false} className={styles.sort}>
       <input type="hidden" name="q" value={filters.q} />
@@ -94,12 +147,32 @@ export function JobSortControl({
           className={styles.sortSelect}
           name="sort"
           aria-label="Sort all jobs"
-          value={filters.sort}
-          onChange={(event) => event.currentTarget.form?.requestSubmit()}
+          aria-busy={isPending}
+          disabled={isPending}
+          value={sortValue}
+          onChange={(event) => {
+            const nextSort = event.target.value as JobFilters['sort'];
+            setSortValue(nextSort);
+            startTransition(() => {
+              const params = homeSearchParams(
+                { ...filters, sort: nextSort },
+                1,
+                view,
+              );
+              router.push(`/?${params}#jobs`, { scroll: false });
+            });
+          }}
         >
+          <option value="newest">Newest</option>
           <option value="soonest">Deadline: soonest first</option>
           <option value="furthest">Deadline: furthest first</option>
         </select>
+        {isPending && (
+          <span className={styles.updating} role="status">
+            <span className={styles.spinner} aria-hidden="true" />
+            Updating…
+          </span>
+        )}
       </label>
       <noscript>
         <button className="button button-secondary" type="submit">

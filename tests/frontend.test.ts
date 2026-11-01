@@ -99,10 +99,24 @@ test('browser flow, response safety, recovery, profile storage and responsive la
 
     let payload: Record<string, unknown> = {};
     let attempts = 0;
+    let saves = 0;
+    let saveFailure = false;
     let mode: 'success' | 'failure' | 'empty' | 'malformed' = 'success';
+    await page.route('**/api/profile', async (route) => {
+      assert.equal(route.request().method(), 'PUT');
+      saves++;
+      payload = route.request().postDataJSON();
+      await route.fulfill({
+        status: saveFailure ? 503 : 200,
+        json: saveFailure
+          ? { error: 'Fixture save unavailable' }
+          : { profile: payload },
+      });
+    });
     await page.route('**/api/match', async (route) => {
       attempts++;
-      payload = route.request().postDataJSON();
+      assert.deepEqual(route.request().postDataJSON(), {});
+      assert(saves >= attempts, 'profile must save before matching');
       await new Promise((resolve) => setTimeout(resolve, 300));
       await route.fulfill({
         status: mode === 'failure' ? 503 : 200,
@@ -124,6 +138,7 @@ test('browser flow, response safety, recovery, profile storage and responsive la
         await expect(page.locator('#startup-status')).toBeHidden();
         await page.getByRole('button', { name: 'Find my matches' }).click();
         assert.equal(attempts, 0);
+        assert.equal(saves, 0);
         await page
           .getByLabel('Date of birth', { exact: false })
           .fill('2000-01-01');
@@ -137,6 +152,7 @@ test('browser flow, response safety, recovery, profile storage and responsive la
           .selectOption('BACHELORS');
         await page.getByRole('button', { name: 'Find my matches' }).click();
         assert.equal(attempts, 0);
+        assert.equal(saves, 0);
         assert.match(
           await page
             .locator('select[name="eduLevel"]')
@@ -153,7 +169,7 @@ test('browser flow, response safety, recovery, profile storage and responsive la
     );
 
     await t.test(
-      'sends existing API payload, shows loading and safely renders both result groups',
+      'saves the profile before empty-body matching, shows loading and safely renders results',
       async () => {
         await page.getByRole('button', { name: 'Find my matches' }).click();
         await expect(page.locator('#results-loading')).toBeVisible();
@@ -180,6 +196,23 @@ test('browser flow, response safety, recovery, profile storage and responsive la
           ),
           null,
         );
+      },
+    );
+
+    await t.test(
+      'failed profile save never starts matching and preserves form values',
+      async () => {
+        const before = attempts;
+        saveFailure = true;
+        await page.getByRole('button', { name: 'Find my matches' }).click();
+        await expect(page.locator('#form-error')).toHaveText(
+          'Fixture save unavailable',
+        );
+        assert.equal(attempts, before);
+        await expect(page.locator('input[name="dob"]')).toHaveValue(
+          '2000-01-01',
+        );
+        saveFailure = false;
       },
     );
 

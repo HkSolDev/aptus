@@ -1,5 +1,9 @@
 # Aptus frontend redesign implementation
 
+<!-- aptus-checkpoint-2026-10-24 -->
+
+**Current checkpoint — 24 October 2026:** [Production, worker results and review-system next steps](PRODUCTION_REVIEW_CHECKPOINT_2026-10-24.md). Frontend `d577942`, backend/worker `94ccc9d` deployed. Worker saves drafts but has published zero new jobs in the observed runs. Earlier snapshots below are historical.
+
 ## Frontend merge with main — 18 October 2026
 
 Merged main `ebcd060` into `codex/aptus-frontend-20261018`. Resolved overlapping

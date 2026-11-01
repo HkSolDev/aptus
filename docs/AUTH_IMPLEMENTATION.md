@@ -519,3 +519,123 @@ migration and deployment verification remain separate from these offline tests.
 Verification: 19 focused Node checks and three Python ingestion-client checks
 passed; project TypeScript checks and changed-file ESLint passed. No live
 database, account, provider call or deployment was used for these checks.
+
+## Profile and Saved jobs review fixes — 25 October 2026
+
+Scope: five correctness findings in the uncommitted frontend/backend implementation
+on `codex/next-aptus-work` (base `d930a69`). No worker changes, dependency upgrades,
+production migrations, commit, push, merge or deployment in this fix slice.
+
+| Requirement                           | Implementation                                                                                                                                                                                                                          | Observable acceptance                                                                                                                                                     |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Save reaches the backend              | `frontend/saved-jobs-api.ts` omits JSON Content-Type for bodyless PUT                                                                                                                                                                   | Actual Fastify route accepts the frontend request; isolated PostgreSQL stores one row across repeated saves                                                               |
+| Account changes discard old responses | `workspace-provider.tsx` uses authoritative account ID, session generation and per-job mutation versions; `auth-bar.tsx` supplies session ID and ignores superseded auth checks; profile/Saved/button subtrees reset on session changes | Delayed status, save, list and profile responses cannot restore account A data after switching to B, including equal display names; old status cannot undo a newer unsave |
+| Status failure remains retryable      | Status API rejects errors; workspace only confirms successful IDs, drains batches of at most 50, and retries failed IDs                                                                                                                 | 60 buttons get checked in bounded batches; a 503 does not become confirmed unsaved; retry recovers all failed IDs; visible accessible errors                              |
+| Outage differs from absent profile    | `src/routes/match.ts` performs one ownership lookup without fallback-on-error                                                                                                                                                           | Null returns actionable 400; lookup failure returns sanitized 503; matching performs no profile writes                                                                    |
+| Last-page removal remains navigable   | `saved-jobs-view.tsx` clamps page and reloads canonical data; request versions ignore stale list results                                                                                                                                | With 21 saved jobs, removing page 2's only item returns to page 1 containing 20 jobs; stale account list stays discarded                                                  |
+
+Additional protection: `profile-form.tsx` disables editing after a failed profile
+load, so an unreadable saved profile cannot be overwritten from a blank form.
+Profile setters also reject results captured before a session change.
+
+Focused evidence:
+
+- `scripts/profile-saved-regression.test.ts`: both original failures reproduced
+  before fixes; now two passing tests (real request parser/route with mocked
+  session/storage boundary, and missing-profile versus database-error handling).
+- `scripts/profile-saved-database.test.ts`: all migrations applied in a random
+  schema of disposable localhost PostgreSQL; profile save/update/read, education
+  replacement, read-only match, account isolation, origin/session rejection and
+  idempotent Save/Remove passed. Session API is a fixture in this feature test;
+  this is not live Google OAuth verification.
+- `tests/saved-workspace.test.mjs` and `tests/fixtures/saved-workspace.tsx`: actual
+  React components in isolated Chrome, fictional HTTP boundary, real React DOM;
+  no Next router/layout in this harness. Covers status batching/retry, response
+  races, logout/account switching, last-page removal, profile save/update/refresh,
+  empty-body matching and profile-load failure. Checked 390px and 1440px widths.
+- Real built-Next navigation suite: seven passing tests after fixing session
+  fixtures to include the real contract's user ID and restoring signed-out state
+  between scenarios. Existing assertions were retained. Existing job-detail
+  component tests (six) and legacy browser-flow tests (eight) passed.
+- TypeScript checks (backend/frontend and Next), lint, frontend compilation and
+  `next build --webpack` passed. Build's existing tracing warning remains; it is
+  not a deployment verification.
+
+Existing eligibility regression now mocks `findUnique` for the account-scoped
+profile read instead of a removed upsert. It still supplies the matcher lookup
+and retains the qualification/manual-review assertions.
+
+Test environment findings: root-directory integration runs encountered an auth
+404 with local environment loaded; the same current passkey test passed from a
+clean temporary working directory. A concurrent clean-directory suite reached
+127 passing / 1 failed / 1 skipped, with an auth lifecycle raw-console assertion
+failure. Do not label those runs green or silently remove their assertions.
+Final serialized verification results are recorded in the handoff below.
+
+Untracked JavaScript companions were moved, not deleted, to
+`/private/tmp/aptus-generated-js-review-20261025`; `manifest.txt` lists the 90
+files. Only untracked `.js` paths with existing `.ts` counterparts under
+scripts/src/frontend were moved. Backup retained for inspection/restoration.
+No generated Prisma files or unrelated tracked work were removed. Use
+`tsc --noEmit --listFiles` for future compiler inspection.
+
+Remaining boundaries: no production verification, live Google interaction or
+release approval. Exam preferences and performance recommendations remain later
+work. The surrounding implementation remains dirty/uncommitted in this checkout;
+previous reports of a branch push do not establish these fixes are on GitHub.
+
+### Final verification and runtime correction
+
+The working-directory explanation above was incomplete: default `node` resolves
+to v24.10.0 in the project and v26.7.0 under `/private/tmp`. Pinned Node 24 reproduced
+the Google reauthentication 404 on **both current code and untouched HEAD
+`d930a69`**, with the same assertion at passkey-policy.test.ts:180. This is a
+confirmed baseline runtime/auth test failure, not introduced by these fixes.
+No auth test assertions were weakened or skipped to hide it.
+
+Final full backend run used pinned Node v24.10.0, serialized test execution,
+current-source symlinks in a clean temporary working directory and disposable
+PostgreSQL: **129 tests, 126 passed, 2 failed, 1 skipped**. Both failed entries
+are the same reauthentication subtest and its parent. The existing public-search
+integration test remains skipped by its existing opt-in condition. This full
+suite is **not green** and remains a release blocker. The Node 26 concurrent run
+also had a separate auth raw-console assertion failure; Node 26 is not offered
+as a workaround or a verified runtime upgrade.
+
+Logs retained under `/private/tmp/`:
+
+- `aptus-profile-saved-serial-suite.log`: final pinned backend suite.
+- `aptus-baseline-passkey-node24.log`: unchanged-HEAD reproduction.
+- `aptus-saved-workspace-verified.log`: passing new browser regressions.
+- `aptus-next-navigation-clean.log`: seven passing real-Next checks.
+
+The final AuthBar also invalidates pending session reads again on successful
+logout, covering reads started while the sign-out request was in flight.
+The five requested fixes are implemented and pass focused browser/database
+checks; release approval remains withheld for the baseline auth failure.
+
+The new component-browser regression is included in `pnpm test:web` through
+`package.json` (no dependency changes). The final rebuilt-Next navigation rerun,
+including the successful-logout invalidation, passed all seven tests; typecheck,
+Next typecheck and lint also passed after the final source edits. The disposable
+PostgreSQL cluster was stopped; its data directory and JavaScript backup remain
+under `/private/tmp` for review, with no deletion performed.
+
+### Release follow-up superseding the baseline blocker
+
+See [the scoped release record](PROFILE_SAVED_RELEASE_2026-10-25.md). Investigation
+found provider discovery initialized before the Google mock in the passkey test.
+The fixture now installs the mock first; Node 24's existing security assertions
+pass. The earlier runtime/environment-only attribution is superseded. The release
+also verifies actual stored sessions/signed cookies for profile/Saved endpoints,
+and fixes concurrent first Save requests using database duplicate skipping.
+
+### Strict matching input and coordinated legacy caller
+
+Matching rejects stale profile-bearing requests with 409 instead of silently
+ignoring edited values and matching a different stored profile. Ownership IDs
+remain rejected with 400. Both current and legacy callers now save through
+PUT /api/profile before canonical empty-body matching; failed saves do not match.
+Profile date/marks/education validation has its own persistent contract coverage.
+The added regression failed with actual 200 / expected 409 before this fix;
+132 Node/database and 34 browser tests pass afterward, with no skipped checks.

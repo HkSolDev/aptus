@@ -1,4 +1,5 @@
 import { matchProfile } from './api.js';
+import { saveProfileApi } from './profile-api.js';
 import { find } from './dom.js';
 import {
   readEducation,
@@ -85,7 +86,14 @@ form.addEventListener('submit', async (event) => {
   // Keep an older result visibly marked until this request succeeds.
   markResultsStale();
   try {
-    const data = await matchProfile(profile);
+    await saveProfileApi({
+      dob: profile.dob,
+      category: profile.category,
+      educations: profile.educations.flatMap(({ level, marksPercent }) =>
+        level ? [{ level, marksPercent }] : [],
+      ),
+    });
+    const data = await matchProfile();
     userId = data.userId;
     persistProfile();
     renderResults(data);

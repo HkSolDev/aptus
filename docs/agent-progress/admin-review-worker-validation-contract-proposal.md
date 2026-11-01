@@ -14,6 +14,7 @@ This proposal defines the interface boundaries, state transitions, and schemas f
 $$\text{Existing held candidate} \longrightarrow \text{Inspect evidence} \longrightarrow \text{Save correction} \longrightarrow \text{Request Python validation} \longrightarrow \text{Inspect results}$$
 
 ### Explicit exclusions:
+
 - No AI correction suggestions, automatic publication, or candidate approval controls (publication controls are deferred to subsequent slices; existing publication protections remain intact).
 - No general catalogue editing, bulk review operations, or MCP server integration.
 - No production database changes or production service restarts.
@@ -23,20 +24,22 @@ $$\text{Existing held candidate} \longrightarrow \text{Inspect evidence} \longri
 
 ## 2. Participating actors and authorization
 
-| Actor | Identification & Transport | Permissions |
-|---|---|---|
-| **Anonymous visitor** | Unauthenticated cookie / headers | Denied access (`401 Unauthorized` on API; redirected to sign-in on `/admin/review`) |
-| **Signed-in non-operator** | Valid Better Auth session cookie | Denied access (`403 Forbidden`; verified email not in `APTUS_REVIEW_OPERATOR_EMAILS`) |
-| **Authorized operator** | Valid session cookie with verified email matching `APTUS_REVIEW_OPERATOR_EMAILS` | Read review queue, view candidate evidence/facts, save corrections, trigger validation, mark held |
-| **Worker runtime** | Bearer token (`Authorization: Bearer <INGEST_TOKEN>`) | Import drafts (`POST /api/internal/review-drafts`), claim validation tasks (`POST /api/internal/review-tasks/claim`), report validation results (`POST /api/internal/review-tasks/:taskId/result`) |
+| Actor                      | Identification & Transport                                                       | Permissions                                                                                                                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Anonymous visitor**      | Unauthenticated cookie / headers                                                 | Denied access (`401 Unauthorized` on API; redirected to sign-in on `/admin/review`)                                                                                                                |
+| **Signed-in non-operator** | Valid Better Auth session cookie                                                 | Denied access (`403 Forbidden`; verified email not in `APTUS_REVIEW_OPERATOR_EMAILS`)                                                                                                              |
+| **Authorized operator**    | Valid session cookie with verified email matching `APTUS_REVIEW_OPERATOR_EMAILS` | Read review queue, view candidate evidence/facts, save corrections, trigger validation, mark held                                                                                                  |
+| **Worker runtime**         | Bearer token (`Authorization: Bearer <INGEST_TOKEN>`)                            | Import drafts (`POST /api/internal/review-drafts`), claim validation tasks (`POST /api/internal/review-tasks/claim`), report validation results (`POST /api/internal/review-tasks/:taskId/result`) |
 
 ### Selected operator accounts (pre-configured):
+
 - `hemantkumar4213@gmail.com`
 - `mrdevghost@gmail.com`
 
 Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-side. Reviewer email is always derived from the server session; client-submitted identity is never trusted.
 
 ### CSRF & Same-Origin rules:
+
 - State-changing browser mutations (`POST /api/admin/review-drafts/**`) require `Origin` header matching `appAuth.options.baseURL` (standard Aptus protection). Mismatched origin returns `403 Forbidden`.
 - `Cache-Control: no-store` and `Pragma: no-cache` are applied to all private review endpoints and pages.
 
@@ -50,6 +53,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 **Purpose**: Ingest an offline-held candidate draft along with its source evidence and locations.
 
 #### Request body (`application/json`, max 1 MB):
+
 ```json
 {
   "bundle_id": "8d6c663917a1282cd6fa4322",
@@ -101,6 +105,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 ```
 
 #### Response (`201 Created` or `200 OK` on replay):
+
 ```json
 {
   "item_id": "cuid_item_123",
@@ -113,6 +118,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 ```
 
 #### Replay and conflict semantics:
+
 - Server computes canonical content hash of `facts`.
 - If an item with `bundle_id` already exists:
   - If the incoming facts match existing revision canonical hash: returns existing `{ item_id, revision_id, canonical_hash, duplicate: true }` (`200 OK`).
@@ -125,11 +131,13 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 
 **Authentication**: Session cookie + Verified Operator Allowlist  
 **Query parameters**:
+
 - `status`: `all` | `held` | `in_review` (default: `all`)
 - `limit`: integer, 1 to 50 (default: 20)
 - `cursor`: string? (opaque pagination cursor)
 
 #### Response (`200 OK`):
+
 ```json
 {
   "items": [
@@ -167,6 +175,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 **Headers returned**: `Cache-Control: no-store, private`, `ETag: W/"<canonical_hash>"`
 
 #### Response (`200 OK`):
+
 ```json
 {
   "item": {
@@ -201,6 +210,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 **Headers**: `If-Match: "<base_revision_id_or_hash>"`
 
 #### Request body (`application/json`, max 1 MB):
+
 ```json
 {
   "base_revision_id": "cuid_rev_1",
@@ -217,6 +227,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 ```
 
 #### Response (`201 Created`):
+
 ```json
 {
   "revision_id": "cuid_rev_2",
@@ -227,6 +238,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 ```
 
 #### Concurrency and validation rules:
+
 - If `item.current_revision_id !== base_revision_id`: returns `412 Precondition Failed` with `{ error: "Revision is stale. Reload candidate to see newer changes." }`.
 - Validates `facts` using the candidate facts schema:
   - Exact numbers, numeric limits, explicit nulls preserved.
@@ -244,6 +256,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 **Authentication**: Session cookie + Verified Operator Allowlist + Same-Origin
 
 #### Request body:
+
 ```json
 {
   "revision_id": "cuid_rev_2"
@@ -251,6 +264,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 ```
 
 #### Response (`202 Accepted`):
+
 ```json
 {
   "task_id": "cuid_task_789",
@@ -261,6 +275,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 ```
 
 #### Semantics:
+
 - Re-checks that `revision_id` belongs to `item.id`.
 - If an existing task for this exact `revision_id` and `validator_version` is `completed`:
   Returns `200 OK` with the cached task and result.
@@ -276,6 +291,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 **Authentication**: Session cookie + Verified Operator Allowlist
 
 #### Response (`200 OK`):
+
 ```json
 {
   "task_id": "cuid_task_789",
@@ -300,6 +316,7 @@ Missing or empty `APTUS_REVIEW_OPERATOR_EMAILS` denies all review access server-
 ```
 
 Status taxonomy presented in UI:
+
 - `pending`: Waiting for worker
 - `running`: Checking
 - `completed` with errors: Check completed with issues
@@ -313,6 +330,7 @@ Status taxonomy presented in UI:
 **Authentication**: `Authorization: Bearer <INGEST_TOKEN>`
 
 #### Request body:
+
 ```json
 {
   "worker_id": "worker-runner-1",
@@ -321,7 +339,9 @@ Status taxonomy presented in UI:
 ```
 
 #### Response:
+
 - If a task is available (`200 OK`):
+
 ```json
 {
   "task": {
@@ -335,9 +355,11 @@ Status taxonomy presented in UI:
   }
 }
 ```
+
 - If no task is pending (`204 No Content` or `{ "task": null }`).
 
 #### Claim lease recovery:
+
 - Tasks with `status = "pending"` or (`status = "running"` and `claim_expires_at < now()`) can be claimed.
 - Claiming updates `status = "running"`, assigns a secure random `claim_token`, and sets `claim_expires_at = now() + lease_seconds`.
 
@@ -348,6 +370,7 @@ Status taxonomy presented in UI:
 **Authentication**: `Authorization: Bearer <INGEST_TOKEN>`
 
 #### Request body:
+
 ```json
 {
   "claim_token": "secret_claim_token_abc",
@@ -364,6 +387,7 @@ Status taxonomy presented in UI:
 ```
 
 #### Response (`200 OK`):
+
 ```json
 {
   "task_id": "cuid_task_789",
@@ -372,6 +396,7 @@ Status taxonomy presented in UI:
 ```
 
 #### Integrity checks:
+
 - Verifies `claim_token`.
 - Verifies that `revision_hash` matches `ValidationTask.reviewRevision.canonicalHash`.
 - Updates `ValidationTask.status = "completed"`, `ValidationTask.result = result`.

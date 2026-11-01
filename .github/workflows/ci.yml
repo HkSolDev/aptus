@@ -30,6 +30,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://aptus_ci:ci-only-password@127.0.0.1:5432/aptus_ci
       TEST_DATABASE_URL: postgresql://aptus_ci:ci-only-password@127.0.0.1:5432/aptus_ci
+      APTUS_SEARCH_TEST_DATABASE_URL: postgresql://aptus_ci:ci-only-password@127.0.0.1:5432/aptus_search_fixture
       AUTH_ENABLED: 'false'
       DOTENV_CONFIG_PATH: /dev/null
       PYTHONPATH: services/ai
@@ -52,9 +53,13 @@ jobs:
           python -m venv services/ai/.venv
           services/ai/.venv/bin/pip install -r services/ai/requirements.txt
       - name: Prepare disposable test database
-        run: pnpm exec prisma migrate deploy --config prisma7.config.ts
+        run: |
+          pnpm exec prisma migrate deploy --config prisma7.config.ts
+          node --input-type=module -e "import pg from 'pg'; const db = new pg.Client({ connectionString: process.env.DATABASE_URL }); await db.connect(); await db.query('CREATE DATABASE aptus_search_fixture'); await db.end();"
       - name: Install test browser
         run: pnpm exec playwright install --with-deps chromium
+      - name: Production dependency audit
+        run: pnpm audit --prod --audit-level=low
       - name: Lint
         run: pnpm lint
       - name: Formatting
@@ -63,9 +68,12 @@ jobs:
       - name: Type checking
         if: ${{ !cancelled() }}
         run: pnpm typecheck
+      - name: Frozen contract and consumer audit checks
+        if: ${{ !cancelled() }}
+        run: pnpm check:contracts
       - name: Node and database tests
         if: ${{ !cancelled() }}
-        run: node --import tsx --test --test-concurrency=1 scripts/**/*.test.ts
+        run: pnpm test
       - name: Offline Python tests
         if: ${{ !cancelled() }}
         run: services/ai/.venv/bin/python -m unittest discover -s services/ai/tests -q
@@ -104,3 +112,25 @@ jobs:
         run: docker build -f deployment/worker.Dockerfile -t aptus-worker:ci .
       - name: Check worker help without running the pipeline
         run: docker run --rm --network none --read-only aptus-worker:ci --help
+
+  frontend-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build frontend runtime image
+        run: docker build -f deployment/frontend.Dockerfile -t aptus-frontend:ci .
+      - name: Check frontend container startup
+        run: |
+          docker run -d --name aptus-frontend-smoke --network none aptus-frontend:ci
+          for attempt in $(seq 1 30); do
+            if docker exec aptus-frontend-smoke node -e "fetch('http://127.0.0.1:3000/how-it-works').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs aptus-frontend-smoke
+          exit 1
+      - name: Remove smoke container
+        if: always()
+        run: docker rm -f aptus-frontend-smoke || true
