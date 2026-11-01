@@ -378,93 +378,97 @@ export async function saveReviewCorrection(
     );
   }
 
-  return database.$transaction(async (tx) => {
-    // Serialize saves for this item so the base check and revision
-    // allocation cannot race a simultaneous save or worker import.
-    await tx.reviewItem
-      .update({ where: { id: itemId }, data: { updatedAt: new Date() } })
-      .catch(() => undefined);
-    const item = await tx.reviewItem.findUnique({
-      where: { id: itemId },
-      include: {
-        currentRevision: true,
-      },
-    });
+  // Production database round trips can exceed Prisma's five-second default.
+  return database.$transaction(
+    async (tx) => {
+      // Serialize saves for this item so the base check and revision
+      // allocation cannot race a simultaneous save or worker import.
+      await tx.reviewItem
+        .update({ where: { id: itemId }, data: { updatedAt: new Date() } })
+        .catch(() => undefined);
+      const item = await tx.reviewItem.findUnique({
+        where: { id: itemId },
+        include: {
+          currentRevision: true,
+        },
+      });
 
-    if (!item) {
-      throw new ReviewDraftValidationError('Candidate item not found');
-    }
+      if (!item) {
+        throw new ReviewDraftValidationError('Candidate item not found');
+      }
 
-    if (!item.currentRevision || item.currentRevision.id !== baseRevisionId) {
-      throw new StaleRevisionError();
-    }
+      if (!item.currentRevision || item.currentRevision.id !== baseRevisionId) {
+        throw new StaleRevisionError();
+      }
 
-    const baseRev = item.currentRevision;
+      const baseRev = item.currentRevision;
 
-    // Validate the updated facts by wrapping in a candidate envelope
-    const envelopeCandidate = {
-      bundle_id: item.bundleId,
-      source_url: item.sourceUrl,
-      source_name: item.sourceName,
-      facts,
-      review: {
-        status: 'needs_review',
-        warnings: [],
-        semantic_support_verified: false,
-        publication_allowed: false,
-        bundle_identity: {},
-        field_checks: [],
-      },
-      evidence_units: baseRev.evidenceUnits,
-    };
+      // Validate the updated facts by wrapping in a candidate envelope
+      const envelopeCandidate = {
+        bundle_id: item.bundleId,
+        source_url: item.sourceUrl,
+        source_name: item.sourceName,
+        facts,
+        review: {
+          status: 'needs_review',
+          warnings: [],
+          semantic_support_verified: false,
+          publication_allowed: false,
+          bundle_identity: {},
+          field_checks: [],
+        },
+        evidence_units: baseRev.evidenceUnits,
+      };
 
-    const envelope = await validateStorageEnvelope(envelopeCandidate).catch(
-      (err: Error) => {
-        throw new ReviewDraftValidationError(`Invalid facts: ${err.message}`);
-      },
-    );
+      const envelope = await validateStorageEnvelope(envelopeCandidate).catch(
+        (err: Error) => {
+          throw new ReviewDraftValidationError(`Invalid facts: ${err.message}`);
+        },
+      );
 
-    const canonicalHash = candidateContentHash(envelope.facts);
-    // Allocate above every existing revision, including non-current worker
-    // observations, so they cannot collide with the next human correction.
-    const highest = await tx.reviewRevision.findFirst({
-      where: { reviewItemId: item.id },
-      orderBy: { revisionNumber: 'desc' },
-      select: { revisionNumber: true },
-    });
-    const nextRevisionNumber =
-      (highest?.revisionNumber ?? baseRev.revisionNumber) + 1;
+      const canonicalHash = candidateContentHash(envelope.facts);
+      // Allocate above every existing revision, including non-current worker
+      // observations, so they cannot collide with the next human correction.
+      const highest = await tx.reviewRevision.findFirst({
+        where: { reviewItemId: item.id },
+        orderBy: { revisionNumber: 'desc' },
+        select: { revisionNumber: true },
+      });
+      const nextRevisionNumber =
+        (highest?.revisionNumber ?? baseRev.revisionNumber) + 1;
 
-    const newRev = await tx.reviewRevision.create({
-      data: {
-        reviewItemId: item.id,
+      const newRev = await tx.reviewRevision.create({
+        data: {
+          reviewItemId: item.id,
+          revisionNumber: nextRevisionNumber,
+          parentRevisionId: baseRev.id,
+          facts: envelope.facts,
+          sourceEvidence: baseRev.sourceEvidence as Prisma.InputJsonValue,
+          evidenceUnits: baseRev.evidenceUnits as Prisma.InputJsonValue,
+          canonicalHash,
+          changeReason: changeReason.trim(),
+          createdBy: operatorEmail,
+          validationState: 'none',
+        },
+      });
+
+      await tx.reviewItem.update({
+        where: { id: item.id },
+        data: {
+          currentRevisionId: newRev.id,
+          updatedAt: new Date(),
+        },
+      });
+
+      return {
+        revisionId: newRev.id,
         revisionNumber: nextRevisionNumber,
-        parentRevisionId: baseRev.id,
-        facts: envelope.facts,
-        sourceEvidence: baseRev.sourceEvidence as Prisma.InputJsonValue,
-        evidenceUnits: baseRev.evidenceUnits as Prisma.InputJsonValue,
         canonicalHash,
-        changeReason: changeReason.trim(),
-        createdBy: operatorEmail,
         validationState: 'none',
-      },
-    });
-
-    await tx.reviewItem.update({
-      where: { id: item.id },
-      data: {
-        currentRevisionId: newRev.id,
-        updatedAt: new Date(),
-      },
-    });
-
-    return {
-      revisionId: newRev.id,
-      revisionNumber: nextRevisionNumber,
-      canonicalHash,
-      validationState: 'none',
-    };
-  });
+      };
+    },
+    { maxWait: 5000, timeout: 20_000 },
+  );
 }
 
 export async function requestValidation(
