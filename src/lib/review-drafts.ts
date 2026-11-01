@@ -477,87 +477,90 @@ export async function requestValidation(
   validatorVersion = 'aptus-val-v1',
   database = prisma,
 ) {
-  return database.$transaction(async (tx) => {
-    const item = await tx.reviewItem.findUnique({
-      where: { id: itemId },
-    });
+  return database.$transaction(
+    async (tx) => {
+      const item = await tx.reviewItem.findUnique({
+        where: { id: itemId },
+      });
 
-    if (!item) {
-      throw new ReviewDraftValidationError('Review item not found');
-    }
-
-    const revision = await tx.reviewRevision.findUnique({
-      where: { id: revisionId },
-    });
-
-    if (!revision || revision.reviewItemId !== item.id) {
-      throw new ReviewDraftValidationError(
-        'Revision does not belong to this item',
-      );
-    }
-
-    // Check for existing task for this exact revision and validator version
-    const existingTask = await tx.validationTask.findFirst({
-      where: {
-        reviewRevisionId: revision.id,
-        validatorVersion,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (existingTask) {
-      if (existingTask.status === 'completed') {
-        return {
-          taskId: existingTask.id,
-          revisionId: revision.id,
-          status: 'completed',
-          result: existingTask.result,
-          reused: true,
-        };
+      if (!item) {
+        throw new ReviewDraftValidationError('Review item not found');
       }
-      if (
-        existingTask.status === 'running' &&
-        existingTask.claimExpiresAt &&
-        existingTask.claimExpiresAt.getTime() > Date.now()
-      ) {
-        return {
-          taskId: existingTask.id,
-          revisionId: revision.id,
-          status: 'running',
-          reused: true,
-        };
+
+      const revision = await tx.reviewRevision.findUnique({
+        where: { id: revisionId },
+      });
+
+      if (!revision || revision.reviewItemId !== item.id) {
+        throw new ReviewDraftValidationError(
+          'Revision does not belong to this item',
+        );
       }
-      if (existingTask.status === 'pending') {
-        return {
-          taskId: existingTask.id,
-          revisionId: revision.id,
+
+      // Check for existing task for this exact revision and validator version
+      const existingTask = await tx.validationTask.findFirst({
+        where: {
+          reviewRevisionId: revision.id,
+          validatorVersion,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existingTask) {
+        if (existingTask.status === 'completed') {
+          return {
+            taskId: existingTask.id,
+            revisionId: revision.id,
+            status: 'completed',
+            result: existingTask.result,
+            reused: true,
+          };
+        }
+        if (
+          existingTask.status === 'running' &&
+          existingTask.claimExpiresAt &&
+          existingTask.claimExpiresAt.getTime() > Date.now()
+        ) {
+          return {
+            taskId: existingTask.id,
+            revisionId: revision.id,
+            status: 'running',
+            reused: true,
+          };
+        }
+        if (existingTask.status === 'pending') {
+          return {
+            taskId: existingTask.id,
+            revisionId: revision.id,
+            status: 'pending',
+            reused: true,
+          };
+        }
+      }
+
+      // Create durable pending task
+      const task = await tx.validationTask.create({
+        data: {
+          reviewRevisionId: revision.id,
+          validatorVersion,
           status: 'pending',
-          reused: true,
-        };
-      }
-    }
+        },
+      });
 
-    // Create durable pending task
-    const task = await tx.validationTask.create({
-      data: {
-        reviewRevisionId: revision.id,
-        validatorVersion,
+      await tx.reviewRevision.update({
+        where: { id: revision.id },
+        data: { validationState: 'waiting_for_worker' },
+      });
+
+      return {
+        taskId: task.id,
+        revisionId: revision.id,
         status: 'pending',
-      },
-    });
-
-    await tx.reviewRevision.update({
-      where: { id: revision.id },
-      data: { validationState: 'waiting_for_worker' },
-    });
-
-    return {
-      taskId: task.id,
-      revisionId: revision.id,
-      status: 'pending',
-      reused: false,
-    };
-  });
+        reused: false,
+      };
+    },
+    { maxWait: 5000, timeout: 20_000 },
+  );
 }
 
 export async function getValidationStatus(taskId: string, database = prisma) {
