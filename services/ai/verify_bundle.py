@@ -152,13 +152,17 @@ def describe_document(document, issuer_hosts):
     elif role == "unknown" and is_candidate_notice(title, identity_units):
         role = "main_notice"
     for field, label in LABELS.items():
-        pattern = (
-            r"^\s*" + label + r"\s*[:：]?\s*([A-Za-z0-9][^\n]{0,159})"
-            if field == "advertisement_number"
-            else r"^\s*" + label + r"\s*[:：]\s*([^\n]{1,160})"
-        )
+        if field == "advertisement_number":
+            patterns = [r"^\s*" + label + r"\s*[:：]?\s*([A-Za-z0-9][^|\n]{0,159})",
+                # Summary headings put the label after the post name. Accept a
+                # bounded identifier, not the prose following a table separator.
+                r"(?<!\w)(?:advertisement|advt\.?)\s+(?:no\.?|number)\s*[:：]?\s*"
+                r"((?=[A-Za-z0-9./_-]{0,159}\d)[A-Za-z0-9][A-Za-z0-9./_-]{0,159})(?=\s*(?:[|;\n]|$))"]
+        else:
+            patterns = [r"^\s*" + label + r"\s*[:：]\s*([^\n]{1,160})"]
         matches = [(match.group(1).strip().rstrip(".,;"), locators, match.group(0))
                    for text, locators in identity_units
+                   for pattern in patterns
                    for match in re.finditer(pattern, text, re.I | re.M)]
         values = {normalized(value): value for value, _, _ in matches if value}
         identity[field] = next(iter(values.values())) if len(values) == 1 else None
