@@ -6,6 +6,10 @@ import {
   ReviewSubmissionError,
 } from './reviewed-ingest.js';
 import {
+  AutonomousIngestError,
+  ingestAutonomousNotice,
+} from './autonomous-ingest.js';
+import {
   type EducationLevel,
   type PostGroup,
   Prisma,
@@ -36,6 +40,7 @@ interface IngestPost {
 }
 
 interface IngestRequestBody {
+  kind?: string;
   reviewed_candidate_json?: string;
   approval?: unknown;
   source_url?: string;
@@ -46,6 +51,7 @@ interface IngestRequestBody {
   apply_url?: string | null;
   source_text?: string;
   posts?: IngestPost[];
+  [key: string]: unknown;
 }
 
 export async function handleIngest(
@@ -54,6 +60,17 @@ export async function handleIngest(
 ): Promise<void> {
   try {
     const body = req.body ?? {};
+
+    if (body.kind === 'autonomous_notice') {
+      try {
+        sendJson(res, 200, await ingestAutonomousNotice(body));
+      } catch (error) {
+        sendJson(res, error instanceof AutonomousIngestError ? 400 : 503, {
+          error: 'Autonomous publication rejected',
+        });
+      }
+      return;
+    }
 
     if ('reviewed_candidate_json' in body || 'approval' in body) {
       try {

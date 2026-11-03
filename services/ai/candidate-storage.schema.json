@@ -170,6 +170,43 @@
       "title": "AmendmentDetails",
       "type": "object"
     },
+    "AutomatedDecisionSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "enum": [
+            "accepted",
+            "blocked",
+            "retryable"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "reason_codes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reason Codes",
+          "type": "array"
+        },
+        "evidence_fingerprint": {
+          "title": "Evidence Fingerprint",
+          "type": "string"
+        },
+        "extraction_version": {
+          "title": "Extraction Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision",
+        "reason_codes",
+        "evidence_fingerprint",
+        "extraction_version"
+      ],
+      "title": "AutomatedDecisionSummary",
+      "type": "object"
+    },
     "BundleFacts": {
       "additionalProperties": false,
       "properties": {
@@ -237,7 +274,11 @@
           "type": "array"
         }
       },
-      "required": ["posts", "evidence", "missing_fields"],
+      "required": [
+        "posts",
+        "evidence",
+        "missing_fields"
+      ],
       "title": "BundleFacts",
       "type": "object"
     },
@@ -341,7 +382,12 @@
         "post_group": {
           "anyOf": [
             {
-              "enum": ["A", "B", "C", "D"],
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
               "type": "string"
             },
             {
@@ -681,7 +727,13 @@
           "title": "Pwbd"
         }
       },
-      "required": ["SC", "ST", "OBC", "EWS", "PwBD"],
+      "required": [
+        "SC",
+        "ST",
+        "OBC",
+        "EWS",
+        "PwBD"
+      ],
       "title": "CategoryRelaxationRules",
       "type": "object"
     },
@@ -713,7 +765,11 @@
           "type": "array"
         }
       },
-      "required": ["document_id", "purpose", "evidence"],
+      "required": [
+        "document_id",
+        "purpose",
+        "evidence"
+      ],
       "title": "DocumentPurpose",
       "type": "object"
     },
@@ -758,6 +814,88 @@
           },
           "title": "Field Checks",
           "type": "array"
+        },
+        "reader_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReaderSummaryCandidate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "official_syllabus": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/OfficialSyllabusCandidate"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Official Syllabus"
+        },
+        "historical_cutoffs": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/HistoricalCutoffCandidate"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Historical Cutoffs"
+        },
+        "enrichment_candidates": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/FieldEnrichmentCandidate"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enrichment Candidates"
+        },
+        "vision_recovery": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vision Recovery"
+        },
+        "automated_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AutomatedDecisionSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -909,6 +1047,83 @@
       "title": "EligibilityRules",
       "type": "object"
     },
+    "EnrichmentProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        },
+        "exact_quote": {
+          "title": "Exact Quote",
+          "type": "string"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "locator": {
+          "title": "Locator",
+          "type": "string"
+        },
+        "captured_at": {
+          "title": "Captured At",
+          "type": "string"
+        },
+        "snapshot_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snapshot Sha256"
+        },
+        "authority": {
+          "enum": [
+            "official",
+            "third_party"
+          ],
+          "title": "Authority",
+          "type": "string"
+        },
+        "issuer": {
+          "title": "Issuer",
+          "type": "string"
+        },
+        "advertisement_or_exam_identity": {
+          "title": "Advertisement Or Exam Identity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_url",
+        "exact_quote",
+        "document_id",
+        "locator",
+        "captured_at",
+        "authority",
+        "issuer",
+        "advertisement_or_exam_identity"
+      ],
+      "title": "EnrichmentProvenance",
+      "type": "object"
+    },
     "EvidenceLocation": {
       "additionalProperties": false,
       "properties": {
@@ -995,7 +1210,10 @@
           "title": "Conditions"
         }
       },
-      "required": ["minimum_years", "conditions"],
+      "required": [
+        "minimum_years",
+        "conditions"
+      ],
       "title": "ExperienceRule",
       "type": "object"
     },
@@ -1044,8 +1262,101 @@
           "title": "Conditions"
         }
       },
-      "required": ["categories", "amount", "currency", "conditions"],
+      "required": [
+        "categories",
+        "amount",
+        "currency",
+        "conditions"
+      ],
       "title": "FeeRule",
+      "type": "object"
+    },
+    "FieldEnrichmentCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "post_name": {
+          "title": "Post Name",
+          "type": "string"
+        },
+        "field_path": {
+          "title": "Field Path",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "unresolved",
+            "conflicting"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "post_binding_quote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Post Binding Quote"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EnrichmentProvenance"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "post_name",
+        "field_path",
+        "value",
+        "status"
+      ],
+      "title": "FieldEnrichmentCandidate",
       "type": "object"
     },
     "FieldEvidence": {
@@ -1064,8 +1375,153 @@
           "type": "string"
         }
       },
-      "required": ["field_path", "evidence_id", "quote"],
+      "required": [
+        "field_path",
+        "evidence_id",
+        "quote"
+      ],
       "title": "FieldEvidence",
+      "type": "object"
+    },
+    "HistoricalCutoffCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "recruitment_year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recruitment Year"
+        },
+        "stage": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Stage"
+        },
+        "post_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Post Name"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Category"
+        },
+        "score_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Score Type"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Score"
+        },
+        "maximum_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum Score"
+        },
+        "reference_only": {
+          "const": true,
+          "default": true,
+          "title": "Reference Only",
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "unresolved",
+            "conflicting"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "post_binding_quote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Post Binding Quote"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EnrichmentProvenance"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "recruitment_year",
+        "stage",
+        "post_name",
+        "category",
+        "score_type",
+        "score",
+        "status"
+      ],
+      "title": "HistoricalCutoffCandidate",
       "type": "object"
     },
     "JsonValue": {},
@@ -1081,8 +1537,107 @@
           "type": "string"
         }
       },
-      "required": ["field_path", "reason"],
+      "required": [
+        "field_path",
+        "reason"
+      ],
       "title": "MissingField",
+      "type": "object"
+    },
+    "OfficialSyllabusCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "post_name": {
+          "title": "Post Name",
+          "type": "string"
+        },
+        "exam_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Exam Name"
+        },
+        "exam_pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exam Pattern"
+        },
+        "subjects": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Subjects",
+          "type": "array"
+        },
+        "topics": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Topics",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "unresolved",
+            "conflicting"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "post_binding_quote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Post Binding Quote"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EnrichmentProvenance"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "post_name",
+        "exam_name",
+        "status"
+      ],
+      "title": "OfficialSyllabusCandidate",
       "type": "object"
     },
     "PayRule": {
@@ -1168,8 +1723,62 @@
           "type": "string"
         }
       },
-      "required": ["evidence_id", "quote"],
+      "required": [
+        "evidence_id",
+        "quote"
+      ],
       "title": "PurposeCitation",
+      "type": "object"
+    },
+    "ReaderSummaryCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "summary_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Summary Text"
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "unresolved",
+            "conflicting"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EnrichmentProvenance"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary_text",
+        "status"
+      ],
+      "title": "ReaderSummaryCandidate",
       "type": "object"
     },
     "ReviewIssue": {
@@ -1184,7 +1793,10 @@
           "type": "string"
         }
       },
-      "required": ["field_path", "reason"],
+      "required": [
+        "field_path",
+        "reason"
+      ],
       "title": "ReviewIssue",
       "type": "object"
     },
@@ -1226,7 +1838,11 @@
           "title": "Count"
         }
       },
-      "required": ["category", "region_or_organisation", "count"],
+      "required": [
+        "category",
+        "region_or_organisation",
+        "count"
+      ],
       "title": "VacancyCount",
       "type": "object"
     }

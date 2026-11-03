@@ -87,7 +87,7 @@ def provider_keys(provider):
         numbered = sorted((name for name in os.environ
                            if re.fullmatch(r'GEMINI_API_KEY_[1-9]\d*', name)),
                           key=lambda name: int(name.rsplit('_', 1)[1]))
-        names = ['GEMINI_API_KEY', *numbered]
+        names = ['GEMINI_API_KEYS', 'GEMINI_API_KEY', *numbered]
     return list(dict.fromkeys(key.strip() for name in names
                              for key in os.environ.get(name, '').split(',') if key.strip()))
 

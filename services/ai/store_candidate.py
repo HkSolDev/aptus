@@ -9,6 +9,12 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from build_extraction_input import BundleFacts
 from capture_store import atomic_write
+from targeted_enrichment import (
+    FieldEnrichmentCandidate,
+    HistoricalCutoffCandidate,
+    OfficialSyllabusCandidate,
+    ReaderSummaryCandidate,
+)
 from validate_candidate import validate_candidate
 
 
@@ -16,6 +22,14 @@ class ReviewIssue(BaseModel):
     model_config = ConfigDict(extra='forbid')
     field_path: str
     reason: str
+
+
+class AutomatedDecisionSummary(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    decision: Literal['accepted', 'blocked', 'retryable']
+    reason_codes: list[str]
+    evidence_fingerprint: str
+    extraction_version: str
 
 
 class DraftReview(BaseModel):
@@ -26,6 +40,12 @@ class DraftReview(BaseModel):
     publication_allowed: Literal[False]
     bundle_identity: dict[str, JsonValue]
     field_checks: list[dict[str, JsonValue]]
+    reader_summary: ReaderSummaryCandidate | None = None
+    official_syllabus: list[OfficialSyllabusCandidate] | None = None
+    historical_cutoffs: list[HistoricalCutoffCandidate] | None = None
+    enrichment_candidates: list[FieldEnrichmentCandidate] | None = None
+    vision_recovery: dict[str, JsonValue] | None = None
+    automated_decision: AutomatedDecisionSummary | None = None
 
 
 class EvidenceLocation(BaseModel):
@@ -74,7 +94,18 @@ def storage_schema():
     return schema
 
 
-def prepare_storage(result, source, *, source_name):
+def prepare_storage(
+    result,
+    source,
+    *,
+    source_name,
+    reader_summary=None,
+    official_syllabus=None,
+    historical_cutoffs=None,
+    enrichment_candidates=None,
+    vision_recovery=None,
+    automated_decision=None,
+):
     report = validate_candidate(result, source)
     if report['status'] == 'blocked':
         raise ValueError('candidate_validation_blocked')
@@ -97,14 +128,35 @@ def prepare_storage(result, source, *, source_name):
               'source_url': doc['source_url'], 'locations': unit['locations'],
               'role': doc.get('role'), 'authority': doc.get('authority')}
              for doc in documents for unit in doc['sections'] if unit['evidence_id'] in references]
-    return StorageCandidate.model_validate({
+    review_payload = {
+        'status': 'needs_review',
+        'warnings': report['warnings'],
+        'semantic_support_verified': False,
+        'publication_allowed': False,
+        'bundle_identity': source.get('identity', {}),
+        'field_checks': result.get('inline_check', {}).get('fields', []),
+    }
+    optional_review = {
+        'reader_summary': reader_summary,
+        'official_syllabus': official_syllabus,
+        'historical_cutoffs': historical_cutoffs,
+        'enrichment_candidates': enrichment_candidates,
+        'vision_recovery': vision_recovery,
+        'automated_decision': automated_decision,
+    }
+    for key, val in optional_review.items():
+        if val is not None:
+            review_payload[key] = val
+    validated = StorageCandidate.model_validate({
         'bundle_id': source['bundle_id'], 'source_url': url, 'source_name': source_name,
         'facts': report['validated_facts'], 'evidence_units': units,
-        'review': {'status': 'needs_review', 'warnings': report['warnings'],
-                   'semantic_support_verified': False, 'publication_allowed': False,
-                   'bundle_identity': source.get('identity', {}),
-                   'field_checks': result.get('inline_check', {}).get('fields', [])}
+        'review': review_payload,
     }).model_dump(mode='json')
+    # Omit unset optional review keys so legacy callers/tests receive the exact minimal review shape.
+    for key, val in optional_review.items():
+        if val is None:
+            validated['review'].pop(key, None)
+    return validated
 
 
 if __name__ == '__main__':

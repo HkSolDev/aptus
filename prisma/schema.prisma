@@ -136,7 +136,8 @@ model Source {
   officialSiteUrl    String?
   applyUrl           String?
 
-  posts Post[]
+  posts             Post[]
+  automationRecords AutomatedNoticeRecord[]
 }
 
 enum EducationLevel {
@@ -204,6 +205,40 @@ model ExtractionCandidate {
   evidenceUnits Json
   createdAt     DateTime @default(now())
   publishedPosts Post[]
+  automationRecords AutomatedNoticeRecord[]
 
   @@index([bundleId, createdAt])
+}
+
+// Durable autonomous acceptance, retry/backoff, enrichment, and audit lineage records.
+// Only accepted records publish or update rows in Post.
+model AutomatedNoticeRecord {
+  id                    String               @id @default(cuid())
+  bundleId              String
+  evidenceFingerprint   String
+  extractionVersion     String
+  decision              String
+  publicationStatus     String
+  persistenceAllowed    Boolean              @default(false)
+  reasonCodes           Json
+  retryCount            Int                  @default(0)
+  backoffSeconds        Int                  @default(0)
+  nextRetryAt           DateTime?
+  noticeIdentity        Json
+  readerSummary         Json?
+  officialSyllabus      Json?
+  historicalCutoffs     Json?
+  visionRecovery        Json?
+  enrichmentCandidates  Json?
+  auditLineage          Json
+  sourceId              String?
+  source                Source?              @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  extractionCandidateId String?
+  extractionCandidate   ExtractionCandidate? @relation(fields: [extractionCandidateId], references: [id], onDelete: SetNull)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@unique([bundleId, evidenceFingerprint])
+  @@index([bundleId, updatedAt])
+  @@index([decision, nextRetryAt])
 }

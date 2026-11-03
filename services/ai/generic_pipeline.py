@@ -1,19 +1,44 @@
 """Run the generic crawl path; only ready evidence may reach extraction."""
 
 import json
+import os
 from pathlib import Path
 
 from capture_store import atomic_write, now
-from build_extraction_input import is_extraction_approved
+from build_extraction_input import is_extraction_approved, prepare_extraction
 from extract_bundle import extract_bundle
 from notice_state import (EXTRACTION_VERSION, NoticeStateManager,
                           compute_evidence_fingerprint)
+from pipeline import push_to_ts
+from providers.gemini import GeminiProvider, gemini_api_keys
 from shared_pipeline import prepare_sources
 from source_registry import DEFAULT_SOURCES_PATH
 from store_candidate import prepare_storage
 from validate_candidate import validate_candidate
 from stage_retry import StageRetries
 from extraction_checkpoint import extract_or_resume
+from autonomous_pipeline import (
+    _map_post_to_ingest_post,
+    apply_validated_vision_recovery,
+    evaluate_automated_acceptance,
+)
+from vision_recovery import recover_unreadable_pdf_pages, unusable_pdf_pages
+
+
+def _resolve_vision_provider(vision_provider, *, allow_default=False):
+    if vision_provider is not None:
+        return vision_provider
+    if allow_default and gemini_api_keys():
+        return GeminiProvider()
+    return None
+
+
+def _resolve_persist(persist, *, allow_default=False):
+    if persist is not None:
+        return persist
+    if allow_default and (os.getenv('INGEST_TOKEN') or os.getenv('INGEST_TOKEN_FILE')):
+        return push_to_ts
+    return None
 
 
 def _source_name(source_id, prepared):
@@ -22,15 +47,46 @@ def _source_name(source_id, prepared):
     return f'{source_id}: {title}' if title else source_id
 
 
+def _load_bundles_for_source(source, prepared_path):
+    bundles_list = source.get('bundles') if isinstance(source, dict) else None
+    if not isinstance(bundles_list, list):
+        candidates = []
+        if isinstance(source, dict) and isinstance(source.get('bundles_path'), str):
+            candidates.append(Path(source['bundles_path']))
+        if prepared_path is not None:
+            candidates.append(Path(prepared_path).parent / 'bundles.json')
+        for cand in candidates:
+            if cand.exists():
+                try:
+                    data = json.loads(cand.read_text(encoding='utf-8'))
+                    if isinstance(data, dict) and isinstance(data.get('bundles'), list):
+                        bundles_list = data['bundles']
+                        break
+                except (OSError, ValueError):
+                    continue
+    if not isinstance(bundles_list, list):
+        return {}
+    return {
+        b['bundle_id']: b
+        for b in bundles_list
+        if isinstance(b, dict) and isinstance(b.get('bundle_id'), str)
+    }
+
+
 def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                  max_fetches=12, max_depth=3, prepare=prepare_sources,
                  extract=extract_bundle, validate=validate_candidate,
                  draft=prepare_storage, persist=None, prepare_only=False,
-                 extraction_version=EXTRACTION_VERSION, retry_clock=None):
+                 extraction_version=EXTRACTION_VERSION, retry_clock=None,
+                 vision_provider=None, pdf_bytes_by_doc=None,
+                 page_images_by_doc=None):
     """Crawl sources and process only coverage-approved evidence.
 
-    ``persist`` remains accepted for legacy callers but cannot publish. Use
-    review_publication's explicit approval/delivery flow for database writes.
+    When a verified PDF page is marked unusable by deterministic native-text
+    checks and ``vision_provider`` is available, Vision recovery runs only on
+    relevant unreadable pages and rebuilds the prepared extraction input before
+    re-checking ``is_extraction_approved``. Autonomous persistence runs only
+    when all deterministic evidence and acceptance gates approve.
     """
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -58,6 +114,8 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
         for path in source.get('prepared_paths', []):
             stage = 'prepared_input'
             bundle_id = None
+            vision_requests = []
+            vision_merge_reasons = []
             try:
                 raw_text = Path(path).read_text(encoding='utf-8')
                 prepared = json.loads(raw_text)
@@ -75,6 +133,45 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                     bundle_id = stem[:-len('.prepared.json')] if stem.endswith('.prepared.json') else (
                         stem[:-len('.json')] if stem.endswith('.json') else stem)
 
+                active_vision_provider = _resolve_vision_provider(
+                    vision_provider, allow_default=(extract is extract_bundle)
+                )
+                if not is_extraction_approved(prepared) and not prepare_only and active_vision_provider is not None:
+                    bundles_by_id = _load_bundles_for_source(source, path)
+                    bundle = bundles_by_id.get(bundle_id) or (
+                        prepared.get('bundle') if isinstance(prepared.get('bundle'), dict) else None
+                    )
+                    has_unusable_pdf = bool(
+                        bundle
+                        and any(
+                            unusable_pdf_pages(doc)
+                            for doc in bundle.get('documents', [])
+                            if isinstance(doc, dict) and doc.get('format') == 'pdf'
+                        )
+                    )
+                    if has_unusable_pdf:
+                        stage = 'vision_recovery'
+                        v_res = recover_unreadable_pdf_pages(
+                            bundle,
+                            gemini_provider=active_vision_provider,
+                            pdf_bytes_by_doc=pdf_bytes_by_doc,
+                            page_images_by_doc=page_images_by_doc,
+                            storage_dir=root,
+                        )
+                        vision_requests = v_res['requests']
+                        if v_res['vision_called']:
+                            counts['vision_called'] = counts.get('vision_called', 0) + 1
+                            crawl_status = None
+                            if isinstance(source.get('crawl_path'), str) and Path(source['crawl_path']).exists():
+                                crawl_status = json.loads(
+                                    Path(source['crawl_path']).read_text(encoding='utf-8')
+                                ).get('status')
+                            elif source.get('status') in {'scanned', 'partial', 'blocked'}:
+                                crawl_status = source.get('status')
+                            prepared = prepare_extraction(v_res['bundle'], crawl_status=crawl_status)
+                            atomic_write(Path(path), json.dumps(prepared, ensure_ascii=False, indent=2).encode())
+
+                stage = 'prepared_input'
                 if not is_extraction_approved(prepared):
                     counts['blocked'] += 1
                     gate_reasons = (
@@ -134,6 +231,11 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                     counts['checkpoint_reused'] = counts.get('checkpoint_reused', 0) + resumed
                     if extracted.get('bundle_id') != bundle_id:
                         raise ValueError('Extracted bundle identity mismatch')
+                    if vision_requests:
+                        merged_vision = apply_validated_vision_recovery(extracted, source_input, vision_requests)
+                        extracted = merged_vision['extracted']
+                        source_input = merged_vision['source_input']
+                        vision_merge_reasons = merged_vision.get('unresolved_reasons', [])
                     stage = 'validation'
                     validation = validate(extracted, source_input)
                     disposition = validation.get('disposition', 'validation_blocked')
@@ -167,8 +269,29 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
 
                     if disposition == 'valid_recruitment_review_draft':
                         stage = 'draft_preparation'
-                        envelope = draft(extracted, source_input,
-                                         source_name=_source_name(source_id, prepared))
+                        src_name = _source_name(source_id, prepared)
+                        acceptance = evaluate_automated_acceptance(
+                            extracted,
+                            source_input,
+                            vision_requests=vision_requests,
+                            vision_merge_reasons=vision_merge_reasons,
+                            research_exhausted=True,
+                        )
+                        if draft is prepare_storage:
+                            envelope = draft(
+                                extracted,
+                                source_input,
+                                source_name=src_name,
+                                vision_recovery={'requests': vision_requests} if vision_requests else None,
+                                automated_decision={
+                                    'decision': acceptance['decision'],
+                                    'reason_codes': acceptance['reason_codes'],
+                                    'evidence_fingerprint': fingerprint,
+                                    'extraction_version': extraction_version,
+                                },
+                            )
+                        else:
+                            envelope = draft(extracted, source_input, source_name=src_name)
                         envelope['disposition'] = disposition
                         envelope['evidence_fingerprint'] = fingerprint
                         envelope['extraction_version'] = extraction_version
@@ -185,6 +308,40 @@ def run_pipeline(root, *, sources_path=DEFAULT_SOURCES_PATH, source_id=None,
                         })
                         state_manager.record_outcome(bundle_id, fingerprint, extraction_version, draft_path,
                                                      disposition=disposition)
+                        active_persist = _resolve_persist(
+                            persist, allow_default=(extract is extract_bundle)
+                        )
+                        if acceptance['decision'] == 'accepted' and active_persist is not None:
+                            stage = 'autonomous_ingestion'
+                            primary_url = (source_input.get('documents') or [{}])[0].get('source_url') or ''
+                            ingest_payload = {
+                                'kind': 'autonomous_notice',
+                                'bundleId': bundle_id,
+                                'sourceName': src_name,
+                                'sourceUrl': primary_url,
+                                'evidenceFingerprint': fingerprint,
+                                'extractionVersion': extraction_version,
+                                'decision': 'accepted',
+                                'publicationStatus': 'published',
+                                'persistenceAllowed': True,
+                                'reasonCodes': [],
+                                'retryCount': 0,
+                                'backoffSeconds': 0,
+                                'nextRetryAt': None,
+                                'noticeIdentity': source_input.get('identity') or {},
+                                'posts': [_map_post_to_ingest_post(p, primary_url) for p in extracted['facts']['posts']],
+                                'draftEnvelope': envelope,
+                                'readerSummary': None,
+                                'officialSyllabus': [],
+                                'historicalCutoffs': [],
+                                'visionRecovery': vision_requests,
+                                'enrichmentCandidates': [],
+                                'auditLineage': [],
+                            }
+                            payload_path = root / 'autonomous_payloads' / f'{bundle_id}.json'
+                            atomic_write(payload_path, json.dumps(ingest_payload, ensure_ascii=False, indent=2).encode())
+                            active_persist(ingest_payload)
+                            counts['published'] += 1
                     elif disposition == 'amendment_pending_review':
                         stage = 'amendment_review_preparation'
                         out_dir = root / 'amendments'
