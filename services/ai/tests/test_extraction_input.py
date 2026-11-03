@@ -164,5 +164,107 @@ class ExtractionInputTests(unittest.TestCase):
         self.assertIn('amendment_or_cancellation_scope_needs_review', result['coverage']['review_reasons'])
 
 
+SUMMARY_URL = 'https://www.sarkariresult.example/2026/upessc-headmaster-09-2026/'
+OFFICIAL_URL = 'https://upessc.example/Notice/headmaster-09-2026.pdf'
+OCR_SENTINEL = 'OCR-FIXTURE-SENTINEL classes 9 to 42'
+
+
+def html_main_with_pdf_link():
+    return {'document_id': 'summary', 'source_url': SUMMARY_URL, 'format': 'html',
+        'content': {'title': 'Headmaster Recruitment Notification',
+            'blocks': [{'type': 'paragraph',
+                'text': 'Issuer: Example\nAdvertisement No: 09/2026\nRecruitment Year: 2026\n'
+                        'Post: Headmaster requires 4 Year Experience.'}],
+            'links': [{'url': OFFICIAL_URL, 'text': 'Download Full Notification'}]}}
+
+
+def linked_pdf(*, sections=True):
+    """Linked PDF with no self-identity or notice title, so its role stays unknown.
+
+    The diagnostic block carries a fake OCR alternative that must never reach the model.
+    """
+    content = {'source_url': OFFICIAL_URL,
+        'pages': [{'number': 6, 'native_status': 'usable_candidate' if sections else 'image_only_or_scan_candidate'}],
+        'blocks': [{'id': 'page-6-native', 'type': 'unclassified', 'page': 6,
+            'alternatives': [{'id': 'page-6-ocr-a2', 'method': 'ocr_test',
+                              'status': 'candidate', 'text': OCR_SENTINEL}]}]}
+    if sections:
+        content['sections'] = [{'text': 'Teaching experience: classes 9 to 12 under a certified authority.',
+            'evidence': [{'page': 6, 'block_id': 'page-6-native', 'line_range': [1, 1]}]}]
+    else:
+        content['sections'] = []
+    return {'document_id': 'notification', 'source_url': OFFICIAL_URL, 'format': 'pdf', 'content': content}
+
+
+def html_plus_pdf_bundle(*, pdf_first=False, sections=True):
+    documents = [html_main_with_pdf_link(), linked_pdf(sections=sections)]
+    if pdf_first:
+        documents.reverse()
+    return verify_bundles(documents, issuer_hosts={'Example': ['sarkariresult.example']})['bundles'][0]
+
+
+class EvidenceOrderingTests(unittest.TestCase):
+    def test_fixture_roles_prove_intended_ordering_case(self):
+        roles = {document['document_id']: document['role'] for document in html_plus_pdf_bundle()['documents']}
+        self.assertEqual(roles, {'summary': 'main_notice', 'notification': 'unknown'})
+
+    def test_html_main_notice_first_and_linked_pdf_supporting(self):
+        # Both bundle orders must give the same reading order.
+        for pdf_first in (False, True):
+            bundle = html_plus_pdf_bundle(pdf_first=pdf_first)
+            before = copy.deepcopy(bundle)
+            result = prepare_extraction(bundle)
+            self.assertEqual(result['coverage']['status'], 'ready_for_extraction')
+            documents = result['llm_input']['input']['documents']
+            self.assertEqual(bundle, before)
+            self.assertEqual([(d['document_id'], d['format'], d['label']) for d in documents],
+                             [('summary', 'html', 'primary'), ('notification', 'pdf', 'supporting')])
+
+    def test_pdf_main_notice_stays_first_with_supporting_html(self):
+        bundle = sample_bundle()
+        bundle['documents'].reverse()
+        documents = prepare_extraction(bundle)['llm_input']['input']['documents']
+        self.assertEqual([(d['document_id'], d['format'], d['role'], d['label']) for d in documents],
+                         [('main', 'pdf', 'main_notice', 'primary'),
+                          ('update', 'html', 'corrigendum', 'supporting')])
+
+    def test_supporting_pdf_only_condition_keeps_page_provenance(self):
+        documents = prepare_extraction(html_plus_pdf_bundle())['llm_input']['input']['documents']
+        primary, supporting = documents
+        self.assertNotIn('classes 9 to 12', json.dumps(primary))
+        section = supporting['sections'][0]
+        self.assertEqual(section['text'], 'Teaching experience: classes 9 to 12 under a certified authority.')
+        self.assertEqual(section['locations'], [{'page': 6, 'block_id': 'page-6-native', 'line_range': [1, 1]}])
+        self.assertEqual(section['evidence_id'], 'notification:unit-0')
+
+    def test_unreadable_linked_pdf_still_blocks_extraction(self):
+        result = prepare_extraction(html_plus_pdf_bundle(sections=False))
+        self.assertIsNone(result['llm_input'])
+        self.assertEqual(result['coverage']['status'], 'needs_review')
+        self.assertIn('pdf_requires_review', result['coverage']['review_reasons'])
+
+    def test_ocr_alternatives_never_reach_the_model_payload(self):
+        llm_input = prepare_extraction(html_plus_pdf_bundle())['llm_input']
+        wire = json.dumps(llm_input, ensure_ascii=False)
+        self.assertNotIn('ocr_sections', wire)
+        self.assertNotIn('OCR-FIXTURE-SENTINEL', wire)
+        self.assertNotIn('ocr', llm_input['instructions'].lower())
+
+    def test_instructions_describe_order_without_claiming_authority_or_printed_pages(self):
+        text = ' '.join(prepare_extraction(sample_bundle())['llm_input']['instructions'].split())
+        for required in ('first document as the concise starting point',
+                         'inspect every supporting section',
+                         'non-conflicting facts found only in a supporting document',
+                         'quote both sources',
+                         'does not make one document more authoritative',
+                         'physical PDF page numbers, not printed page labels',
+                         'Extract requirements separately for every named post/role.',
+                         'A requirement belongs to a post only when its evidence names that post or clearly binds it.',
+                         'Preserve post-specific qualification, experience, age, category, vacancy, certificate, and date conditions with source quotations.',
+                         'Never copy a condition from one post to another.',
+                         'Never decide whether a candidate is eligible.'):
+            self.assertIn(required, text)
+
+
 if __name__ == '__main__':
     unittest.main()

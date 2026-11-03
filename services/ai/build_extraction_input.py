@@ -129,6 +129,17 @@ First determine the overall purpose of the supplied notice evidence:
 Provide purpose_evidence with exact verbatim quote(s) and evidence_id supporting your purpose decision.
 For bundles with multiple documents, populate document_purposes mapping each document_id to its purpose and exact quote evidence.
 
+DOCUMENT ORDER:
+- Each document has a label: 'primary' is the verified main notice, 'supporting' is
+  linked evidence (for example a linked PDF or corrigendum). The label only sets
+  reading order; it does not make one document more authoritative than another.
+- Use the first document as the concise starting point. Then inspect every
+  supporting section for additional conditions, and keep non-conflicting facts
+  found only in a supporting document. A fact stated in several documents is one fact.
+- If documents actually conflict on a fact, do not choose or merge: report it as
+  unresolved (null with a reason in missing_fields) and quote both sources.
+- PDF evidence locations are physical PDF page numbers, not printed page labels.
+
 If purpose is amendment (or an amendment document is present), populate amendment with amendment_type,
 effective_date, target_advertisement_number, target_campaign_name, target_post_names, changes_description,
 and supporting evidence quotes. Target references must come strictly from document text, never assumed from host domain.
@@ -137,6 +148,7 @@ If purpose is result, admit_card, exam_update, non_job, or unclear: return posts
 Do NOT manufacture candidate posts for non-job outcomes.
 
 If and only if purpose is recruitment: extract every distinct recruitment post using only the supplied document evidence.
+Extract requirements separately for every named post/role. A requirement belongs to a post only when its evidence names that post or clearly binds it. Preserve post-specific qualification, experience, age, category, vacancy, certificate, and date conditions with source quotations. Never copy a condition from one post to another. Never decide whether a candidate is eligible.
 Return structured output matching output_schema. Inspect ALL supplied sections and tables;
 give extra attention to coverage_focus fields. Checklist matches are hints, not facts.
 not_located means a heuristic did not find the field; you may find it in unusual wording.
@@ -427,6 +439,8 @@ def prepare_extraction(bundle, *, missing_documents=None, recovery_queue=None,
                 if block.get('type') == 'table':
                     unit['rows'] = block['rows']
         documents.append({'document_id': document['document_id'], 'source_url': document['source_url'],
+                          # Reading-order label from the verified role; not authority.
+                          'label': 'primary' if document.get('role') == 'main_notice' else 'supporting',
                           'format': document['format'], 'role': document.get('role', 'unknown'),
                           'authority': document.get('authority', 'needs_review'),
                           'title': content.get('title'),
@@ -435,6 +449,9 @@ def prepare_extraction(bundle, *, missing_documents=None, recovery_queue=None,
                           'quality': {'status': content.get('status'),
                                       'coverage': content.get('coverage', {})},
                           'warnings': content.get('warnings', []), 'sections': selected})
+    # Reading order only: verified main notice first. sort() is stable, so
+    # supporting documents keep their bundle order.
+    documents.sort(key=lambda prepared: prepared['label'] != 'primary')
     payload = {'input_version': 'bundle-extraction-input-v1', 'bundle_id': bundle['bundle_id'],
                'output_format': 'compact-inline-facts-v1',
                'field_catalogue': field_catalogue(BundleFacts.model_json_schema()),

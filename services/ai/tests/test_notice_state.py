@@ -484,6 +484,43 @@ class NoticeStateTests(unittest.TestCase):
         bad_id_draft = {"bundle_id": bundle_id, "facts": sample_facts(evidence_id="nonexistent_id")}
         self.assertIsNone(check_reuse(bad_id_draft))
 
+    # 17. v5 invalidates v4 cached drafts while reusing unchanged v5 drafts.
+    def test_v5_extraction_version_invalidates_v4_draft_and_reuses_v5_draft(self):
+        self.assertEqual(EXTRACTION_VERSION, "extract-bundle-v5")
+        prepared = sample_prepared()
+        source_input = prepared["llm_input"]["input"]
+        fp_v4 = compute_evidence_fingerprint(source_input, "extract-bundle-v4")
+        fp_v5 = compute_evidence_fingerprint(source_input, "extract-bundle-v5")
+        self.assertNotEqual(fp_v4, fp_v5)
+        self.assertEqual(compute_evidence_fingerprint(source_input), fp_v5)
+
+        calls = []
+        def extract(prep):
+            calls.append("extract")
+            return {"bundle_id": prep["llm_input"]["input"]["bundle_id"], "facts": sample_facts()}
+
+        # Save a successful v4 draft first.
+        report_v4 = self.run_with_input(prepared, extract, version="extract-bundle-v4")
+        self.assertEqual(report_v4["sources"]["test_board"]["extracted"], 1)
+        self.assertEqual(report_v4["sources"]["test_board"]["reused"], 0)
+        self.assertEqual(len(calls), 1)
+
+        state_mgr = NoticeStateManager(self.root)
+        self.assertIsNone(state_mgr.get_reusable_draft(
+            source_input["bundle_id"], fp_v5, "extract-bundle-v5", source_input=source_input))
+
+        # Running with default v5 cannot reuse the v4 draft and must extract fresh.
+        report_v5_first = self.run_with_input(prepared, extract)
+        self.assertEqual(report_v5_first["sources"]["test_board"]["extracted"], 1)
+        self.assertEqual(report_v5_first["sources"]["test_board"]["reused"], 0)
+        self.assertEqual(len(calls), 2)
+
+        # Subsequent v5 run with unchanged evidence reuses the saved v5 draft.
+        report_v5_second = self.run_with_input(prepared, extract)
+        self.assertEqual(report_v5_second["sources"]["test_board"]["extracted"], 0)
+        self.assertEqual(report_v5_second["sources"]["test_board"]["reused"], 1)
+        self.assertEqual(len(calls), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

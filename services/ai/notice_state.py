@@ -12,9 +12,9 @@ from capture_store import atomic_write, now
 
 # Extraction contract version. Increment this when schema, prompt,
 # or extraction rules materially change to invalidate older cached extractions.
-# v4 clarifies field-level status: a supported row does not establish an
-# unstated category or other nullable neighbour; null is never "found".
-EXTRACTION_VERSION = "extract-bundle-v4"
+# v5 adds explicit primary/supporting document-order instructions and
+# supporting-document condition rules.
+EXTRACTION_VERSION = "extract-bundle-v5"
 
 
 def canonicalize_for_fingerprint(value: Any) -> Any:
